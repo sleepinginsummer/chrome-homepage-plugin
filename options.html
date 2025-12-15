@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>同步设置</title>
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <main class="page">
+      <header class="header">
+        <h1>配置同步</h1>
+        <p class="sub">支持 GitHub / Gitee：把当前配置（搜索、历史、卡片、同步信息）保存为仓库中的一个 JSON 文件。</p>
+      </header>
+
+      <section class="card">
+        <div class="grid">
+          <label class="field">
+            <span class="label">Provider</span>
+            <select id="provider" class="input">
+              <option value="github">GitHub</option>
+              <option value="gitee">Gitee</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span class="label">Owner / Namespace</span>
+            <input id="owner" class="input" placeholder="例如：sleepinsum" />
+          </label>
+
+          <label class="field">
+            <span class="label">Repo</span>
+            <input id="repo" class="input" placeholder="例如：my-config-repo" />
+          </label>
+
+          <label class="field">
+            <span class="label">Branch</span>
+            <input id="branch" class="input" placeholder="main" />
+          </label>
+
+          <label class="field field-full">
+            <span class="label">Path</span>
+            <input id="path" class="input" placeholder="chrome-home-plugin/config.json" />
+          </label>
+
+          <label class="field field-full">
+            <span class="label">Token</span>
+            <input id="token" class="input" type="password" placeholder="GitHub Token / Gitee 私人令牌" />
+            <span class="hint">仅保存在浏览器的 `chrome.storage.sync`，不会上传到别处；推送/拉取时会使用该 token。</span>
+          </label>
+        </div>
+
+        <div class="actions">
+          <button id="saveBtn" class="btn primary" type="button">保存</button>
+          <button id="pushBtn" class="btn" type="button">推送到远端</button>
+          <button id="pullBtn" class="btn" type="button">从远端拉取</button>
+        </div>
+
+        <p id="status" class="status" role="status"></p>
+      </section>
+
+      <section class="card">
+        <h2>本地导入/导出</h2>
+        <div class="actions">
+          <button id="exportBtn" class="btn" type="button">导出 JSON</button>
+          <label class="btn file">
+            <input id="importFile" type="file" accept="application/json" />
+            导入 JSON
+          </label>
+        </div>
+        <p class="hint">导入会覆盖当前配置（等同于从远端拉取后的写入）。</p>
+      </section>
+    </main>
+
+    <script src="options.js" type="module"></script>
+  </body>
+</html>
+

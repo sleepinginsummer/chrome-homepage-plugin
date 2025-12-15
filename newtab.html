@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Home</title>
+    <link rel="stylesheet" href="newtab.css" />
+  </head>
+  <body>
+    <main class="multi-search-page">
+      <div class="content-container">
+        <header class="brand">
+          <div class="logo-wrapper" aria-hidden="true">
+            <div class="logo-inner">S</div>
+            <div class="logo-ring"></div>
+          </div>
+          <div class="brand-text">
+            <p class="mini">SMART SEARCH</p>
+          </div>
+        </header>
+
+        <p class="hint">ONE INPUT, MULTIPLE ENGINES. INSTANT ACCESS.</p>
+
+        <form class="search-form" id="searchForm">
+          <div class="input-group">
+            <div class="input-wrapper">
+              <span class="icon" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+              </span>
+              <input id="keywordInput" class="search-input" type="text" placeholder="Enter keyword to search..." autocomplete="off" />
+            </div>
+            <button class="search-button" type="submit">
+              <span>SEARCH</span>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+              </svg>
+            </button>
+          </div>
+        </form>
+
+        <p id="errorMessage" class="error-message" hidden>
+          <span class="error-icon">!</span> <span id="errorText"></span>
+        </p>
+
+        <section class="engine-selection" id="engineSelection" aria-label="搜索引擎选择"></section>
+
+        <label class="engine-checkbox remember-option" id="rememberOption">
+          <input type="checkbox" id="rememberCheckbox" />
+          <div class="checkbox-custom" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          </div>
+          <span class="engine-name">Remember my selection</span>
+        </label>
+
+        <section class="cards-section" aria-label="网址卡片">
+          <div class="cards-header">
+            <h2 class="cards-title">CARDS</h2>
+            <div class="cards-actions">
+              <button class="ghost-button" id="openOptionsBtn" type="button">同步设置</button>
+              <button class="primary-button" id="addCardBtn" type="button">新增卡片</button>
+            </div>
+          </div>
+
+          <form class="card-editor" id="cardEditor" hidden>
+            <input class="card-input" id="cardTitleInput" type="text" placeholder="标题" maxlength="40" />
+            <input class="card-input" id="cardUrlInput" type="text" placeholder="网址，如 https://example.com" />
+            <button class="primary-button" type="submit">保存</button>
+            <button class="ghost-button" id="cancelCardBtn" type="button">取消</button>
+          </form>
+
+          <div class="cards-grid" id="cardsGrid"></div>
+        </section>
+      </div>
+
+      <aside class="history-sidebar" id="historySidebar">
+        <div class="history-list" id="historyList">
+          <div class="history-padding"></div>
+          <div id="historyItems"></div>
+          <div class="history-padding"></div>
+        </div>
+        <div class="history-footer" id="historyFooter" hidden>
+          <button class="clear-all-btn" id="clearHistoryBtn" type="button">Clear History</button>
+        </div>
+      </aside>
+
+      <div class="grid-bg"></div>
+      <div class="glow-effect"></div>
+
+      <div class="popup-overlay" id="popupOverlay" hidden>
+        <div class="popup-modal">
+          <h3>请允许弹出窗口</h3>
+          <p>首次使用多引擎搜索时，Chrome 可能会拦截多个标签页。建议在设置中允许来自扩展新标签页的弹窗。</p>
+          <div class="popup-actions">
+            <button class="tip-button confirm" id="popupConfirmBtn" type="button">知道了</button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script src="newtab.js" type="module"></script>
+  </body>
+</html>
+
