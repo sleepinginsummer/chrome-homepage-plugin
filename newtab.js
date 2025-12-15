@@ -1,7 +1,5 @@
 const $ = (selector) => document.querySelector(selector)
 
-const STORAGE_DEFAULT_SELECTED = ['GOOGLE', 'BING', 'BAIDU']
-
 const state = {
   config: null,
   pendingSearch: null,
@@ -16,6 +14,201 @@ const send = (payload) =>
   new Promise((resolve) => {
     chrome.runtime.sendMessage(payload, (response) => resolve(response))
   })
+
+const setSyncStatus = (text, kind = 'info') => {
+  const status = $('#syncStatus')
+  if (!status) return
+  status.textContent = text || ''
+  if (kind === 'error') status.style.color = '#ff4848'
+  else if (kind === 'ok') status.style.color = '#00f2ff'
+  else status.style.color = 'rgba(255,255,255,0.7)'
+}
+
+const I18N = {
+  zh: {
+    open_settings: '设置',
+    brand_mini: 'SMART SEARCH',
+    hint: 'ONE INPUT, MULTIPLE ENGINES. INSTANT ACCESS.',
+    search_placeholder: '输入关键词开始搜索...',
+    search_btn: '搜索',
+    clear_history: '清空历史',
+    popup_title: '请允许弹出窗口',
+    popup_desc: '首次使用多引擎搜索时，Chrome 可能会拦截多个标签页。建议在设置中允许来自扩展新标签页的弹窗。',
+    common_ok: '知道了',
+    settings_sync: '同步设置',
+    settings_language: '语言',
+    settings_about: '关于',
+    language_label: '语言',
+    sync_giturl: 'Git 地址',
+    sync_giturl_ph: '例如：git@github.com:owner/repo.git',
+    sync_token: 'Token',
+    sync_token_ph: 'GitHub Token / Gitee 私人令牌',
+    sync_token_hint: 'token 仅保存在 `chrome.storage.sync`；推送/拉取时会使用。',
+    sync_autopush: '自动同步',
+    sync_autopush_desc: '配置变更后自动推送到远端',
+    common_save: '保存',
+    sync_push: '推送到远端',
+    sync_pull: '从远端拉取',
+    sync_test: '测试连接',
+    card_title: '标题',
+    card_title_ph: '例如：Google',
+    card_url: '网址',
+    card_url_ph: '例如：https://example.com',
+    card_icon: 'Icon（选填，默认使用网站icon）',
+    card_icon_ph: '例如：https://example.com/icon.png',
+    common_cancel: '取消',
+    confirm_title: '确认删除',
+    common_confirm: '确认'
+  },
+  en: {
+    open_settings: 'Settings',
+    brand_mini: 'SMART SEARCH',
+    hint: 'ONE INPUT, MULTIPLE ENGINES. INSTANT ACCESS.',
+    search_placeholder: 'Enter keyword to search...',
+    search_btn: 'SEARCH',
+    clear_history: 'Clear History',
+    popup_title: 'Allow pop-ups',
+    popup_desc:
+      'When using multi-engine search for the first time, Chrome may block opening multiple tabs. Please allow pop-ups from this new tab page in settings.',
+    common_ok: 'Got it',
+    settings_sync: 'Sync',
+    settings_language: 'Language',
+    settings_about: 'About',
+    language_label: 'Language',
+    sync_giturl: 'Git URL',
+    sync_giturl_ph: 'e.g. git@github.com:owner/repo.git',
+    sync_token: 'Token',
+    sync_token_ph: 'GitHub Token / Gitee token',
+    sync_token_hint: 'Token is stored only in `chrome.storage.sync`; used for push/pull.',
+    sync_autopush: 'Auto Sync',
+    sync_autopush_desc: 'Auto push changes to remote',
+    common_save: 'Save',
+    sync_push: 'Push',
+    sync_pull: 'Pull',
+    sync_test: 'Test',
+    card_title: 'Title',
+    card_title_ph: 'e.g. Google',
+    card_url: 'URL',
+    card_url_ph: 'e.g. https://example.com',
+    card_icon: 'Icon (optional, fallback to site icon)',
+    card_icon_ph: 'e.g. https://example.com/icon.png',
+    common_cancel: 'Cancel',
+    confirm_title: 'Confirm delete',
+    common_confirm: 'Confirm'
+  }
+}
+
+const DEFAULT_SYNC_PATH = 'chrome-home-plugin/config.json'
+
+const parseGitRemote = (gitUrl) => {
+  const raw = String(gitUrl || '').trim()
+  if (!raw) return null
+
+  const giteeCodes = raw.match(/^https?:\/\/gitee\.com\/[^/]+\/codes\/([^/?#]+)(?:[/?#]|$)/i)
+  if (giteeCodes) return { provider: 'gitee_gist', gistId: giteeCodes[1] }
+
+  const scpLike = raw.match(/^git@([^:]+):(.+)$/i)
+  const normalized = scpLike ? `ssh://${raw.replace(':', '/')}` : raw
+
+  let url
+  try {
+    url = new URL(normalized)
+  } catch {
+    return null
+  }
+
+  const host = url.hostname.toLowerCase()
+  const provider = host.includes('gitee.com') ? 'gitee' : host.includes('github.com') ? 'github' : null
+  if (!provider) return null
+
+  const parts = url.pathname.replace(/^\/+/, '').replace(/\.git$/i, '').split('/').filter(Boolean)
+  if (parts.length < 2) return null
+
+  return { provider, owner: parts[0], repo: parts[1] }
+}
+
+const normalizeSync = (sync) => {
+  const raw = sync || {}
+  const parsed = parseGitRemote(raw.gitUrl)
+  return {
+    gitUrl: raw.gitUrl || '',
+    token: raw.token || '',
+    autoPush: Boolean(raw.autoPush),
+    provider: raw.provider || parsed?.provider || 'github',
+    owner: raw.owner || parsed?.owner || '',
+    repo: raw.repo || parsed?.repo || '',
+    gistId: raw.gistId || parsed?.gistId || '',
+    path: raw.path || DEFAULT_SYNC_PATH
+  }
+}
+
+const getLang = () => (state.config?.ui?.language === 'en' ? 'en' : 'zh')
+
+const applyLanguage = () => {
+  const dict = I18N[getLang()] || I18N.zh
+
+  for (const el of document.querySelectorAll('[data-i18n]')) {
+    const key = el.getAttribute('data-i18n')
+    if (!key) continue
+    const value = dict[key]
+    if (typeof value === 'string') el.textContent = value
+  }
+
+  for (const el of document.querySelectorAll('[data-i18n-placeholder]')) {
+    const key = el.getAttribute('data-i18n-placeholder')
+    if (!key) continue
+    const value = dict[key]
+    if (typeof value === 'string') el.setAttribute('placeholder', value)
+  }
+
+  document.documentElement.lang = getLang() === 'en' ? 'en' : 'zh-CN'
+}
+
+const canAutoPush = (sync) => {
+  if (!sync?.autoPush) return false
+  const normalized = normalizeSync(sync)
+  const required = ['gitUrl', 'token']
+  return required.every((key) => Boolean(normalized[key]))
+}
+
+let autoPushTimer = null
+let autoPushInProgress = false
+let autoPushPending = false
+
+const scheduleAutoPush = () => {
+  if (!canAutoPush(state.config?.sync)) {
+    if (state.config?.sync?.autoPush) {
+      setSyncStatus('自动同步已开启，但同步配置不完整（需 gitUrl/token）', 'error')
+    }
+    return
+  }
+
+  if (autoPushTimer) clearTimeout(autoPushTimer)
+  autoPushTimer = setTimeout(async () => {
+    autoPushTimer = null
+    if (autoPushInProgress) {
+      autoPushPending = true
+      return
+    }
+
+    autoPushInProgress = true
+    try {
+      setSyncStatus('自动同步中...')
+      const pushed = await send({ type: 'pushRemote' })
+      if (!pushed?.ok) {
+        setSyncStatus(pushed?.error || '自动同步失败', 'error')
+      } else {
+        setSyncStatus('已自动同步', 'ok')
+      }
+    } finally {
+      autoPushInProgress = false
+      if (autoPushPending) {
+        autoPushPending = false
+        scheduleAutoPush()
+      }
+    }
+  }, 1500)
+}
 
 const setError = (message) => {
   const box = $('#errorMessage')
@@ -34,6 +227,18 @@ const normalizeUrl = (raw) => {
   if (!trimmed) return ''
   if (/^https?:\/\//i.test(trimmed)) return trimmed
   return `https://${trimmed}`
+}
+
+const normalizeIconUrl = (raw) => {
+  const trimmed = String(raw || '').trim()
+  if (!trimmed) return ''
+  try {
+    const url = new URL(trimmed)
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return ''
+    return url.toString()
+  } catch {
+    return ''
+  }
 }
 
 const getHostname = (url) => {
@@ -89,31 +294,10 @@ const renderEngines = () => {
       state.config.selectedEngines = [...nextSelected]
       syncActive()
 
-      if (state.config.rememberSelections) {
-        await saveConfig({ selectedEngines: state.config.selectedEngines })
-      }
+      await saveConfig({ selectedEngines: state.config.selectedEngines })
+      scheduleAutoPush()
     })
   }
-}
-
-const renderRemember = () => {
-  const checkbox = $('#rememberCheckbox')
-  checkbox.checked = Boolean(state.config.rememberSelections)
-  const label = $('#rememberOption')
-  label.classList.toggle('active', checkbox.checked)
-
-  checkbox.addEventListener('change', async () => {
-    state.config.rememberSelections = checkbox.checked
-    label.classList.toggle('active', checkbox.checked)
-
-    if (!checkbox.checked) {
-      await saveConfig({ rememberSelections: false, selectedEngines: STORAGE_DEFAULT_SELECTED })
-      state.config.selectedEngines = [...STORAGE_DEFAULT_SELECTED]
-      renderEngines()
-      return
-    }
-    await saveConfig({ rememberSelections: true, selectedEngines: state.config.selectedEngines })
-  })
 }
 
 const computeSearchUrls = (keyword, selectedEngines) => {
@@ -237,7 +421,15 @@ const renderCards = () => {
     `
 
     const icon = div.querySelector('.card-icon')
-    icon.src = faviconUrl(card.url)
+    const fallbackIcon = faviconUrl(card.url)
+    icon.src = card.icon || fallbackIcon
+    icon.addEventListener(
+      'error',
+      () => {
+        icon.src = fallbackIcon
+      },
+      { once: true }
+    )
     div.querySelector('.card-title').textContent = card.title
 
     div.addEventListener('click', async (evt) => {
@@ -309,26 +501,32 @@ const saveConfig = async (patch) => {
   return res.data
 }
 
-const addCard = async ({ title, url }) => {
+const addCard = async ({ title, url, icon }) => {
   const next = [...(state.config.cards || [])]
   next.unshift({
     id: crypto.randomUUID(),
     title,
-    url
+    url,
+    ...(icon ? { icon } : {})
   })
   state.config.cards = next
   await saveConfig({ cards: next })
   renderCards()
+  scheduleAutoPush()
 }
 
-const updateCard = async ({ id, title, url }) => {
+const updateCard = async ({ id, title, url, icon }) => {
   const next = [...(state.config.cards || [])]
   const index = next.findIndex((c) => c.id === id)
   if (index === -1) return
-  next[index] = { ...next[index], title, url }
+  const patch = { title, url }
+  if (icon) patch.icon = icon
+  else delete next[index].icon
+  next[index] = { ...next[index], ...patch }
   state.config.cards = next
   await saveConfig({ cards: next })
   renderCards()
+  scheduleAutoPush()
 }
 
 const reorderCards = async (draggedId, targetId) => {
@@ -341,6 +539,7 @@ const reorderCards = async (draggedId, targetId) => {
   state.config.cards = next
   await saveConfig({ cards: next })
   renderCards()
+  scheduleAutoPush()
 }
 
 const deleteCard = async (id) => {
@@ -348,6 +547,7 @@ const deleteCard = async (id) => {
   state.config.cards = next
   await saveConfig({ cards: next })
   renderCards()
+  scheduleAutoPush()
 }
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max)
@@ -394,11 +594,13 @@ const openCardModal = ({ mode, card }) => {
   const title = $('#cardModalTitle')
   const titleInput = $('#cardModalTitleInput')
   const urlInput = $('#cardModalUrlInput')
+  const iconInput = $('#cardModalIconInput')
 
   state.editingCardId = mode === 'edit' ? card.id : null
   title.textContent = mode === 'edit' ? '修改卡片' : '新增卡片'
   titleInput.value = mode === 'edit' ? card.title : ''
   urlInput.value = mode === 'edit' ? card.url : ''
+  iconInput.value = mode === 'edit' ? card.icon || '' : ''
 
   setError('')
   overlay.hidden = false
@@ -423,6 +625,7 @@ const initCardUi = () => {
   const cancelBtn = $('#cardModalCancelBtn')
   const titleInput = $('#cardModalTitleInput')
   const urlInput = $('#cardModalUrlInput')
+  const iconInput = $('#cardModalIconInput')
 
   const confirmOverlay = $('#confirmOverlay')
   const confirmClose = $('#confirmCloseBtn')
@@ -474,6 +677,7 @@ const initCardUi = () => {
     evt.preventDefault()
     const title = titleInput.value.trim()
     const url = normalizeUrl(urlInput.value)
+    const icon = normalizeIconUrl(iconInput.value)
     if (!title) {
       setError('请输入标题')
       return
@@ -486,8 +690,13 @@ const initCardUi = () => {
     }
 
     setError('')
-    if (state.editingCardId) await updateCard({ id: state.editingCardId, title, url })
-    else await addCard({ title, url })
+    if (iconInput.value.trim() && !icon) {
+      setError('Icon 请输入合法 URL（http/https），或留空')
+      return
+    }
+
+    if (state.editingCardId) await updateCard({ id: state.editingCardId, title, url, icon })
+    else await addCard({ title, url, icon })
     closeCardModal()
   })
 
@@ -537,25 +746,33 @@ const initSettingsModal = () => {
   }
 
   const getFormSync = () => ({
-    provider: $('#syncProvider').value,
-    owner: $('#syncOwner').value.trim(),
-    repo: $('#syncRepo').value.trim(),
-    branch: $('#syncBranch').value.trim() || 'main',
-    path: $('#syncPath').value.trim() || 'chrome-home-plugin/config.json',
-    token: $('#syncToken').value.trim()
+    ...(() => {
+      const gitUrl = $('#syncGitUrl').value.trim()
+      const parsed = parseGitRemote(gitUrl)
+      return {
+        gitUrl,
+        ...(parsed?.provider === 'gitee_gist'
+          ? { provider: parsed.provider, gistId: parsed.gistId }
+          : parsed
+            ? { provider: parsed.provider, owner: parsed.owner, repo: parsed.repo }
+            : {})
+      }
+    })(),
+    token: $('#syncToken').value.trim(),
+    autoPush: Boolean($('#syncAutoPush')?.checked),
+    path: DEFAULT_SYNC_PATH
   })
 
   const setFormSync = (sync) => {
-    $('#syncProvider').value = sync.provider || 'github'
-    $('#syncOwner').value = sync.owner || ''
-    $('#syncRepo').value = sync.repo || ''
-    $('#syncBranch').value = sync.branch || 'main'
-    $('#syncPath').value = sync.path || 'chrome-home-plugin/config.json'
-    $('#syncToken').value = sync.token || ''
+    const normalized = normalizeSync(sync)
+    $('#syncGitUrl').value = normalized.gitUrl || ''
+    $('#syncToken').value = normalized.token || ''
+    const autoPush = $('#syncAutoPush')
+    if (autoPush) autoPush.checked = Boolean(normalized.autoPush)
   }
 
   const disableSyncActions = (disabled) => {
-    for (const id of ['syncSaveBtn', 'syncPushBtn', 'syncPullBtn']) {
+    for (const id of ['syncSaveBtn', 'syncPushBtn', 'syncPullBtn', 'syncTestBtn']) {
       $(`#${id}`).disabled = disabled
     }
   }
@@ -564,6 +781,8 @@ const initSettingsModal = () => {
     overlay.hidden = false
     setStatus('')
     setFormSync(state.config.sync || {})
+    const lang = $('#languageSelect')
+    if (lang) lang.value = getLang()
     selectTab('sync')
   }
 
@@ -577,8 +796,10 @@ const initSettingsModal = () => {
       btn.classList.toggle('active', btn.dataset.tab === tab)
     }
     $('#settingsPanelSync').hidden = tab !== 'sync'
+    $('#settingsPanelLanguage').hidden = tab !== 'language'
     $('#settingsPanelAbout').hidden = tab !== 'about'
-    title.textContent = tab === 'sync' ? '同步设置' : '关于'
+    const dict = I18N[getLang()] || I18N.zh
+    title.textContent = tab === 'sync' ? dict.settings_sync : tab === 'language' ? dict.settings_language : dict.settings_about
   }
 
   openBtn.addEventListener('click', open)
@@ -594,6 +815,17 @@ const initSettingsModal = () => {
 
   for (const btn of document.querySelectorAll('.settings-item')) {
     btn.addEventListener('click', () => selectTab(btn.dataset.tab))
+  }
+
+  const languageSelect = $('#languageSelect')
+  if (languageSelect) {
+    languageSelect.addEventListener('change', async () => {
+      const next = languageSelect.value === 'en' ? 'en' : 'zh'
+      state.config.ui = { ...(state.config.ui || {}), language: next }
+      await saveConfig({ ui: state.config.ui })
+      applyLanguage()
+      selectTab('language')
+    })
   }
 
   $('#syncSaveBtn').addEventListener('click', async () => {
@@ -636,10 +868,36 @@ const initSettingsModal = () => {
     setFormSync(pulled.data.sync || {})
     setStatus('拉取成功，已写入本地配置', 'ok')
 
+    applyLanguage()
     renderEngines()
-    renderRemember()
     renderHistory()
     renderCards()
+  })
+
+  $('#syncTestBtn').addEventListener('click', async () => {
+    disableSyncActions(true)
+    setStatus('测试中...')
+    await send({ type: 'setConfig', data: { sync: getFormSync() } })
+    const tested = await send({ type: 'testRemote' })
+    disableSyncActions(false)
+    if (!tested?.ok) {
+      setStatus(tested?.error || '测试失败', 'error')
+      return
+    }
+    setStatus('连接正常', 'ok')
+  })
+
+  const syncAutoPushLabel = $('#syncAutoPush')?.closest('.engine-checkbox')
+  const syncAutoPushActive = () => {
+    if (!syncAutoPushLabel) return
+    syncAutoPushLabel.classList.toggle('active', Boolean($('#syncAutoPush')?.checked))
+  }
+  syncAutoPushActive()
+  $('#syncAutoPush')?.addEventListener('change', async () => {
+    syncAutoPushActive()
+    const saved = await send({ type: 'setConfig', data: { sync: getFormSync() } })
+    if (saved?.ok) state.config = saved.data
+    scheduleAutoPush()
   })
 }
 
@@ -669,12 +927,8 @@ const main = async () => {
   const res = await send({ type: 'getConfig' })
   state.config = res?.data
 
-  if (!state.config.rememberSelections) {
-    state.config.selectedEngines = [...STORAGE_DEFAULT_SELECTED]
-  }
-
+  applyLanguage()
   renderEngines()
-  renderRemember()
   renderHistory()
   renderCards()
   initSearchForm()

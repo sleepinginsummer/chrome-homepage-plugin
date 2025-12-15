@@ -16,31 +16,8 @@
       <section class="card">
         <div class="grid">
           <label class="field">
-            <span class="label">Provider</span>
-            <select id="provider" class="input">
-              <option value="github">GitHub</option>
-              <option value="gitee">Gitee</option>
-            </select>
-          </label>
-
-          <label class="field">
-            <span class="label">Owner / Namespace</span>
-            <input id="owner" class="input" placeholder="例如：sleepinsum" />
-          </label>
-
-          <label class="field">
-            <span class="label">Repo</span>
-            <input id="repo" class="input" placeholder="例如：my-config-repo" />
-          </label>
-
-          <label class="field">
-            <span class="label">Branch</span>
-            <input id="branch" class="input" placeholder="main" />
-          </label>
-
-          <label class="field field-full">
-            <span class="label">Path</span>
-            <input id="path" class="input" placeholder="chrome-home-plugin/config.json" />
+            <span class="label">Git 地址</span>
+            <input id="gitUrl" class="input" placeholder="例如：git@github.com:owner/repo.git" />
           </label>
 
           <label class="field field-full">
@@ -48,12 +25,21 @@
             <input id="token" class="input" type="password" placeholder="GitHub Token / Gitee 私人令牌" />
             <span class="hint">仅保存在浏览器的 `chrome.storage.sync`，不会上传到别处；推送/拉取时会使用该 token。</span>
           </label>
+
+          <label class="field field-full">
+            <span class="label">自动同步</span>
+            <label style="display: flex; align-items: center; gap: 10px">
+              <input id="autoPush" type="checkbox" />
+              <span class="hint" style="margin: 0">配置变更后自动推送到远端</span>
+            </label>
+          </label>
         </div>
 
         <div class="actions">
           <button id="saveBtn" class="btn primary" type="button">保存</button>
           <button id="pushBtn" class="btn" type="button">推送到远端</button>
           <button id="pullBtn" class="btn" type="button">从远端拉取</button>
+          <button id="testBtn" class="btn" type="button">测试连接</button>
         </div>
 
         <p id="status" class="status" role="status"></p>
@@ -75,4 +61,3 @@
     <script src="options.js" type="module"></script>
   </body>
 </html>
-

@@ -11,17 +11,17 @@ const DEFAULT_ENGINES = [
 const DEFAULT_CONFIG = {
   engines: DEFAULT_ENGINES,
   selectedEngines: ['GOOGLE', 'BING', 'BAIDU'],
-  rememberSelections: false,
+  rememberSelections: true,
   popupTipDismissed: false,
   searchHistory: [],
   cards: [],
+  ui: {
+    language: 'zh'
+  },
   sync: {
-    provider: 'github',
-    owner: '',
-    repo: '',
-    branch: 'main',
-    path: 'chrome-home-plugin/config.json',
-    token: ''
+    gitUrl: '',
+    token: '',
+    autoPush: false
   }
 }
 
@@ -65,6 +65,60 @@ const encodePath = (path) =>
     .split('/')
     .map((part) => encodeURIComponent(part))
     .join('/')
+
+const DEFAULT_SYNC_PATH = 'chrome-home-plugin/config.json'
+const DEFAULT_SYNC_BRANCH = 'main'
+const DEFAULT_GITEE_GIST_FILENAME = 'config.json'
+
+const parseGitRemote = (gitUrl) => {
+  const raw = String(gitUrl || '').trim()
+  if (!raw) throw new Error('同步配置缺少：gitUrl')
+
+  const giteeCodes = raw.match(/^https?:\/\/gitee\.com\/[^/]+\/codes\/([^/?#]+)(?:[/?#]|$)/i)
+  if (giteeCodes) {
+    return { provider: 'gitee_gist', gistId: giteeCodes[1] }
+  }
+
+  const scpLike = raw.match(/^git@([^:]+):(.+)$/i)
+  const normalized = scpLike ? `ssh://${raw.replace(':', '/')}` : raw
+
+  let url
+  try {
+    url = new URL(normalized)
+  } catch {
+    throw new Error('gitUrl 格式不正确（示例：git@github.com:owner/repo.git）')
+  }
+
+  const host = url.hostname.toLowerCase()
+  const provider = host.includes('gitee.com') ? 'gitee' : host.includes('github.com') ? 'github' : null
+  if (!provider) throw new Error('暂仅支持 GitHub / Gitee 的 gitUrl')
+
+  const parts = url.pathname.replace(/^\/+/, '').replace(/\.git$/i, '').split('/').filter(Boolean)
+  if (parts.length < 2) throw new Error('gitUrl 需包含 owner 与 repo（示例：git@github.com:owner/repo.git）')
+
+  const owner = parts[0]
+  const repo = parts[1]
+  return { provider, owner, repo }
+}
+
+const normalizeSyncConfig = (sync) => {
+  const raw = sync || {}
+
+  const gitUrl = raw.gitUrl || (raw.owner && raw.repo ? `https://${raw.provider === 'gitee' ? 'gitee.com' : 'github.com'}/${raw.owner}/${raw.repo}` : '')
+  const parsed = gitUrl ? parseGitRemote(gitUrl) : null
+
+  return {
+    provider: raw.provider || parsed?.provider || 'github',
+    owner: raw.owner || parsed?.owner || '',
+    repo: raw.repo || parsed?.repo || '',
+    gistId: raw.gistId || parsed?.gistId || '',
+    branch: raw.branch || DEFAULT_SYNC_BRANCH,
+    path: raw.path || DEFAULT_SYNC_PATH,
+    token: raw.token || '',
+    gitUrl: raw.gitUrl || gitUrl,
+    autoPush: Boolean(raw.autoPush)
+  }
+}
 
 const githubGetFile = async ({ owner, repo, path, branch, token }) => {
   const url = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${encodePath(path)}?ref=${encodeURIComponent(branch)}`
@@ -121,6 +175,37 @@ const giteePutFile = async ({ owner, repo, path, branch, token, message, content
   return res.json()
 }
 
+const giteeGistGet = async ({ gistId, token }) => {
+  const url = `https://gitee.com/api/v5/gists/${encodeURIComponent(gistId)}?access_token=${encodeURIComponent(token)}`
+  const res = await fetch(url)
+  if (res.status === 404) return null
+  if (!res.ok) throw new Error(`Gitee 代码片段获取失败：${res.status}`)
+  return res.json()
+}
+
+const giteeGistUpdateFile = async ({ gistId, token, filename, content, description }) => {
+  const url = `https://gitee.com/api/v5/gists/${encodeURIComponent(gistId)}?access_token=${encodeURIComponent(token)}`
+  const body = {
+    ...(description ? { description } : {}),
+    files: {
+      [filename]: { content }
+    }
+  }
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  })
+  if (!res.ok) throw new Error(`Gitee 代码片段更新失败：${res.status}`)
+  return res.json()
+}
+
+const extractGiteeSha = (file) => {
+  if (!file || typeof file !== 'object') return ''
+  const sha = file.sha || file?.commit?.sha || file?.content?.sha
+  return typeof sha === 'string' ? sha : ''
+}
+
 const encodeConfigAsBase64 = (config) => {
   const json = JSON.stringify(config, null, 2)
   return btoa(unescape(encodeURIComponent(json)))
@@ -132,49 +217,131 @@ const decodeBase64Json = (base64) => {
 }
 
 const validateSyncConfig = (sync) => {
-  if (!sync) throw new Error('缺少同步配置')
-  const required = ['provider', 'owner', 'repo', 'branch', 'path']
-  for (const key of required) {
-    if (!sync[key]) throw new Error(`同步配置缺少：${key}`)
+  const normalized = normalizeSyncConfig(sync)
+  if (!normalized.gitUrl) throw new Error('同步配置缺少：gitUrl')
+  if (normalized.provider === 'gitee_gist') {
+    if (!normalized.gistId) throw new Error('同步配置缺少：gistId')
+  } else {
+    const required = ['provider', 'owner', 'repo', 'branch', 'path']
+    for (const key of required) {
+      if (!normalized[key]) throw new Error(`同步配置缺少：${key}`)
+    }
   }
-  if (!sync.token) throw new Error('同步配置缺少：token')
+  if (!normalized.token) throw new Error('同步配置缺少：token')
+  return normalized
+}
+
+const githubCheckRepo = async ({ owner, repo, token }) => {
+  const url = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`
+  const res = await fetch(url, { headers: token ? { Authorization: `token ${token}` } : {} })
+  if (res.status === 404) throw new Error('仓库不存在或无权限访问')
+  if (!res.ok) throw new Error(`GitHub 仓库检查失败：${res.status}`)
+}
+
+const githubCheckBranch = async ({ owner, repo, branch, token }) => {
+  const url = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/branches/${encodeURIComponent(branch)}`
+  const res = await fetch(url, { headers: token ? { Authorization: `token ${token}` } : {} })
+  if (res.status === 404) throw new Error('分支不存在或无权限访问')
+  if (!res.ok) throw new Error(`GitHub 分支检查失败：${res.status}`)
+}
+
+const giteeCheckRepo = async ({ owner, repo, token }) => {
+  const url = `https://gitee.com/api/v5/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}${
+    token ? `?access_token=${encodeURIComponent(token)}` : ''
+  }`
+  const res = await fetch(url)
+  if (res.status === 404) throw new Error('仓库不存在或无权限访问')
+  if (!res.ok) throw new Error(`Gitee 仓库检查失败：${res.status}`)
+}
+
+const giteeCheckBranch = async ({ owner, repo, branch, token }) => {
+  const url = `https://gitee.com/api/v5/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/branches/${encodeURIComponent(branch)}${
+    token ? `?access_token=${encodeURIComponent(token)}` : ''
+  }`
+  const res = await fetch(url)
+  if (res.status === 404) throw new Error('分支不存在或无权限访问')
+  if (!res.ok) throw new Error(`Gitee 分支检查失败：${res.status}`)
+}
+
+const testRemoteConfig = async (sync) => {
+  const normalized = validateSyncConfig(sync)
+  if (normalized.provider === 'gitee_gist') {
+    const gist = await giteeGistGet(normalized)
+    if (!gist) throw new Error('代码片段不存在或无权限访问')
+    return
+  }
+  if (normalized.provider === 'github') {
+    await githubCheckRepo(normalized)
+    await githubCheckBranch(normalized)
+    return
+  }
+  if (normalized.provider === 'gitee') {
+    await giteeCheckRepo(normalized)
+    await giteeCheckBranch(normalized)
+    return
+  }
+  throw new Error(`不支持的 provider：${normalized.provider}`)
 }
 
 const pullRemoteConfig = async (sync) => {
-  validateSyncConfig(sync)
-  if (sync.provider === 'github') {
-    const file = await githubGetFile(sync)
+  const normalized = validateSyncConfig(sync)
+  if (normalized.provider === 'gitee_gist') {
+    const gist = await giteeGistGet(normalized)
+    if (!gist) throw new Error('远端代码片段不存在或无权限访问')
+    const file = gist?.files?.[DEFAULT_GITEE_GIST_FILENAME]
+    const content = typeof file?.content === 'string' ? file.content : null
+    if (!content) throw new Error(`远端代码片段缺少文件：${DEFAULT_GITEE_GIST_FILENAME}`)
+    return JSON.parse(content)
+  }
+  if (normalized.provider === 'github') {
+    const file = await githubGetFile(normalized)
     if (!file) throw new Error('远端文件不存在，请先推送一次')
     return decodeBase64Json(file.content)
   }
-  if (sync.provider === 'gitee') {
-    const file = await giteeGetFile(sync)
+  if (normalized.provider === 'gitee') {
+    const file = await giteeGetFile(normalized)
     if (!file) throw new Error('远端文件不存在，请先推送一次')
     return decodeBase64Json(file.content)
   }
-  throw new Error(`不支持的 provider：${sync.provider}`)
+  throw new Error(`不支持的 provider：${normalized.provider}`)
 }
 
 const pushRemoteConfig = async (sync, config) => {
-  validateSyncConfig(sync)
-  const contentBase64 = encodeConfigAsBase64(config)
+  const normalized = validateSyncConfig(sync)
   const message = `chore: update chrome-home-plugin config (${new Date().toISOString()})`
 
-  if (sync.provider === 'github') {
-    const existing = await githubGetFile(sync)
-    const sha = existing?.sha
-    await githubPutFile({ ...sync, message, contentBase64, sha })
+  if (normalized.provider === 'gitee_gist') {
+    const json = JSON.stringify(config, null, 2)
+    await giteeGistUpdateFile({
+      gistId: normalized.gistId,
+      token: normalized.token,
+      filename: DEFAULT_GITEE_GIST_FILENAME,
+      content: json,
+      description: message
+    })
     return
   }
 
-  if (sync.provider === 'gitee') {
-    const existing = await giteeGetFile(sync)
+  const contentBase64 = encodeConfigAsBase64(config)
+
+  if (normalized.provider === 'github') {
+    const existing = await githubGetFile(normalized)
     const sha = existing?.sha
-    await giteePutFile({ ...sync, message, contentBase64, sha })
+    await githubPutFile({ ...normalized, message, contentBase64, sha })
     return
   }
 
-  throw new Error(`不支持的 provider：${sync.provider}`)
+  if (normalized.provider === 'gitee') {
+    const existing = await giteeGetFile(normalized)
+    const sha = extractGiteeSha(existing)
+    if (existing && !sha) {
+      throw new Error('Gitee 更新需要 sha，但未能从远端文件信息中获取 sha（请先确认 token 有权限且文件存在）')
+    }
+    await giteePutFile({ ...normalized, message, contentBase64, sha })
+    return
+  }
+
+  throw new Error(`不支持的 provider：${normalized.provider}`)
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -206,6 +373,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type === 'pushRemote') {
       const config = await readConfig()
       await pushRemoteConfig(config.sync, config)
+      sendResponse({ ok: true })
+      return
+    }
+    if (message?.type === 'testRemote') {
+      const config = await readConfig()
+      await testRemoteConfig(config.sync)
       sendResponse({ ok: true })
       return
     }

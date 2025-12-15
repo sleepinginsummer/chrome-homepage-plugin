@@ -1,5 +1,49 @@
 const $ = (selector) => document.querySelector(selector)
 
+const DEFAULT_SYNC_PATH = 'chrome-home-plugin/config.json'
+
+const parseGitRemote = (gitUrl) => {
+  const raw = String(gitUrl || '').trim()
+  if (!raw) return null
+
+  const giteeCodes = raw.match(/^https?:\/\/gitee\.com\/[^/]+\/codes\/([^/?#]+)(?:[/?#]|$)/i)
+  if (giteeCodes) return { provider: 'gitee_gist', gistId: giteeCodes[1] }
+
+  const scpLike = raw.match(/^git@([^:]+):(.+)$/i)
+  const normalized = scpLike ? `ssh://${raw.replace(':', '/')}` : raw
+
+  let url
+  try {
+    url = new URL(normalized)
+  } catch {
+    return null
+  }
+
+  const host = url.hostname.toLowerCase()
+  const provider = host.includes('gitee.com') ? 'gitee' : host.includes('github.com') ? 'github' : null
+  if (!provider) return null
+
+  const parts = url.pathname.replace(/^\/+/, '').replace(/\.git$/i, '').split('/').filter(Boolean)
+  if (parts.length < 2) return null
+
+  return { provider, owner: parts[0], repo: parts[1] }
+}
+
+const normalizeSync = (sync) => {
+  const raw = sync || {}
+  const parsed = parseGitRemote(raw.gitUrl)
+  return {
+    gitUrl: raw.gitUrl || '',
+    token: raw.token || '',
+    autoPush: Boolean(raw.autoPush),
+    provider: raw.provider || parsed?.provider || 'github',
+    owner: raw.owner || parsed?.owner || '',
+    repo: raw.repo || parsed?.repo || '',
+    gistId: raw.gistId || parsed?.gistId || '',
+    path: raw.path || DEFAULT_SYNC_PATH
+  }
+}
+
 const send = (payload) =>
   new Promise((resolve) => {
     chrome.runtime.sendMessage(payload, (response) => resolve(response))
@@ -14,25 +58,33 @@ const setStatus = (text, kind = 'info') => {
 }
 
 const getFormSync = () => ({
-  provider: $('#provider').value,
-  owner: $('#owner').value.trim(),
-  repo: $('#repo').value.trim(),
-  branch: $('#branch').value.trim() || 'main',
-  path: $('#path').value.trim() || 'chrome-home-plugin/config.json',
-  token: $('#token').value.trim()
+  ...(() => {
+    const gitUrl = $('#gitUrl').value.trim()
+    const parsed = parseGitRemote(gitUrl)
+    return {
+      gitUrl,
+      ...(parsed?.provider === 'gitee_gist'
+        ? { provider: parsed.provider, gistId: parsed.gistId }
+        : parsed
+          ? { provider: parsed.provider, owner: parsed.owner, repo: parsed.repo }
+          : {})
+    }
+  })(),
+  token: $('#token').value.trim(),
+  autoPush: Boolean($('#autoPush')?.checked),
+  path: DEFAULT_SYNC_PATH
 })
 
 const setFormSync = (sync) => {
-  $('#provider').value = sync.provider || 'github'
-  $('#owner').value = sync.owner || ''
-  $('#repo').value = sync.repo || ''
-  $('#branch').value = sync.branch || 'main'
-  $('#path').value = sync.path || 'chrome-home-plugin/config.json'
-  $('#token').value = sync.token || ''
+  const normalized = normalizeSync(sync)
+  $('#gitUrl').value = normalized.gitUrl || ''
+  $('#token').value = normalized.token || ''
+  const autoPush = $('#autoPush')
+  if (autoPush) autoPush.checked = Boolean(normalized.autoPush)
 }
 
 const disableActions = (disabled) => {
-  for (const id of ['saveBtn', 'pushBtn', 'pullBtn', 'exportBtn']) {
+  for (const id of ['saveBtn', 'pushBtn', 'pullBtn', 'testBtn', 'exportBtn']) {
     $(id.startsWith('#') ? id : `#${id}`).disabled = disabled
   }
   $('#importFile').disabled = disabled
@@ -99,6 +151,19 @@ const main = async () => {
     setStatus('拉取成功，已写入本地配置', 'ok')
   })
 
+  $('#testBtn').addEventListener('click', async () => {
+    disableActions(true)
+    setStatus('测试中...')
+    await send({ type: 'setConfig', data: { sync: getFormSync() } })
+    const tested = await send({ type: 'testRemote' })
+    disableActions(false)
+    if (!tested?.ok) {
+      setStatus(tested?.error || '测试失败', 'error')
+      return
+    }
+    setStatus('连接正常', 'ok')
+  })
+
   $('#exportBtn').addEventListener('click', async () => {
     disableActions(true)
     setStatus('导出中...')
@@ -134,4 +199,3 @@ const main = async () => {
 }
 
 main().catch((err) => setStatus(err?.message || String(err), 'error'))
-

@@ -10,59 +10,60 @@
     <main class="multi-search-page">
       <div class="content-container">
         <div class="top-actions">
-          <button class="ghost-button" id="openSettingsBtn" type="button">设置</button>
+          <button class="ghost-button" id="openSettingsBtn" type="button" data-i18n="open_settings">设置</button>
         </div>
 
-        <header class="brand">
-          <div class="logo-wrapper" aria-hidden="true">
-            <div class="logo-inner">S</div>
-            <div class="logo-ring"></div>
-          </div>
-          <div class="brand-text">
-            <p class="mini">SMART SEARCH</p>
-          </div>
-        </header>
-
-        <p class="hint">ONE INPUT, MULTIPLE ENGINES. INSTANT ACCESS.</p>
-
-        <form class="search-form" id="searchForm">
-          <div class="input-group">
-            <div class="input-wrapper">
-              <span class="icon" aria-hidden="true">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="11" cy="11" r="8"></circle>
-                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                </svg>
-              </span>
-              <input id="keywordInput" class="search-input" type="text" placeholder="Enter keyword to search..." autocomplete="off" />
+        <div class="hero-block">
+          <header class="brand">
+            <div class="logo-wrapper" aria-hidden="true">
+              <div class="logo-inner">S</div>
+              <div class="logo-ring"></div>
             </div>
-            <button class="search-button" type="submit">
-              <span>SEARCH</span>
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-                <polyline points="12 5 19 12 12 19"></polyline>
-              </svg>
-            </button>
+            <div class="brand-text">
+              <p class="mini" data-i18n="brand_mini">SMART SEARCH</p>
+            </div>
+          </header>
+
+          <p class="hint" data-i18n="hint">ONE INPUT, MULTIPLE ENGINES. INSTANT ACCESS.</p>
+
+          <div class="search-block">
+          <form class="search-form" id="searchForm">
+            <div class="input-group">
+              <div class="input-wrapper">
+                <span class="icon" aria-hidden="true">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                  </svg>
+                </span>
+                <input
+                  id="keywordInput"
+                  class="search-input"
+                  type="text"
+                  placeholder="Enter keyword to search..."
+                  data-i18n-placeholder="search_placeholder"
+                  autocomplete="off"
+                />
+              </div>
+              <button class="search-button" type="submit">
+                <span data-i18n="search_btn">SEARCH</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                  <polyline points="12 5 19 12 12 19"></polyline>
+                </svg>
+              </button>
+            </div>
+          </form>
+
+          <p id="errorMessage" class="error-message" hidden>
+            <span class="error-icon">!</span> <span id="errorText"></span>
+          </p>
+
+          <section class="engine-selection" id="engineSelection" aria-label="搜索引擎选择"></section>
           </div>
-        </form>
-
-        <p id="errorMessage" class="error-message" hidden>
-          <span class="error-icon">!</span> <span id="errorText"></span>
-        </p>
-
-        <section class="engine-selection" id="engineSelection" aria-label="搜索引擎选择"></section>
-
-        <label class="engine-checkbox remember-option" id="rememberOption">
-          <input type="checkbox" id="rememberCheckbox" />
-          <div class="checkbox-custom" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="20 6 9 17 4 12"></polyline>
-            </svg>
-          </div>
-          <span class="engine-name">Remember my selection</span>
-        </label>
+        </div>
 
         <section class="cards-section" aria-label="网址卡片">
           <div class="cards-header">
@@ -81,7 +82,7 @@
           <div class="history-padding"></div>
         </div>
         <div class="history-footer" id="historyFooter" hidden>
-          <button class="clear-all-btn" id="clearHistoryBtn" type="button">Clear History</button>
+          <button class="clear-all-btn" id="clearHistoryBtn" type="button" data-i18n="clear_history">Clear History</button>
         </div>
       </aside>
 
@@ -90,10 +91,10 @@
 
       <div class="popup-overlay" id="popupOverlay" hidden>
         <div class="popup-modal">
-          <h3>请允许弹出窗口</h3>
-          <p>首次使用多引擎搜索时，Chrome 可能会拦截多个标签页。建议在设置中允许来自扩展新标签页的弹窗。</p>
+          <h3 data-i18n="popup_title">请允许弹出窗口</h3>
+          <p data-i18n="popup_desc">首次使用多引擎搜索时，Chrome 可能会拦截多个标签页。建议在设置中允许来自扩展新标签页的弹窗。</p>
           <div class="popup-actions">
-            <button class="tip-button confirm" id="popupConfirmBtn" type="button">知道了</button>
+            <button class="tip-button confirm" id="popupConfirmBtn" type="button" data-i18n="common_ok">知道了</button>
           </div>
         </div>
       </div>
@@ -101,8 +102,9 @@
       <div class="settings-overlay" id="settingsOverlay" hidden>
         <div class="settings-modal" role="dialog" aria-modal="true" aria-label="设置">
           <div class="settings-sidebar" role="navigation" aria-label="设置菜单">
-            <button class="settings-item active" data-tab="sync" type="button">同步设置</button>
-            <button class="settings-item" data-tab="about" type="button">关于</button>
+            <button class="settings-item active" data-tab="sync" type="button" data-i18n="settings_sync">同步设置</button>
+            <button class="settings-item" data-tab="language" type="button" data-i18n="settings_language">语言</button>
+            <button class="settings-item" data-tab="about" type="button" data-i18n="settings_about">关于</button>
           </div>
           <div class="settings-content">
             <div class="settings-header">
@@ -112,48 +114,56 @@
 
             <section class="settings-panel" id="settingsPanelSync">
               <div class="settings-grid">
-                <label class="field">
-                  <span class="label">Provider</span>
-                  <select id="syncProvider" class="input">
-                    <option value="github">GitHub</option>
-                    <option value="gitee">Gitee</option>
-                  </select>
-                </label>
-
-                <label class="field">
-                  <span class="label">Owner / Namespace</span>
-                  <input id="syncOwner" class="input" placeholder="例如：sleepinsum" />
-                </label>
-
-                <label class="field">
-                  <span class="label">Repo</span>
-                  <input id="syncRepo" class="input" placeholder="例如：my-config-repo" />
-                </label>
-
-                <label class="field">
-                  <span class="label">Branch</span>
-                  <input id="syncBranch" class="input" placeholder="main" />
+                <label class="field field-full">
+                  <span class="label" data-i18n="sync_giturl">Git 地址</span>
+                  <input
+                    id="syncGitUrl"
+                    class="input"
+                    placeholder="例如：git@github.com:owner/repo.git"
+                    data-i18n-placeholder="sync_giturl_ph"
+                  />
                 </label>
 
                 <label class="field field-full">
-                  <span class="label">Path</span>
-                  <input id="syncPath" class="input" placeholder="chrome-home-plugin/config.json" />
+                  <span class="label" data-i18n="sync_token">Token</span>
+                  <input id="syncToken" class="input" type="password" placeholder="GitHub Token / Gitee 私人令牌" data-i18n-placeholder="sync_token_ph" />
+                  <span class="settings-hint" data-i18n="sync_token_hint">token 仅保存在 `chrome.storage.sync`；推送/拉取时会使用。</span>
                 </label>
 
                 <label class="field field-full">
-                  <span class="label">Token</span>
-                  <input id="syncToken" class="input" type="password" placeholder="GitHub Token / Gitee 私人令牌" />
-                  <span class="settings-hint">token 仅保存在 `chrome.storage.sync`；推送/拉取时会使用。</span>
+                  <span class="label" data-i18n="sync_autopush">自动同步</span>
+                  <label class="engine-checkbox" style="justify-content: flex-start; margin: 0">
+                    <input type="checkbox" id="syncAutoPush" />
+                    <div class="checkbox-custom" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                      </svg>
+                    </div>
+                    <span class="engine-name" data-i18n="sync_autopush_desc">配置变更后自动推送到远端</span>
+                  </label>
                 </label>
               </div>
 
               <div class="settings-actions">
-                <button class="primary-button" id="syncSaveBtn" type="button">保存</button>
-                <button class="ghost-button" id="syncPushBtn" type="button">推送到远端</button>
-                <button class="ghost-button" id="syncPullBtn" type="button">从远端拉取</button>
+                <button class="primary-button" id="syncSaveBtn" type="button" data-i18n="common_save">保存</button>
+                <button class="ghost-button" id="syncPushBtn" type="button" data-i18n="sync_push">推送到远端</button>
+                <button class="ghost-button" id="syncPullBtn" type="button" data-i18n="sync_pull">从远端拉取</button>
+                <button class="ghost-button" id="syncTestBtn" type="button" data-i18n="sync_test">测试连接</button>
               </div>
 
               <p class="settings-status" id="syncStatus" role="status"></p>
+            </section>
+
+            <section class="settings-panel" id="settingsPanelLanguage" hidden>
+              <div class="settings-grid">
+                <label class="field field-full">
+                  <span class="label" data-i18n="language_label">Language</span>
+                  <select id="languageSelect" class="input">
+                    <option value="zh">中文</option>
+                    <option value="en">English</option>
+                  </select>
+                </label>
+              </div>
             </section>
 
             <section class="settings-panel" id="settingsPanelAbout" hidden>
@@ -176,16 +186,20 @@
           </div>
           <form class="modal-body" id="cardModalForm">
             <label class="modal-field">
-              <span class="label">标题</span>
-              <input class="input" id="cardModalTitleInput" type="text" placeholder="例如：Google" maxlength="40" />
+              <span class="label" data-i18n="card_title">标题</span>
+              <input class="input" id="cardModalTitleInput" type="text" placeholder="例如：Google" data-i18n-placeholder="card_title_ph" maxlength="40" />
             </label>
             <label class="modal-field">
-              <span class="label">网址</span>
-              <input class="input" id="cardModalUrlInput" type="text" placeholder="例如：https://example.com" />
+              <span class="label" data-i18n="card_url">网址</span>
+              <input class="input" id="cardModalUrlInput" type="text" placeholder="例如：https://example.com" data-i18n-placeholder="card_url_ph" />
+            </label>
+            <label class="modal-field">
+              <span class="label" data-i18n="card_icon">Icon（选填，默认使用网站icon）</span>
+              <input class="input" id="cardModalIconInput" type="url" placeholder="例如：https://example.com/icon.png" data-i18n-placeholder="card_icon_ph" />
             </label>
             <div class="modal-actions">
-              <button class="primary-button" type="submit" id="cardModalSaveBtn">保存</button>
-              <button class="ghost-button" type="button" id="cardModalCancelBtn">取消</button>
+              <button class="primary-button" type="submit" id="cardModalSaveBtn" data-i18n="common_save">保存</button>
+              <button class="ghost-button" type="button" id="cardModalCancelBtn" data-i18n="common_cancel">取消</button>
             </div>
           </form>
         </div>
@@ -194,14 +208,14 @@
       <div class="modal-overlay" id="confirmOverlay" hidden>
         <div class="modal modal-small" role="dialog" aria-modal="true" aria-label="确认操作">
           <div class="modal-header">
-            <div class="modal-title" id="confirmTitle">确认删除</div>
+            <div class="modal-title" id="confirmTitle" data-i18n="confirm_title">确认删除</div>
             <button class="modal-close" id="confirmCloseBtn" type="button" aria-label="关闭">×</button>
           </div>
           <div class="modal-body">
             <p class="confirm-text" id="confirmText"></p>
             <div class="modal-actions">
-              <button class="primary-button" id="confirmOkBtn" type="button">确认</button>
-              <button class="ghost-button" id="confirmCancelBtn" type="button">取消</button>
+              <button class="primary-button" id="confirmOkBtn" type="button" data-i18n="common_confirm">确认</button>
+              <button class="ghost-button" id="confirmCancelBtn" type="button" data-i18n="common_cancel">取消</button>
             </div>
           </div>
         </div>

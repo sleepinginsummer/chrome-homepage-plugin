@@ -1,43 +1,59 @@
 # chrome-home-plugin
 
-一个 Chrome 新标签页扩展：多引擎搜索 + 常用网址卡片 + 配置同步（GitHub/Gitee）。
+[中文](#中文) | [English](#english)
 
-## 功能
+## 中文
 
-- 多引擎搜索：一键同时在多个引擎打开搜索结果（Google/Bing/DuckDuckGo/GitHub/Baidu）。
+一个 Chrome 新标签页扩展：多引擎搜索 + 搜索历史 + 常用网址卡片 + 配置同步（GitHub/Gitee），并支持在设置中切换中英文界面。
+
+### 功能
+
+- 多引擎搜索：一次输入，按选择的多个引擎同时打开搜索结果标签页。
 - 搜索历史：右侧浮层展示历史，点击可恢复搜索，支持清空。
-- 网址卡片：在搜索框下方新增卡片（标题 + 网址），自动显示网站图标（favicon），支持删除/点击打开。
-- 配置同步：支持把当前配置推送到 GitHub/Gitee 仓库中的一个 JSON 文件，也支持从远端拉取覆盖本地配置。
+- 网址卡片：新增/编辑卡片（标题 + 网址 + 可选 icon URL），支持拖拽排序、右键菜单删除/修改、点击打开。
+- 配置同步：把当前配置（搜索引擎选择、历史、卡片、同步信息等）推送到 GitHub/Gitee 仓库的一个 JSON 文件，也支持从远端拉取覆盖本地配置；可开启“配置变更后自动推送”。
+- 语言切换：设置中可切换中文/英文（默认中文）。
 
-## 安装/加载
+### 安装/加载
 
 1. 打开 Chrome：`chrome://extensions`
 2. 开启右上角「开发者模式」
 3. 点击「加载已解压的扩展程序」
 4. 选择目录：`/Users/syy/Desktop/project/chrome-home-plugin`
 
-## 同步配置（GitHub / Gitee）
+### 同步配置（GitHub / Gitee）
 
-1. 新标签页点击「同步设置」打开选项页
+1. 新标签页点击「设置」→「同步设置」
 2. 填写：
-   - `Owner/Namespace`、`Repo`、`Branch`
-   - `Path`：配置文件路径（例如 `chrome-home-plugin/config.json`）
+   - `Git 地址`（例如 `git@github.com:owner/repo.git`）、`Branch`
    - `Token`：GitHub Token 或 Gitee 私人令牌（需要对目标仓库有写权限）
-3. 点击「推送到远端」或「从远端拉取」
+3. 点击「推送到远端」/「从远端拉取」，或开启「自动同步」
 
-> 注意：由于这是扩展页面发起的网络请求，需要在扩展的 `host_permissions` 中允许对应域名（本项目已包含 `api.github.com` 与 `gitee.com`）。
+> 注意：这是扩展页面发起的网络请求，需要在扩展的 `host_permissions` 中允许对应域名（本项目已包含 `api.github.com` 与 `gitee.com`）。
 
+## English
 
-1.网址卡片可以拖动调换位置 
-2.右键网址卡片可以修改
-3.卡片的样式改成 图标+下方title的样式
-4.同步设置放到右上角改为设置，点击之后出现一个弹窗，弹窗左边是菜单，一个菜单就是同步测试，第二个菜单是关于，关于先空着
-5.右侧的搜索历史样式现在丢失了，参考之前的项目复刻一下/Users/syy/Desktop/project/tool-project/
-6.搜索网站的复选框的现在多一个外框，和之前项目样式不一致/Users/syy/Desktop/project/tool-project/ 需要保持一致
+A Chrome New Tab extension: multi-engine search + search history + site cards + config sync (GitHub/Gitee). The UI language can be switched between Chinese and English (default: Chinese).
 
- 修改下卡片的样式,不需要这么大的div显示,只需要一个图标+下方的title ,当鼠标右键之后,显示出删除卡片和修改卡片的小菜单,.删除需要确认弹窗. 新增卡片改成弹窗新增,修改卡片
-  也一样弹窗.新增卡片的按钮,显示成一个卡片 在最末尾出显示,显示加号图标 大小和网址卡片图标大小一致,没有title
+### Features
 
-  设置按钮放到插件的最右上角
+- Multi-engine search: one input, open results in multiple engines at once.
+- Search history: sidebar list with click-to-search and clear-all.
+- Site cards: create/edit cards (title + URL + optional icon URL), drag to reorder, right-click menu to edit/delete, click to open.
+- Config sync: push the current config (engines selection, history, cards, sync settings, etc.) to a JSON file in GitHub/Gitee; pull to overwrite local config; optional auto-push on changes.
+- Language: switch Chinese/English in Settings.
 
-  卡片可以新增和修改的时候 选填icon字段,需要是url类型,如果不填就显示默认图标. 
+### Install / Load
+
+1. Open Chrome: `chrome://extensions`
+2. Enable Developer mode
+3. Click "Load unpacked"
+4. Select directory: `/Users/syy/Desktop/project/chrome-home-plugin`
+
+### Sync (GitHub / Gitee)
+
+1. On the New Tab page: "Settings" → "Sync"
+2. Fill in:
+   - `Git URL` (e.g. `git@github.com:owner/repo.git`), `Branch`
+   - `Token`: GitHub token / Gitee access token (with write permission)
+3. Click "Push"/"Pull", or enable "Auto Sync"
