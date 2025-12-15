@@ -7,6 +7,8 @@ const state = {
   pendingSearch: null,
   scrollProgress: 0,
   editingCardId: null,
+  editingAnniversaryCardId: null,
+  editingAnniversaryItemId: null,
   isDraggingCard: false,
   contextCardId: null,
   confirmAction: null
@@ -62,7 +64,17 @@ const I18N = {
     card_icon_ph: '例如：https://example.com/icon.png',
     common_cancel: '取消',
     confirm_title: '确认删除',
-    common_confirm: '确认'
+    common_confirm: '确认',
+    add_choose_title: '新增',
+    add_choose_card: '添加卡片',
+    add_choose_component: '添加组件',
+    component_list_title: '组件',
+    component_hot: '热搜（即将支持）',
+    component_anniversary: '纪念日',
+    anniversary_title: '纪念日',
+    anniversary_item_title: '标题',
+    anniversary_item_title_ph: '例如：小胖达生日',
+    anniversary_item_date: '日期'
   },
   en: {
     open_settings: 'Settings',
@@ -100,7 +112,17 @@ const I18N = {
     card_icon_ph: 'e.g. https://example.com/icon.png',
     common_cancel: 'Cancel',
     confirm_title: 'Confirm delete',
-    common_confirm: 'Confirm'
+    common_confirm: 'Confirm',
+    add_choose_title: 'Add',
+    add_choose_card: 'Add Card',
+    add_choose_component: 'Add Component',
+    component_list_title: 'Components',
+    component_hot: 'Hot search (soon)',
+    component_anniversary: 'Anniversary',
+    anniversary_title: 'Anniversary',
+    anniversary_item_title: 'Title',
+    anniversary_item_title_ph: 'e.g. Birthday',
+    anniversary_item_date: 'Date'
   }
 }
 
@@ -257,9 +279,65 @@ const getHostname = (url) => {
   }
 }
 
-const faviconUrl = (url) => {
-  const hostname = getHostname(url)
-  return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(hostname)}&sz=64`
+const faviconAggregatedUrl = (hostname) => `https://favicon.im/${encodeURIComponent(hostname)}?larger=true`
+
+const faviconCandidates = (url) => {
+  const normalized = normalizeUrl(url)
+  try {
+    const u = new URL(normalized)
+    const hostname = u.hostname
+    return [`${u.origin}/favicon.ico`, faviconAggregatedUrl(hostname)]
+  } catch {
+    const hostname = getHostname(url)
+    return [faviconAggregatedUrl(hostname)]
+  }
+}
+
+const loadImageWithTimeout = (img, urls, timeoutMs = 5000) => {
+  const list = (urls || []).filter(Boolean)
+  if (!img || !list.length) return () => {}
+  let index = 0
+  let done = false
+  let timer = null
+
+  const cleanup = () => {
+    if (timer) clearTimeout(timer)
+    timer = null
+    img.onload = null
+    img.onerror = null
+  }
+
+  const tryNext = () => {
+    if (done) return
+    if (index >= list.length) {
+      done = true
+      cleanup()
+      return
+    }
+
+    const src = list[index++]
+    cleanup()
+
+    img.onload = () => {
+      done = true
+      cleanup()
+    }
+    img.onerror = () => {
+      tryNext()
+    }
+
+    timer = setTimeout(() => {
+      tryNext()
+    }, timeoutMs)
+
+    img.src = src
+  }
+
+  tryNext()
+  return () => {
+    done = true
+    cleanup()
+  }
 }
 
 const renderEngines = () => {
@@ -419,29 +497,34 @@ const renderCards = () => {
   root.innerHTML = ''
   const cards = state.config.cards || []
   for (const card of cards) {
+    const type = card?.type || 'link'
     const div = document.createElement('div')
-    div.className = 'card'
+    div.className = type === 'anniversary' ? 'card card-anniversary' : 'card'
     div.draggable = true
     div.dataset.cardId = card.id
-    div.innerHTML = `
-      <img class="card-icon" alt="" />
-      <div class="card-title"></div>
-    `
+    if (type === 'anniversary') {
+      div.innerHTML = renderAnniversaryCardHtml(card)
+    } else {
+      div.innerHTML = `
+        <img class="card-icon" alt="" />
+        <div class="card-title"></div>
+      `
 
-    const icon = div.querySelector('.card-icon')
-    const fallbackIcon = faviconUrl(card.url)
-    icon.src = card.icon || fallbackIcon
-    icon.addEventListener(
-      'error',
-      () => {
-        icon.src = fallbackIcon
-      },
-      { once: true }
-    )
-    div.querySelector('.card-title').textContent = card.title
+      const icon = div.querySelector('.card-icon')
+      if (card.icon) {
+        icon.src = card.icon
+      } else {
+        loadImageWithTimeout(icon, faviconCandidates(card.url), 5000)
+      }
+      div.querySelector('.card-title').textContent = card.title
+    }
 
     div.addEventListener('click', async (evt) => {
       if (state.isDraggingCard) return
+      if ((card?.type || 'link') === 'anniversary') {
+        openAnniversaryModal(card.id)
+        return
+      }
       await send({ type: 'openTabs', urls: [card.url] })
     })
 
@@ -498,7 +581,7 @@ const renderCards = () => {
       <line x1="6" y1="12" x2="18" y2="12"></line>
     </svg>
   `
-  addCard.addEventListener('click', () => openCardModal({ mode: 'create' }))
+  addCard.addEventListener('click', () => openAddChooser())
   root.appendChild(addCard)
 }
 
@@ -559,6 +642,123 @@ const deleteCard = async (id) => {
 }
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max)
+
+const isLeapYear = (year) => (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0
+
+const createSafeDateAtNoon = (year, monthIndex, day) => {
+  if (monthIndex === 1 && day === 29 && !isLeapYear(year)) {
+    return new Date(year, monthIndex, 28, 12, 0, 0, 0)
+  }
+  return new Date(year, monthIndex, day, 12, 0, 0, 0)
+}
+
+const parseYmd = (ymd) => {
+  const raw = String(ymd || '').trim()
+  const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (!m) return null
+  const year = Number(m[1])
+  const month = Number(m[2])
+  const day = Number(m[3])
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return null
+  if (month < 1 || month > 12) return null
+  if (day < 1 || day > 31) return null
+  const probe = new Date(year, month - 1, day)
+  if (Number.isNaN(probe.getTime())) return null
+  if (probe.getFullYear() !== year || probe.getMonth() !== month - 1 || probe.getDate() !== day) return null
+  return { year, month, day }
+}
+
+const formatMonthDay = ({ month, day }) => `${month}月${day}日`
+
+const calcNextAnniversary = (ymd, now = new Date()) => {
+  const parsed = parseYmd(ymd)
+  if (!parsed) return null
+  const nowNoon = createSafeDateAtNoon(now.getFullYear(), now.getMonth(), now.getDate())
+  const thisYear = nowNoon.getFullYear()
+  let nextYear = thisYear
+  let occurrence = createSafeDateAtNoon(thisYear, parsed.month - 1, parsed.day)
+  if (occurrence.getTime() < nowNoon.getTime()) {
+    nextYear = thisYear + 1
+    occurrence = createSafeDateAtNoon(nextYear, parsed.month - 1, parsed.day)
+  }
+  const days = Math.max(0, Math.round((occurrence.getTime() - nowNoon.getTime()) / 86400000))
+  const years = Math.max(0, nextYear - parsed.year)
+  return {
+    days,
+    years,
+    month: parsed.month,
+    day: parsed.day
+  }
+}
+
+const sortAnniversaryItems = (items) => {
+  const now = new Date()
+  return [...items].sort((a, b) => {
+    const da = calcNextAnniversary(a.date, now)
+    const db = calcNextAnniversary(b.date, now)
+    const aDays = da ? da.days : Number.POSITIVE_INFINITY
+    const bDays = db ? db.days : Number.POSITIVE_INFINITY
+    if (aDays !== bDays) return aDays - bDays
+    return String(a.title || '').localeCompare(String(b.title || ''))
+  })
+}
+
+const renderAnniversaryCardHtml = (card) => {
+  const items = sortAnniversaryItems(Array.isArray(card.items) ? card.items : [])
+  const featured = items[0]
+  const featuredCalc = featured ? calcNextAnniversary(featured.date) : null
+  const featuredTitle = featured?.title ? escapeHtml(featured.title) : ''
+  const featuredDate = featuredCalc ? formatMonthDay(featuredCalc) : ''
+  const daysText = featuredCalc ? String(featuredCalc.days) : '--'
+
+  const mini = items.slice(0, 4).map((it) => {
+    const c = calcNextAnniversary(it.date)
+    const t = escapeHtml(String(it.title || ''))
+    const date = c ? formatMonthDay(c) : ''
+    const days = c ? `${c.days}天` : '--'
+    const years = c ? `${c.years}周年` : ''
+    return `
+      <div class="anniversary-mini-item">
+        <div class="left">
+          <div class="mini-title">${t || '未命名'}</div>
+          <div class="mini-date">${date || ''}</div>
+        </div>
+        <div class="right">
+          <div class="years">${years}</div>
+          <div class="mini-days">${days}</div>
+        </div>
+      </div>
+    `
+  })
+
+  const empty = !items.length
+  return `
+    <div class="anniversary-card">
+      <div class="anniversary-feature">
+        <div>
+          <div class="label">${empty ? '点击添加纪念日' : '下一个纪念日'}</div>
+          <div class="title">${featuredTitle || (empty ? '' : '未命名')}</div>
+        </div>
+        <div class="countdown">
+          <div class="days">${daysText}</div>
+          <div class="unit">天</div>
+        </div>
+        <div class="date">${featuredDate}</div>
+      </div>
+      <div class="anniversary-list-mini">
+        ${mini.join('')}
+      </div>
+    </div>
+  `
+}
+
+const escapeHtml = (raw) =>
+  String(raw || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 
 const closeCardMenu = () => {
   const menu = $('#cardMenu')
@@ -622,6 +822,103 @@ const closeCardModal = () => {
   setError('')
 }
 
+const openAddChooser = () => {
+  setError('')
+  $('#addChooserOverlay').hidden = false
+}
+
+const closeAddChooser = () => {
+  $('#addChooserOverlay').hidden = true
+}
+
+const openComponentList = () => {
+  closeAddChooser()
+  $('#componentListOverlay').hidden = false
+}
+
+const closeComponentList = () => {
+  $('#componentListOverlay').hidden = true
+}
+
+const addAnniversaryComponent = async () => {
+  const next = [...(state.config.cards || [])]
+  next.unshift({
+    id: crypto.randomUUID(),
+    type: 'anniversary',
+    title: '纪念日',
+    items: []
+  })
+  state.config.cards = next
+  await saveConfig({ cards: next })
+  renderCards()
+  scheduleAutoPush()
+}
+
+const closeAnniversaryModal = () => {
+  $('#anniversaryOverlay').hidden = true
+  state.editingAnniversaryCardId = null
+  state.editingAnniversaryItemId = null
+  $('#anniversaryTitleInput').value = ''
+  $('#anniversaryDateInput').value = ''
+}
+
+const getCardById = (id) => (state.config.cards || []).find((c) => c.id === id) || null
+
+const renderAnniversaryList = (card) => {
+  const root = $('#anniversaryList')
+  const items = sortAnniversaryItems(Array.isArray(card.items) ? card.items : [])
+  if (!items.length) {
+    root.innerHTML = `<div style="color: rgba(255,255,255,0.65); font-size: 13px; padding: 10px 2px;">暂无纪念日，右侧新增一个吧</div>`
+    return
+  }
+
+  root.innerHTML = items
+    .map((it) => {
+      const c = calcNextAnniversary(it.date)
+      const title = escapeHtml(String(it.title || '未命名'))
+      const date = c ? formatMonthDay(c) : ''
+      const badge = c ? `${c.days}天` : '--'
+      const years = c ? `${c.years}周年` : ''
+      return `
+        <div class="anniversary-list-item" data-item-id="${escapeHtml(it.id)}">
+          <div class="meta">
+            <div class="name">${title}</div>
+            <div class="sub">${escapeHtml(date)} · ${escapeHtml(years)}</div>
+          </div>
+          <div class="actions">
+            <div class="badge">${escapeHtml(badge)}</div>
+            <button class="danger-btn" type="button" data-action="delete" data-item-id="${escapeHtml(it.id)}">删除</button>
+          </div>
+        </div>
+      `
+    })
+    .join('')
+}
+
+const openAnniversaryModal = (cardId) => {
+  const card = getCardById(cardId)
+  if (!card) return
+  if ((card.type || 'link') !== 'anniversary') return
+  state.editingAnniversaryCardId = cardId
+  state.editingAnniversaryItemId = null
+  renderAnniversaryList(card)
+  $('#anniversaryOverlay').hidden = false
+  $('#anniversaryTitleInput').value = ''
+  $('#anniversaryDateInput').value = ''
+  closeCardMenu()
+}
+
+const saveAnniversaryCardPatch = async (cardId, patch) => {
+  const next = [...(state.config.cards || [])]
+  const index = next.findIndex((c) => c.id === cardId)
+  if (index === -1) return
+  next[index] = { ...next[index], ...patch }
+  state.config.cards = next
+  await saveConfig({ cards: next })
+  renderCards()
+  scheduleAutoPush()
+}
+
 const initCardUi = () => {
   const menu = $('#cardMenu')
   const editBtn = $('#cardMenuEditBtn')
@@ -640,8 +937,6 @@ const initCardUi = () => {
   const confirmOk = $('#confirmOkBtn')
   const confirmCancel = $('#confirmCancelBtn')
 
-  const getCardById = (id) => (state.config.cards || []).find((c) => c.id === id) || null
-
   document.addEventListener('click', (evt) => {
     if (menu.hidden) return
     if (menu.contains(evt.target)) return
@@ -653,13 +948,17 @@ const initCardUi = () => {
       if (!menu.hidden) closeCardMenu()
       else if (!confirmOverlay.hidden) closeConfirm()
       else if (!overlay.hidden) closeCardModal()
+      else if (!$('#anniversaryOverlay').hidden) closeAnniversaryModal()
+      else if (!$('#componentListOverlay').hidden) closeComponentList()
+      else if (!$('#addChooserOverlay').hidden) closeAddChooser()
     }
   })
 
   editBtn.addEventListener('click', () => {
     const card = getCardById(state.contextCardId)
     if (!card) return closeCardMenu()
-    openCardModal({ mode: 'edit', card })
+    if ((card?.type || 'link') === 'anniversary') openAnniversaryModal(card.id)
+    else openCardModal({ mode: 'edit', card })
   })
 
   deleteBtn.addEventListener('click', () => {
@@ -717,6 +1016,128 @@ const initCardUi = () => {
     const action = state.confirmAction
     closeConfirm()
     if (action) await action()
+  })
+
+  const addChooserOverlay = $('#addChooserOverlay')
+  const addChooserClose = $('#addChooserCloseBtn')
+  const addChooserCard = $('#addChooserCardBtn')
+  const addChooserComponent = $('#addChooserComponentBtn')
+  addChooserOverlay.addEventListener('click', (evt) => {
+    if (evt.target === addChooserOverlay) closeAddChooser()
+  })
+  addChooserClose.addEventListener('click', closeAddChooser)
+  addChooserCard.addEventListener('click', () => {
+    closeAddChooser()
+    openCardModal({ mode: 'create' })
+  })
+  addChooserComponent.addEventListener('click', openComponentList)
+
+  const componentListOverlay = $('#componentListOverlay')
+  const componentListClose = $('#componentListCloseBtn')
+  const componentAnniversaryBtn = $('#componentAnniversaryBtn')
+  componentListOverlay.addEventListener('click', (evt) => {
+    if (evt.target === componentListOverlay) closeComponentList()
+  })
+  componentListClose.addEventListener('click', closeComponentList)
+  componentAnniversaryBtn.addEventListener('click', async () => {
+    closeComponentList()
+    await addAnniversaryComponent()
+  })
+
+  const anniversaryOverlay = $('#anniversaryOverlay')
+  const anniversaryCloseBtn = $('#anniversaryCloseBtn')
+  const anniversaryCancelBtn = $('#anniversaryCancelBtn')
+  const anniversaryForm = $('#anniversaryForm')
+  const anniversaryTitleInput = $('#anniversaryTitleInput')
+  const anniversaryDateInput = $('#anniversaryDateInput')
+
+  const openNativeDatePicker = () => {
+    if (typeof anniversaryDateInput?.showPicker === 'function') {
+      anniversaryDateInput.showPicker()
+    }
+  }
+  anniversaryDateInput.addEventListener('click', openNativeDatePicker)
+  anniversaryDateInput.addEventListener('keydown', (evt) => {
+    if (evt.key === 'Enter' || evt.key === ' ') openNativeDatePicker()
+  })
+
+  anniversaryOverlay.addEventListener('click', (evt) => {
+    if (evt.target === anniversaryOverlay) closeAnniversaryModal()
+  })
+  anniversaryCloseBtn.addEventListener('click', closeAnniversaryModal)
+  anniversaryCancelBtn.addEventListener('click', closeAnniversaryModal)
+
+  $('#anniversaryList').addEventListener('click', async (evt) => {
+    const target = evt.target
+    const cardId = state.editingAnniversaryCardId
+    if (!cardId) return
+    const card = getCardById(cardId)
+    if (!card) return
+
+    const delBtn = target?.closest?.('button[data-action="delete"]')
+    if (delBtn) {
+      const itemId = delBtn.getAttribute('data-item-id')
+      if (!itemId) return
+      openConfirm({
+        title: '确认删除',
+        text: '确认删除该纪念日吗？',
+        onConfirm: async () => {
+          const items = Array.isArray(card.items) ? card.items : []
+          const nextItems = items.filter((it) => it.id !== itemId)
+          await saveAnniversaryCardPatch(cardId, { items: nextItems })
+          const nextCard = getCardById(cardId)
+          if (nextCard) renderAnniversaryList(nextCard)
+        }
+      })
+      return
+    }
+
+    const itemEl = target?.closest?.('.anniversary-list-item')
+    if (!itemEl) return
+    const itemId = itemEl.getAttribute('data-item-id')
+    const items = Array.isArray(card.items) ? card.items : []
+    const item = items.find((it) => it.id === itemId)
+    if (!item) return
+    state.editingAnniversaryItemId = item.id
+    anniversaryTitleInput.value = item.title || ''
+    anniversaryDateInput.value = item.date || ''
+  })
+
+  anniversaryForm.addEventListener('submit', async (evt) => {
+    evt.preventDefault()
+    const cardId = state.editingAnniversaryCardId
+    if (!cardId) return
+    const card = getCardById(cardId)
+    if (!card) return
+
+    const title = anniversaryTitleInput.value.trim()
+    const date = anniversaryDateInput.value.trim()
+    if (!title) {
+      setError('请输入标题')
+      return
+    }
+    if (!parseYmd(date)) {
+      setError('请选择合法日期')
+      return
+    }
+    setError('')
+
+    const items = Array.isArray(card.items) ? card.items : []
+    const nextItems = [...items]
+    const editingId = state.editingAnniversaryItemId
+    if (editingId) {
+      const index = nextItems.findIndex((it) => it.id === editingId)
+      if (index !== -1) nextItems[index] = { ...nextItems[index], title, date }
+      state.editingAnniversaryItemId = null
+    } else {
+      nextItems.unshift({ id: crypto.randomUUID(), title, date })
+    }
+
+    await saveAnniversaryCardPatch(cardId, { items: nextItems })
+    const nextCard = getCardById(cardId)
+    if (nextCard) renderAnniversaryList(nextCard)
+    anniversaryTitleInput.value = ''
+    anniversaryDateInput.value = ''
   })
 }
 

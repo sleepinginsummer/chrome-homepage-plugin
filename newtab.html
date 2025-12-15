@@ -207,6 +207,64 @@
         </div>
       </div>
 
+      <div class="modal-overlay" id="addChooserOverlay" hidden>
+        <div class="modal modal-small" role="dialog" aria-modal="true" aria-label="新增内容">
+          <div class="modal-header">
+            <div class="modal-title" data-i18n="add_choose_title">新增</div>
+            <button class="modal-close" id="addChooserCloseBtn" type="button" aria-label="关闭">×</button>
+          </div>
+          <div class="modal-body">
+            <div class="add-chooser-actions">
+              <button class="ghost-button" id="addChooserCardBtn" type="button" data-i18n="add_choose_card">添加卡片</button>
+              <button class="primary-button" id="addChooserComponentBtn" type="button" data-i18n="add_choose_component">添加组件</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-overlay" id="componentListOverlay" hidden>
+        <div class="modal modal-small" role="dialog" aria-modal="true" aria-label="组件列表">
+          <div class="modal-header">
+            <div class="modal-title" data-i18n="component_list_title">组件</div>
+            <button class="modal-close" id="componentListCloseBtn" type="button" aria-label="关闭">×</button>
+          </div>
+          <div class="modal-body">
+            <div class="component-list">
+              <button class="component-item disabled" id="componentHotBtn" type="button" disabled data-i18n="component_hot">热搜（即将支持）</button>
+              <button class="component-item" id="componentAnniversaryBtn" type="button" data-i18n="component_anniversary">纪念日</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-overlay" id="anniversaryOverlay" hidden>
+        <div class="modal modal-wide" role="dialog" aria-modal="true" aria-label="纪念日编辑">
+          <div class="modal-header">
+            <div class="modal-title" data-i18n="anniversary_title">纪念日</div>
+            <button class="modal-close" id="anniversaryCloseBtn" type="button" aria-label="关闭">×</button>
+          </div>
+          <div class="modal-body">
+            <div class="anniversary-edit">
+              <div class="anniversary-list" id="anniversaryList"></div>
+              <form class="anniversary-form" id="anniversaryForm">
+                <label class="modal-field">
+                  <span class="label" data-i18n="anniversary_item_title">标题</span>
+                  <input class="input" id="anniversaryTitleInput" type="text" maxlength="40" placeholder="例如：小胖达生日" data-i18n-placeholder="anniversary_item_title_ph" />
+                </label>
+                <label class="modal-field">
+                  <span class="label" data-i18n="anniversary_item_date">日期</span>
+                  <input class="input" id="anniversaryDateInput" type="date" />
+                </label>
+                <div class="modal-actions">
+                  <button class="primary-button" type="submit" id="anniversarySaveBtn" data-i18n="common_save">保存</button>
+                  <button class="ghost-button" type="button" id="anniversaryCancelBtn" data-i18n="common_cancel">取消</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="modal-overlay" id="confirmOverlay" hidden>
         <div class="modal modal-small" role="dialog" aria-modal="true" aria-label="确认操作">
           <div class="modal-header">
