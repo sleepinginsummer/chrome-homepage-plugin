@@ -1,5 +1,7 @@
 const $ = (selector) => document.querySelector(selector)
 
+const LAST_SYNC_AT_KEY = 'chromeHomeLastSyncAt'
+
 const state = {
   config: null,
   pendingSearch: null,
@@ -51,6 +53,7 @@ const I18N = {
     sync_push: '推送到远端',
     sync_pull: '从远端拉取',
     sync_test: '测试连接',
+    sync_last_sync_at: '最新同步时间：',
     card_title: '标题',
     card_title_ph: '例如：Google',
     card_url: '网址',
@@ -88,6 +91,7 @@ const I18N = {
     sync_push: 'Push',
     sync_pull: 'Pull',
     sync_test: 'Test',
+    sync_last_sync_at: 'Last sync:',
     card_title: 'Title',
     card_title_ph: 'e.g. Google',
     card_url: 'URL',
@@ -128,6 +132,24 @@ const normalizeSync = (sync) => {
 
 const getLang = () => (state.config?.ui?.language === 'en' ? 'en' : 'zh')
 
+const formatSyncTime = (isoTime) => {
+  if (!isoTime) return ''
+  const date = new Date(isoTime)
+  if (Number.isNaN(date.getTime())) return ''
+  const locale = getLang() === 'en' ? 'en-US' : 'zh-CN'
+  return date.toLocaleString(locale, { hour12: getLang() === 'en' })
+}
+
+const renderLastSyncAt = async (isoTime) => {
+  const el = $('#syncLastSyncAt')
+  if (!el) return
+
+  const dict = I18N[getLang()] || I18N.zh
+  const source = isoTime || (await chrome.storage.local.get(LAST_SYNC_AT_KEY))[LAST_SYNC_AT_KEY]
+  const formatted = formatSyncTime(source)
+  el.textContent = formatted ? `${dict.sync_last_sync_at} ${formatted}` : ''
+}
+
 const applyLanguage = () => {
   const dict = I18N[getLang()] || I18N.zh
 
@@ -146,6 +168,7 @@ const applyLanguage = () => {
   }
 
   document.documentElement.lang = getLang() === 'en' ? 'en' : 'zh-CN'
+  renderLastSyncAt()
 }
 
 const canAutoPush = (sync) => {
@@ -183,6 +206,7 @@ const scheduleAutoPush = () => {
         setSyncStatus(pushed?.error || '自动同步失败', 'error')
       } else {
         setSyncStatus('已自动同步', 'ok')
+        await renderLastSyncAt(pushed?.lastSyncAt)
       }
     } finally {
       autoPushInProgress = false
@@ -765,6 +789,7 @@ const initSettingsModal = () => {
     overlay.hidden = false
     setStatus('')
     setFormSync(state.config.sync || {})
+    renderLastSyncAt()
     const lang = $('#languageSelect')
     if (lang) lang.value = getLang()
     selectTab('sync')
@@ -836,6 +861,7 @@ const initSettingsModal = () => {
       return
     }
     setStatus('推送成功', 'ok')
+    await renderLastSyncAt(pushed?.lastSyncAt)
   })
 
   $('#syncPullBtn').addEventListener('click', async () => {
@@ -851,6 +877,7 @@ const initSettingsModal = () => {
     state.config = pulled.data
     setFormSync(pulled.data.sync || {})
     setStatus('拉取成功，已写入本地配置', 'ok')
+    await renderLastSyncAt(pulled?.lastSyncAt)
 
     applyLanguage()
     renderEngines()

@@ -1,4 +1,5 @@
 const STORAGE_KEY = 'chromeHomeConfig'
+const LAST_SYNC_AT_KEY = 'chromeHomeLastSyncAt'
 
 const DEFAULT_ENGINES = [
   { name: 'GOOGLE', baseUrl: 'https://www.google.com/search?q=' },
@@ -32,6 +33,12 @@ const readConfig = async () => {
 
 const writeConfig = async (nextConfig) => {
   await chrome.storage.sync.set({ [STORAGE_KEY]: nextConfig })
+}
+
+const writeLastSyncAt = async (isoTime) => {
+  const value = typeof isoTime === 'string' && isoTime ? isoTime : new Date().toISOString()
+  await chrome.storage.local.set({ [LAST_SYNC_AT_KEY]: value })
+  return value
 }
 
 const deepMerge = (base, patch) => {
@@ -341,13 +348,15 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       const remote = await pullRemoteConfig(config.sync)
       const merged = deepMerge(DEFAULT_CONFIG, remote)
       await writeConfig(merged)
-      sendResponse({ ok: true, data: merged })
+      const lastSyncAt = await writeLastSyncAt()
+      sendResponse({ ok: true, data: merged, lastSyncAt })
       return
     }
     if (message?.type === 'pushRemote') {
       const config = await readConfig()
       await pushRemoteConfig(config.sync, config)
-      sendResponse({ ok: true })
+      const lastSyncAt = await writeLastSyncAt()
+      sendResponse({ ok: true, lastSyncAt })
       return
     }
     if (message?.type === 'testRemote') {
