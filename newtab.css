@@ -70,6 +70,13 @@ body {
   text-align: center;
 }
 
+.top-actions {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 20;
+}
+
 .brand {
   display: flex;
   flex-direction: column;
@@ -236,78 +243,76 @@ body {
 
 .engine-selection {
   display: flex;
-  flex-wrap: wrap;
+  gap: 24px;
   justify-content: center;
-  gap: 12px;
-  margin-bottom: 18px;
+  flex-wrap: wrap;
+  margin-bottom: 0;
   width: 100%;
 }
 
 .engine-checkbox {
-  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 4px;
-  padding: 10px 14px;
   cursor: pointer;
   transition: all 0.2s ease;
   user-select: none;
+  opacity: 0.6;
 }
 
 .engine-checkbox input {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
+  display: none;
 }
 
 .engine-checkbox:hover {
-  border-color: rgba(0, 242, 255, 0.25);
-  background: rgba(0, 242, 255, 0.03);
+  opacity: 0.8;
 }
 
 .engine-checkbox.active {
-  border-color: rgba(0, 242, 255, 0.45);
-  background: rgba(0, 242, 255, 0.06);
+  opacity: 1;
 }
 
 .checkbox-custom {
   width: 18px;
   height: 18px;
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .engine-checkbox.active .checkbox-custom {
+  background: #00f2ff;
   border-color: #00f2ff;
-  background: rgba(0, 242, 255, 0.15);
+  box-shadow: 0 0 10px rgba(0, 242, 255, 0.3);
 }
 
 .checkbox-custom svg {
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
+  color: #000;
   opacity: 0;
-  color: #00f2ff;
-  transition: opacity 0.2s ease;
+  transform: scale(0.5);
+  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .engine-checkbox.active .checkbox-custom svg {
   opacity: 1;
+  transform: scale(1);
 }
 
 .engine-name {
   font-size: 13px;
-  letter-spacing: 0.3px;
-  color: rgba(255, 255, 255, 0.75);
+  letter-spacing: 0.5px;
+  color: #fff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
 }
 
 .remember-option {
+  margin-top: 20px;
   margin-bottom: 24px;
 }
 
@@ -416,14 +421,17 @@ body {
 .card {
   position: relative;
   display: flex;
+  flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 10px;
-  padding: 12px 12px;
+  padding: 14px 10px 12px;
   border-radius: 6px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.02);
   cursor: pointer;
   transition: all 0.2s ease;
+  user-select: none;
 }
 
 .card:hover {
@@ -432,10 +440,24 @@ body {
   transform: translateY(-1px);
 }
 
+.card:active {
+  cursor: grabbing;
+}
+
+.card.dragging {
+  opacity: 0.5;
+  transform: scale(0.98);
+}
+
+.card.drop-target {
+  outline: 2px solid rgba(0, 242, 255, 0.45);
+  outline-offset: 2px;
+}
+
 .card-icon {
-  width: 22px;
-  height: 22px;
-  border-radius: 4px;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
   flex-shrink: 0;
   background: rgba(255, 255, 255, 0.06);
 }
@@ -446,21 +468,20 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  width: 100%;
+  text-align: center;
 }
 
 .card-url {
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.35);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: none;
 }
 
 .card-text {
   display: flex;
   flex-direction: column;
-  min-width: 0;
-  gap: 4px;
+  width: 100%;
+  align-items: center;
+  gap: 0;
 }
 
 .card-delete {
@@ -483,80 +504,103 @@ body {
 }
 
 .history-sidebar {
-  position: absolute;
-  right: 0;
-  top: 0;
-  height: 100%;
-  width: 220px;
-  z-index: 10;
-  background: rgba(0, 0, 0, 0.35);
-  border-left: 1px solid rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(8px);
-  display: flex;
-  flex-direction: column;
-  transform: translateX(100%);
-  transition: transform 0.25s ease;
+  position: fixed;
+  right: 40px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 200px;
+  height: 400px;
+  z-index: 50;
+  transition: all 0.3s ease;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .history-sidebar.has-items {
-  transform: translateX(0);
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .history-list {
-  flex: 1;
-  overflow: auto;
-  padding: 0 12px;
+  height: 100%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   scrollbar-width: none;
+  -ms-overflow-style: none;
+  mask-image: linear-gradient(to bottom, transparent, black 20%, black 80%, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black 20%, black 80%, transparent);
+}
+
+#historyItems {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .history-list::-webkit-scrollbar {
-  width: 0;
-  height: 0;
+  display: none;
 }
 
 .history-padding {
-  height: 150px;
+  min-height: 150px;
+  flex-shrink: 0;
 }
 
 .history-item {
   height: 40px;
-  margin: 0 0 10px;
-  padding: 0 10px;
   display: flex;
   align-items: center;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.02);
+  justify-content: flex-end;
+  padding: 0 0 0 10px;
+  padding-right: 10px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: transform 0.1s ease, opacity 0.1s ease, filter 0.1s ease;
+  color: #fff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+  font-size: 14px;
+  flex-shrink: 0;
+  text-align: right;
+  transform-origin: calc(100% - 10px) center;
 }
 
 .history-item:hover {
-  border-color: rgba(0, 242, 255, 0.2);
-  background: rgba(0, 242, 255, 0.03);
+  color: #00f2ff;
+  text-shadow: 0 0 10px rgba(0, 242, 255, 0.5);
 }
 
 .history-text {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.8);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 100%;
 }
 
 .history-footer {
-  padding: 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 10px;
+  display: flex;
+  justify-content: center;
+  margin-top: 10px;
 }
 
 .clear-all-btn {
-  width: 100%;
-  height: 34px;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.03);
-  color: rgba(255, 255, 255, 0.85);
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.25);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 4px;
   cursor: pointer;
+  transition: all 0.3s ease;
+  opacity: 0.6;
+}
+
+.clear-all-btn:hover {
+  background: rgba(255, 77, 77, 0.1);
+  color: rgba(255, 77, 77, 0.7);
+  opacity: 1;
 }
 
 .popup-overlay {
@@ -605,6 +649,182 @@ body {
   background: rgba(0, 242, 255, 0.12);
   color: #00f2ff;
   cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  .input-group {
+    flex-direction: column;
+  }
+
+  .search-button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .engine-selection {
+    gap: 16px;
+  }
+
+  .history-sidebar {
+    display: none;
+  }
+}
+
+.settings-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+  padding: 20px;
+}
+
+.settings-modal {
+  width: 100%;
+  max-width: 860px;
+  min-height: 420px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.72);
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+}
+
+.settings-sidebar {
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-item {
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.82);
+  cursor: pointer;
+  text-align: left;
+  padding: 0 12px;
+  font-size: 12px;
+  letter-spacing: 0.6px;
+}
+
+.settings-item.active {
+  border-color: rgba(0, 242, 255, 0.35);
+  background: rgba(0, 242, 255, 0.12);
+  color: #00f2ff;
+}
+
+.settings-content {
+  padding: 14px 14px 16px;
+  text-align: left;
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.settings-title {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.86);
+  letter-spacing: 1px;
+}
+
+.settings-close {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.82);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.settings-modal .field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings-modal .field-full {
+  grid-column: 1 / -1;
+}
+
+.settings-modal .label {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  letter-spacing: 0.3px;
+}
+
+.settings-modal .input {
+  height: 38px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.9);
+  padding: 0 12px;
+  outline: none;
+}
+
+.settings-modal .input:focus {
+  border-color: rgba(0, 242, 255, 0.55);
+  box-shadow: 0 0 18px rgba(0, 242, 255, 0.12);
+}
+
+.settings-hint {
+  margin-top: 6px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.45);
+  line-height: 1.45;
+}
+
+.settings-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.settings-status {
+  margin: 12px 0 0;
+  min-height: 18px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.settings-empty {
+  min-height: 200px;
+}
+
+@media (max-width: 720px) {
+  .settings-modal {
+    grid-template-columns: 1fr;
+  }
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
+  .field-full {
+    grid-column: auto;
+  }
 }
 
 @keyframes pulse {

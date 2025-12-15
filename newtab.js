@@ -5,7 +5,9 @@ const STORAGE_DEFAULT_SELECTED = ['GOOGLE', 'BING', 'BAIDU']
 const state = {
   config: null,
   pendingSearch: null,
-  scrollProgress: 0
+  scrollProgress: 0,
+  editingCardId: null,
+  isDraggingCard: false
 }
 
 const send = (payload) =>
@@ -225,6 +227,8 @@ const renderCards = () => {
   for (const card of cards) {
     const div = document.createElement('div')
     div.className = 'card'
+    div.draggable = true
+    div.dataset.cardId = card.id
     div.innerHTML = `
       <img class="card-icon" alt="" />
       <div class="card-text">
@@ -242,12 +246,54 @@ const renderCards = () => {
     div.addEventListener('click', async (evt) => {
       const target = evt.target
       if (target && target.classList.contains('card-delete')) return
+      if (state.isDraggingCard) return
       await send({ type: 'openTabs', urls: [card.url] })
+    })
+
+    div.addEventListener('contextmenu', (evt) => {
+      evt.preventDefault()
+      openCardEditor({ mode: 'edit', card })
     })
 
     div.querySelector('.card-delete').addEventListener('click', async (evt) => {
       evt.stopPropagation()
       await deleteCard(card.id)
+    })
+
+    div.addEventListener('dragstart', (evt) => {
+      state.isDraggingCard = true
+      div.classList.add('dragging')
+      evt.dataTransfer.effectAllowed = 'move'
+      evt.dataTransfer.setData('text/plain', card.id)
+    })
+
+    div.addEventListener('dragend', () => {
+      state.isDraggingCard = false
+      div.classList.remove('dragging')
+      for (const el of document.querySelectorAll('.card.drop-target')) {
+        el.classList.remove('drop-target')
+      }
+    })
+
+    div.addEventListener('dragover', (evt) => {
+      evt.preventDefault()
+      evt.dataTransfer.dropEffect = 'move'
+    })
+
+    div.addEventListener('dragenter', () => {
+      if (!div.classList.contains('dragging')) div.classList.add('drop-target')
+    })
+
+    div.addEventListener('dragleave', () => {
+      div.classList.remove('drop-target')
+    })
+
+    div.addEventListener('drop', async (evt) => {
+      evt.preventDefault()
+      div.classList.remove('drop-target')
+      const draggedId = evt.dataTransfer.getData('text/plain')
+      if (!draggedId || draggedId === card.id) return
+      await reorderCards(draggedId, card.id)
     })
 
     root.appendChild(div)
@@ -273,11 +319,45 @@ const addCard = async ({ title, url }) => {
   renderCards()
 }
 
+const updateCard = async ({ id, title, url }) => {
+  const next = [...(state.config.cards || [])]
+  const index = next.findIndex((c) => c.id === id)
+  if (index === -1) return
+  next[index] = { ...next[index], title, url }
+  state.config.cards = next
+  await saveConfig({ cards: next })
+  renderCards()
+}
+
+const reorderCards = async (draggedId, targetId) => {
+  const next = [...(state.config.cards || [])]
+  const fromIndex = next.findIndex((c) => c.id === draggedId)
+  const toIndex = next.findIndex((c) => c.id === targetId)
+  if (fromIndex === -1 || toIndex === -1) return
+  const [moved] = next.splice(fromIndex, 1)
+  next.splice(toIndex, 0, moved)
+  state.config.cards = next
+  await saveConfig({ cards: next })
+  renderCards()
+}
+
 const deleteCard = async (id) => {
   const next = (state.config.cards || []).filter((c) => c.id !== id)
   state.config.cards = next
   await saveConfig({ cards: next })
   renderCards()
+}
+
+const openCardEditor = ({ mode, card }) => {
+  const editor = $('#cardEditor')
+  const titleInput = $('#cardTitleInput')
+  const urlInput = $('#cardUrlInput')
+
+  state.editingCardId = mode === 'edit' ? card.id : null
+  editor.hidden = false
+  titleInput.value = mode === 'edit' ? card.title : ''
+  urlInput.value = mode === 'edit' ? card.url : ''
+  titleInput.focus()
 }
 
 const initCardEditor = () => {
@@ -288,13 +368,11 @@ const initCardEditor = () => {
   const urlInput = $('#cardUrlInput')
 
   const show = () => {
-    editor.hidden = false
-    titleInput.value = ''
-    urlInput.value = ''
-    titleInput.focus()
+    openCardEditor({ mode: 'create' })
   }
   const hide = () => {
     editor.hidden = true
+    state.editingCardId = null
     setError('')
   }
 
@@ -316,7 +394,11 @@ const initCardEditor = () => {
       return
     }
     setError('')
-    await addCard({ title, url })
+    if (state.editingCardId) {
+      await updateCard({ id: state.editingCardId, title, url })
+    } else {
+      await addCard({ title, url })
+    }
     hide()
   })
 }
@@ -340,8 +422,125 @@ const initPopup = () => {
   })
 }
 
-const initOptionsButton = () => {
-  $('#openOptionsBtn').addEventListener('click', () => chrome.runtime.openOptionsPage())
+const initSettingsModal = () => {
+  const overlay = $('#settingsOverlay')
+  const openBtn = $('#openSettingsBtn')
+  const closeBtn = $('#settingsCloseBtn')
+  const title = $('#settingsTitle')
+  const status = $('#syncStatus')
+
+  const setStatus = (text, kind = 'info') => {
+    status.textContent = text || ''
+    if (kind === 'error') status.style.color = '#ff4848'
+    else if (kind === 'ok') status.style.color = '#00f2ff'
+    else status.style.color = 'rgba(255,255,255,0.7)'
+  }
+
+  const getFormSync = () => ({
+    provider: $('#syncProvider').value,
+    owner: $('#syncOwner').value.trim(),
+    repo: $('#syncRepo').value.trim(),
+    branch: $('#syncBranch').value.trim() || 'main',
+    path: $('#syncPath').value.trim() || 'chrome-home-plugin/config.json',
+    token: $('#syncToken').value.trim()
+  })
+
+  const setFormSync = (sync) => {
+    $('#syncProvider').value = sync.provider || 'github'
+    $('#syncOwner').value = sync.owner || ''
+    $('#syncRepo').value = sync.repo || ''
+    $('#syncBranch').value = sync.branch || 'main'
+    $('#syncPath').value = sync.path || 'chrome-home-plugin/config.json'
+    $('#syncToken').value = sync.token || ''
+  }
+
+  const disableSyncActions = (disabled) => {
+    for (const id of ['syncSaveBtn', 'syncPushBtn', 'syncPullBtn']) {
+      $(`#${id}`).disabled = disabled
+    }
+  }
+
+  const open = () => {
+    overlay.hidden = false
+    setStatus('')
+    setFormSync(state.config.sync || {})
+    selectTab('sync')
+  }
+
+  const close = () => {
+    overlay.hidden = true
+    setStatus('')
+  }
+
+  const selectTab = (tab) => {
+    for (const btn of document.querySelectorAll('.settings-item')) {
+      btn.classList.toggle('active', btn.dataset.tab === tab)
+    }
+    $('#settingsPanelSync').hidden = tab !== 'sync'
+    $('#settingsPanelAbout').hidden = tab !== 'about'
+    title.textContent = tab === 'sync' ? '同步设置' : '关于'
+  }
+
+  openBtn.addEventListener('click', open)
+  closeBtn.addEventListener('click', close)
+
+  overlay.addEventListener('click', (evt) => {
+    if (evt.target === overlay) close()
+  })
+
+  document.addEventListener('keydown', (evt) => {
+    if (evt.key === 'Escape' && !overlay.hidden) close()
+  })
+
+  for (const btn of document.querySelectorAll('.settings-item')) {
+    btn.addEventListener('click', () => selectTab(btn.dataset.tab))
+  }
+
+  $('#syncSaveBtn').addEventListener('click', async () => {
+    disableSyncActions(true)
+    setStatus('保存中...')
+    const saved = await send({ type: 'setConfig', data: { sync: getFormSync() } })
+    disableSyncActions(false)
+    if (!saved?.ok) {
+      setStatus(saved?.error || '保存失败', 'error')
+      return
+    }
+    state.config = saved.data
+    setStatus('已保存', 'ok')
+  })
+
+  $('#syncPushBtn').addEventListener('click', async () => {
+    disableSyncActions(true)
+    setStatus('推送中...')
+    await send({ type: 'setConfig', data: { sync: getFormSync() } })
+    const pushed = await send({ type: 'pushRemote' })
+    disableSyncActions(false)
+    if (!pushed?.ok) {
+      setStatus(pushed?.error || '推送失败', 'error')
+      return
+    }
+    setStatus('推送成功', 'ok')
+  })
+
+  $('#syncPullBtn').addEventListener('click', async () => {
+    disableSyncActions(true)
+    setStatus('拉取中...')
+    await send({ type: 'setConfig', data: { sync: getFormSync() } })
+    const pulled = await send({ type: 'pullRemote' })
+    disableSyncActions(false)
+    if (!pulled?.ok) {
+      setStatus(pulled?.error || '拉取失败', 'error')
+      return
+    }
+    state.config = pulled.data
+    setFormSync(pulled.data.sync || {})
+    setStatus('拉取成功，已写入本地配置', 'ok')
+
+    renderEngines()
+    renderRemember()
+    renderHistory()
+    renderCards()
+  })
 }
 
 const initHistory = () => {
@@ -382,7 +581,7 @@ const main = async () => {
   initHistory()
   initPopup()
   initCardEditor()
-  initOptionsButton()
+  initSettingsModal()
 
   $('#keywordInput').focus()
 }
