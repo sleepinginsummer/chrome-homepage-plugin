@@ -67,17 +67,8 @@
         <section class="cards-section" aria-label="网址卡片">
           <div class="cards-header">
             <h2 class="cards-title">CARDS</h2>
-            <div class="cards-actions">
-              <button class="primary-button" id="addCardBtn" type="button">新增卡片</button>
-            </div>
+            <div class="cards-actions"></div>
           </div>
-
-          <form class="card-editor" id="cardEditor" hidden>
-            <input class="card-input" id="cardTitleInput" type="text" placeholder="标题" maxlength="40" />
-            <input class="card-input" id="cardUrlInput" type="text" placeholder="网址，如 https://example.com" />
-            <button class="primary-button" type="submit">保存</button>
-            <button class="ghost-button" id="cancelCardBtn" type="button">取消</button>
-          </form>
 
           <div class="cards-grid" id="cardsGrid"></div>
         </section>
@@ -168,6 +159,50 @@
             <section class="settings-panel" id="settingsPanelAbout" hidden>
               <div class="settings-empty"> </div>
             </section>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-menu" id="cardMenu" hidden>
+        <button class="card-menu-item" id="cardMenuEditBtn" type="button">修改卡片</button>
+        <button class="card-menu-item danger" id="cardMenuDeleteBtn" type="button">删除卡片</button>
+      </div>
+
+      <div class="modal-overlay" id="cardModalOverlay" hidden>
+        <div class="modal" role="dialog" aria-modal="true" aria-label="卡片编辑">
+          <div class="modal-header">
+            <div class="modal-title" id="cardModalTitle">新增卡片</div>
+            <button class="modal-close" id="cardModalCloseBtn" type="button" aria-label="关闭">×</button>
+          </div>
+          <form class="modal-body" id="cardModalForm">
+            <label class="modal-field">
+              <span class="label">标题</span>
+              <input class="input" id="cardModalTitleInput" type="text" placeholder="例如：Google" maxlength="40" />
+            </label>
+            <label class="modal-field">
+              <span class="label">网址</span>
+              <input class="input" id="cardModalUrlInput" type="text" placeholder="例如：https://example.com" />
+            </label>
+            <div class="modal-actions">
+              <button class="primary-button" type="submit" id="cardModalSaveBtn">保存</button>
+              <button class="ghost-button" type="button" id="cardModalCancelBtn">取消</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="modal-overlay" id="confirmOverlay" hidden>
+        <div class="modal modal-small" role="dialog" aria-modal="true" aria-label="确认操作">
+          <div class="modal-header">
+            <div class="modal-title" id="confirmTitle">确认删除</div>
+            <button class="modal-close" id="confirmCloseBtn" type="button" aria-label="关闭">×</button>
+          </div>
+          <div class="modal-body">
+            <p class="confirm-text" id="confirmText"></p>
+            <div class="modal-actions">
+              <button class="primary-button" id="confirmOkBtn" type="button">确认</button>
+              <button class="ghost-button" id="confirmCancelBtn" type="button">取消</button>
+            </div>
           </div>
         </div>
       </div>

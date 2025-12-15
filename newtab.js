@@ -7,7 +7,9 @@ const state = {
   pendingSearch: null,
   scrollProgress: 0,
   editingCardId: null,
-  isDraggingCard: false
+  isDraggingCard: false,
+  contextCardId: null,
+  confirmAction: null
 }
 
 const send = (payload) =>
@@ -231,33 +233,21 @@ const renderCards = () => {
     div.dataset.cardId = card.id
     div.innerHTML = `
       <img class="card-icon" alt="" />
-      <div class="card-text">
-        <div class="card-title"></div>
-        <div class="card-url"></div>
-      </div>
-      <button class="card-delete" type="button" title="删除">×</button>
+      <div class="card-title"></div>
     `
 
     const icon = div.querySelector('.card-icon')
     icon.src = faviconUrl(card.url)
     div.querySelector('.card-title').textContent = card.title
-    div.querySelector('.card-url').textContent = getHostname(card.url)
 
     div.addEventListener('click', async (evt) => {
-      const target = evt.target
-      if (target && target.classList.contains('card-delete')) return
       if (state.isDraggingCard) return
       await send({ type: 'openTabs', urls: [card.url] })
     })
 
     div.addEventListener('contextmenu', (evt) => {
       evt.preventDefault()
-      openCardEditor({ mode: 'edit', card })
-    })
-
-    div.querySelector('.card-delete').addEventListener('click', async (evt) => {
-      evt.stopPropagation()
-      await deleteCard(card.id)
+      openCardMenu({ x: evt.clientX, y: evt.clientY, cardId: card.id })
     })
 
     div.addEventListener('dragstart', (evt) => {
@@ -298,6 +288,18 @@ const renderCards = () => {
 
     root.appendChild(div)
   }
+
+  const addCard = document.createElement('button')
+  addCard.type = 'button'
+  addCard.className = 'card card-add'
+  addCard.innerHTML = `
+    <svg class="card-add-icon" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <line x1="12" y1="6" x2="12" y2="18"></line>
+      <line x1="6" y1="12" x2="18" y2="12"></line>
+    </svg>
+  `
+  addCard.addEventListener('click', () => openCardModal({ mode: 'create' }))
+  root.appendChild(addCard)
 }
 
 const saveConfig = async (patch) => {
@@ -348,38 +350,127 @@ const deleteCard = async (id) => {
   renderCards()
 }
 
-const openCardEditor = ({ mode, card }) => {
-  const editor = $('#cardEditor')
-  const titleInput = $('#cardTitleInput')
-  const urlInput = $('#cardUrlInput')
+const clamp = (value, min, max) => Math.min(Math.max(value, min), max)
 
-  state.editingCardId = mode === 'edit' ? card.id : null
-  editor.hidden = false
-  titleInput.value = mode === 'edit' ? card.title : ''
-  urlInput.value = mode === 'edit' ? card.url : ''
-  titleInput.focus()
+const closeCardMenu = () => {
+  const menu = $('#cardMenu')
+  menu.hidden = true
+  state.contextCardId = null
 }
 
-const initCardEditor = () => {
-  const editor = $('#cardEditor')
-  const addBtn = $('#addCardBtn')
-  const cancelBtn = $('#cancelCardBtn')
-  const titleInput = $('#cardTitleInput')
-  const urlInput = $('#cardUrlInput')
+const openCardMenu = ({ x, y, cardId }) => {
+  const menu = $('#cardMenu')
+  state.contextCardId = cardId
+  menu.hidden = false
 
-  const show = () => {
-    openCardEditor({ mode: 'create' })
-  }
-  const hide = () => {
-    editor.hidden = true
-    state.editingCardId = null
-    setError('')
-  }
+  menu.style.left = `${x}px`
+  menu.style.top = `${y}px`
 
-  addBtn.addEventListener('click', show)
-  cancelBtn.addEventListener('click', hide)
+  requestAnimationFrame(() => {
+    const rect = menu.getBoundingClientRect()
+    const maxLeft = window.innerWidth - rect.width - 8
+    const maxTop = window.innerHeight - rect.height - 8
+    menu.style.left = `${clamp(x, 8, maxLeft)}px`
+    menu.style.top = `${clamp(y, 8, maxTop)}px`
+  })
+}
 
-  editor.addEventListener('submit', async (evt) => {
+const openConfirm = ({ title, text, onConfirm }) => {
+  const overlay = $('#confirmOverlay')
+  $('#confirmTitle').textContent = title
+  $('#confirmText').textContent = text
+  state.confirmAction = onConfirm
+  overlay.hidden = false
+  closeCardMenu()
+}
+
+const closeConfirm = () => {
+  $('#confirmOverlay').hidden = true
+  state.confirmAction = null
+}
+
+const openCardModal = ({ mode, card }) => {
+  const overlay = $('#cardModalOverlay')
+  const title = $('#cardModalTitle')
+  const titleInput = $('#cardModalTitleInput')
+  const urlInput = $('#cardModalUrlInput')
+
+  state.editingCardId = mode === 'edit' ? card.id : null
+  title.textContent = mode === 'edit' ? '修改卡片' : '新增卡片'
+  titleInput.value = mode === 'edit' ? card.title : ''
+  urlInput.value = mode === 'edit' ? card.url : ''
+
+  setError('')
+  overlay.hidden = false
+  closeCardMenu()
+  requestAnimationFrame(() => titleInput.focus())
+}
+
+const closeCardModal = () => {
+  $('#cardModalOverlay').hidden = true
+  state.editingCardId = null
+  setError('')
+}
+
+const initCardUi = () => {
+  const menu = $('#cardMenu')
+  const editBtn = $('#cardMenuEditBtn')
+  const deleteBtn = $('#cardMenuDeleteBtn')
+
+  const overlay = $('#cardModalOverlay')
+  const form = $('#cardModalForm')
+  const closeBtn = $('#cardModalCloseBtn')
+  const cancelBtn = $('#cardModalCancelBtn')
+  const titleInput = $('#cardModalTitleInput')
+  const urlInput = $('#cardModalUrlInput')
+
+  const confirmOverlay = $('#confirmOverlay')
+  const confirmClose = $('#confirmCloseBtn')
+  const confirmOk = $('#confirmOkBtn')
+  const confirmCancel = $('#confirmCancelBtn')
+
+  const getCardById = (id) => (state.config.cards || []).find((c) => c.id === id) || null
+
+  document.addEventListener('click', (evt) => {
+    if (menu.hidden) return
+    if (menu.contains(evt.target)) return
+    closeCardMenu()
+  })
+
+  document.addEventListener('keydown', (evt) => {
+    if (evt.key === 'Escape') {
+      if (!menu.hidden) closeCardMenu()
+      else if (!confirmOverlay.hidden) closeConfirm()
+      else if (!overlay.hidden) closeCardModal()
+    }
+  })
+
+  editBtn.addEventListener('click', () => {
+    const card = getCardById(state.contextCardId)
+    if (!card) return closeCardMenu()
+    openCardModal({ mode: 'edit', card })
+  })
+
+  deleteBtn.addEventListener('click', () => {
+    const card = getCardById(state.contextCardId)
+    if (!card) return closeCardMenu()
+    openConfirm({
+      title: '确认删除',
+      text: `确认删除卡片「${card.title}」吗？`,
+      onConfirm: async () => {
+        await deleteCard(card.id)
+      }
+    })
+  })
+
+  overlay.addEventListener('click', (evt) => {
+    if (evt.target === overlay) closeCardModal()
+  })
+
+  closeBtn.addEventListener('click', closeCardModal)
+  cancelBtn.addEventListener('click', closeCardModal)
+
+  form.addEventListener('submit', async (evt) => {
     evt.preventDefault()
     const title = titleInput.value.trim()
     const url = normalizeUrl(urlInput.value)
@@ -393,13 +484,22 @@ const initCardEditor = () => {
       setError('请输入合法网址')
       return
     }
+
     setError('')
-    if (state.editingCardId) {
-      await updateCard({ id: state.editingCardId, title, url })
-    } else {
-      await addCard({ title, url })
-    }
-    hide()
+    if (state.editingCardId) await updateCard({ id: state.editingCardId, title, url })
+    else await addCard({ title, url })
+    closeCardModal()
+  })
+
+  confirmOverlay.addEventListener('click', (evt) => {
+    if (evt.target === confirmOverlay) closeConfirm()
+  })
+  confirmClose.addEventListener('click', closeConfirm)
+  confirmCancel.addEventListener('click', closeConfirm)
+  confirmOk.addEventListener('click', async () => {
+    const action = state.confirmAction
+    closeConfirm()
+    if (action) await action()
   })
 }
 
@@ -580,7 +680,7 @@ const main = async () => {
   initSearchForm()
   initHistory()
   initPopup()
-  initCardEditor()
+  initCardUi()
   initSettingsModal()
 
   $('#keywordInput').focus()
