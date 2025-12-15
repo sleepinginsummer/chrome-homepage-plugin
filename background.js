@@ -78,39 +78,19 @@ const parseGitRemote = (gitUrl) => {
   if (giteeCodes) {
     return { provider: 'gitee_gist', gistId: giteeCodes[1] }
   }
-
-  const scpLike = raw.match(/^git@([^:]+):(.+)$/i)
-  const normalized = scpLike ? `ssh://${raw.replace(':', '/')}` : raw
-
-  let url
-  try {
-    url = new URL(normalized)
-  } catch {
-    throw new Error('gitUrl 格式不正确（示例：git@github.com:owner/repo.git）')
-  }
-
-  const host = url.hostname.toLowerCase()
-  const provider = host.includes('gitee.com') ? 'gitee' : host.includes('github.com') ? 'github' : null
-  if (!provider) throw new Error('暂仅支持 GitHub / Gitee 的 gitUrl')
-
-  const parts = url.pathname.replace(/^\/+/, '').replace(/\.git$/i, '').split('/').filter(Boolean)
-  if (parts.length < 2) throw new Error('gitUrl 需包含 owner 与 repo（示例：git@github.com:owner/repo.git）')
-
-  const owner = parts[0]
-  const repo = parts[1]
-  return { provider, owner, repo }
+  throw new Error('仅支持 Gitee 代码片段地址（示例：https://gitee.com/<用户名>/codes/<代码片段ID>）')
 }
 
 const normalizeSyncConfig = (sync) => {
   const raw = sync || {}
 
-  const gitUrl = raw.gitUrl || (raw.owner && raw.repo ? `https://${raw.provider === 'gitee' ? 'gitee.com' : 'github.com'}/${raw.owner}/${raw.repo}` : '')
+  const gitUrl = raw.gitUrl || ''
   const parsed = gitUrl ? parseGitRemote(gitUrl) : null
 
   return {
-    provider: raw.provider || parsed?.provider || 'github',
-    owner: raw.owner || parsed?.owner || '',
-    repo: raw.repo || parsed?.repo || '',
+    provider: 'gitee_gist',
+    owner: '',
+    repo: '',
     gistId: raw.gistId || parsed?.gistId || '',
     branch: raw.branch || DEFAULT_SYNC_BRANCH,
     path: raw.path || DEFAULT_SYNC_PATH,
@@ -219,14 +199,8 @@ const decodeBase64Json = (base64) => {
 const validateSyncConfig = (sync) => {
   const normalized = normalizeSyncConfig(sync)
   if (!normalized.gitUrl) throw new Error('同步配置缺少：gitUrl')
-  if (normalized.provider === 'gitee_gist') {
-    if (!normalized.gistId) throw new Error('同步配置缺少：gistId')
-  } else {
-    const required = ['provider', 'owner', 'repo', 'branch', 'path']
-    for (const key of required) {
-      if (!normalized[key]) throw new Error(`同步配置缺少：${key}`)
-    }
-  }
+  if (normalized.provider !== 'gitee_gist') throw new Error('当前版本仅支持 Gitee 代码片段同步')
+  if (!normalized.gistId) throw new Error('同步配置缺少：gistId')
   if (!normalized.token) throw new Error('同步配置缺少：token')
   return normalized
 }

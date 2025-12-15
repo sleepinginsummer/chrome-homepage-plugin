@@ -29,8 +29,6 @@
    - `Token`：Gitee 私人令牌（需要对该代码片段有权限）
 3. 点击「推送到远端」会在该代码片段中创建/更新 `config.json`；「从远端拉取」会读取 `config.json` 覆盖本地配置；也可开启「自动同步」
 
-> 也支持把 `Git 地址` 填为仓库地址（如 `git@github.com:owner/repo.git` / `https://github.com/owner/repo.git`），将同步到仓库中的 `chrome-home-plugin/config.json`。
-
 > 注意：这是扩展页面发起的网络请求，需要在扩展的 `host_permissions` 中允许对应域名（本项目已包含 `api.github.com` 与 `gitee.com`）。
 
 ## English
@@ -59,5 +57,3 @@ A Chrome New Tab extension: multi-engine search + search history + site cards + 
    - `Git URL`: Gitee codes URL (e.g. `https://gitee.com/<user>/codes/<gistId>`)
    - `Token`: Gitee access token (with permission to the codes)
 3. "Push" creates/updates `config.json` in the codes; "Pull" reads `config.json` and overwrites local config; or enable "Auto Sync"
-
-> Repo URLs (e.g. `git@github.com:owner/repo.git` / `https://github.com/owner/repo.git`) are also supported; it syncs to `chrome-home-plugin/config.json` in the repo.

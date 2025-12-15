@@ -8,25 +8,7 @@ const parseGitRemote = (gitUrl) => {
 
   const giteeCodes = raw.match(/^https?:\/\/gitee\.com\/[^/]+\/codes\/([^/?#]+)(?:[/?#]|$)/i)
   if (giteeCodes) return { provider: 'gitee_gist', gistId: giteeCodes[1] }
-
-  const scpLike = raw.match(/^git@([^:]+):(.+)$/i)
-  const normalized = scpLike ? `ssh://${raw.replace(':', '/')}` : raw
-
-  let url
-  try {
-    url = new URL(normalized)
-  } catch {
-    return null
-  }
-
-  const host = url.hostname.toLowerCase()
-  const provider = host.includes('gitee.com') ? 'gitee' : host.includes('github.com') ? 'github' : null
-  if (!provider) return null
-
-  const parts = url.pathname.replace(/^\/+/, '').replace(/\.git$/i, '').split('/').filter(Boolean)
-  if (parts.length < 2) return null
-
-  return { provider, owner: parts[0], repo: parts[1] }
+  return null
 }
 
 const normalizeSync = (sync) => {
@@ -36,9 +18,9 @@ const normalizeSync = (sync) => {
     gitUrl: raw.gitUrl || '',
     token: raw.token || '',
     autoPush: Boolean(raw.autoPush),
-    provider: raw.provider || parsed?.provider || 'github',
-    owner: raw.owner || parsed?.owner || '',
-    repo: raw.repo || parsed?.repo || '',
+    provider: 'gitee_gist',
+    owner: '',
+    repo: '',
     gistId: raw.gistId || parsed?.gistId || '',
     path: raw.path || DEFAULT_SYNC_PATH
   }
@@ -65,9 +47,7 @@ const getFormSync = () => ({
       gitUrl,
       ...(parsed?.provider === 'gitee_gist'
         ? { provider: parsed.provider, gistId: parsed.gistId }
-        : parsed
-          ? { provider: parsed.provider, owner: parsed.owner, repo: parsed.repo }
-          : {})
+        : {})
     }
   })(),
   token: $('#token').value.trim(),

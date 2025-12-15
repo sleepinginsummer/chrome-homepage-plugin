@@ -30,7 +30,7 @@ const I18N = {
     brand_mini: 'SMART SEARCH',
     hint: 'ONE INPUT, MULTIPLE ENGINES. INSTANT ACCESS.',
     search_placeholder: '输入关键词开始搜索...',
-    search_btn: '搜索',
+    search_btn: 'SEARCH',
     clear_history: '清空历史',
     popup_title: '请允许弹出窗口',
     popup_desc: '首次使用多引擎搜索时，Chrome 可能会拦截多个标签页。建议在设置中允许来自扩展新标签页的弹窗。',
@@ -39,9 +39,9 @@ const I18N = {
     settings_language: '语言',
     settings_about: '关于',
     language_label: '语言',
-    sync_giturl: 'Git 地址',
+    sync_giturl: 'Git 代码片段地址',
     sync_giturl_ph: '例如：https://gitee.com/<用户名>/codes/<代码片段ID>',
-    sync_giturl_hint: '推荐使用 Gitee 代码片段地址（/codes/…），同步更稳定；也支持仓库地址（如 git@github.com:owner/repo.git）。',
+    sync_giturl_hint: '仅支持 Gitee 代码片段地址（/codes/…）。',
     sync_token: 'Token',
     sync_token_ph: 'GitHub Token / Gitee 私人令牌',
     sync_token_hint: 'token 仅保存在 `chrome.storage.sync`；推送/拉取时会使用。',
@@ -76,9 +76,9 @@ const I18N = {
     settings_language: 'Language',
     settings_about: 'About',
     language_label: 'Language',
-    sync_giturl: 'Git URL',
+    sync_giturl: 'Gitee Codes URL',
     sync_giturl_ph: 'e.g. https://gitee.com/<user>/codes/<gistId>',
-    sync_giturl_hint: 'Recommended: Gitee codes URL (/codes/…). Also supports repo URLs (e.g. git@github.com:owner/repo.git).',
+    sync_giturl_hint: 'Only Gitee codes URL (/codes/…) is supported.',
     sync_token: 'Token',
     sync_token_ph: 'GitHub Token / Gitee token',
     sync_token_hint: 'Token is stored only in `chrome.storage.sync`; used for push/pull.',
@@ -108,25 +108,7 @@ const parseGitRemote = (gitUrl) => {
 
   const giteeCodes = raw.match(/^https?:\/\/gitee\.com\/[^/]+\/codes\/([^/?#]+)(?:[/?#]|$)/i)
   if (giteeCodes) return { provider: 'gitee_gist', gistId: giteeCodes[1] }
-
-  const scpLike = raw.match(/^git@([^:]+):(.+)$/i)
-  const normalized = scpLike ? `ssh://${raw.replace(':', '/')}` : raw
-
-  let url
-  try {
-    url = new URL(normalized)
-  } catch {
-    return null
-  }
-
-  const host = url.hostname.toLowerCase()
-  const provider = host.includes('gitee.com') ? 'gitee' : host.includes('github.com') ? 'github' : null
-  if (!provider) return null
-
-  const parts = url.pathname.replace(/^\/+/, '').replace(/\.git$/i, '').split('/').filter(Boolean)
-  if (parts.length < 2) return null
-
-  return { provider, owner: parts[0], repo: parts[1] }
+  return null
 }
 
 const normalizeSync = (sync) => {
@@ -136,9 +118,9 @@ const normalizeSync = (sync) => {
     gitUrl: raw.gitUrl || '',
     token: raw.token || '',
     autoPush: Boolean(raw.autoPush),
-    provider: raw.provider || parsed?.provider || 'github',
-    owner: raw.owner || parsed?.owner || '',
-    repo: raw.repo || parsed?.repo || '',
+    provider: 'gitee_gist',
+    owner: '',
+    repo: '',
     gistId: raw.gistId || parsed?.gistId || '',
     path: raw.path || DEFAULT_SYNC_PATH
   }
@@ -755,9 +737,7 @@ const initSettingsModal = () => {
         gitUrl,
         ...(parsed?.provider === 'gitee_gist'
           ? { provider: parsed.provider, gistId: parsed.gistId }
-          : parsed
-            ? { provider: parsed.provider, owner: parsed.owner, repo: parsed.repo }
-            : {})
+          : {})
       }
     })(),
     token: $('#syncToken').value.trim(),
@@ -771,6 +751,8 @@ const initSettingsModal = () => {
     $('#syncToken').value = normalized.token || ''
     const autoPush = $('#syncAutoPush')
     if (autoPush) autoPush.checked = Boolean(normalized.autoPush)
+    const autoPushLabel = autoPush?.closest('.engine-checkbox')
+    if (autoPushLabel) autoPushLabel.classList.toggle('active', Boolean(autoPush?.checked))
   }
 
   const disableSyncActions = (disabled) => {
