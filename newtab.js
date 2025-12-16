@@ -9,6 +9,9 @@ const state = {
   editingCardId: null,
   editingAnniversaryCardId: null,
   editingAnniversaryItemId: null,
+  editingHotCardId: null,
+  hotModalMode: 'create',
+  hotCache: new Map(),
   isDraggingCard: false,
   contextCardId: null,
   confirmAction: null
@@ -69,8 +72,9 @@ const I18N = {
     add_choose_card: '添加卡片',
     add_choose_component: '添加组件',
     component_list_title: '组件',
-    component_hot: '热搜（即将支持）',
+    component_hot: '热搜',
     component_anniversary: '纪念日',
+    hot_source_label: '来源',
     anniversary_title: '纪念日',
     anniversary_item_title: '标题',
     anniversary_item_title_ph: '例如：小胖达生日',
@@ -117,8 +121,9 @@ const I18N = {
     add_choose_card: 'Add Card',
     add_choose_component: 'Add Component',
     component_list_title: 'Components',
-    component_hot: 'Hot search (soon)',
+    component_hot: 'Hot search',
     component_anniversary: 'Anniversary',
+    hot_source_label: 'Source',
     anniversary_title: 'Anniversary',
     anniversary_item_title: 'Title',
     anniversary_item_title_ph: 'e.g. Birthday',
@@ -499,11 +504,13 @@ const renderCards = () => {
   for (const card of cards) {
     const type = card?.type || 'link'
     const div = document.createElement('div')
-    div.className = type === 'anniversary' ? 'card card-anniversary' : 'card'
+    div.className = type === 'anniversary' ? 'card card-anniversary' : type === 'hot' ? 'card card-hot' : 'card'
     div.draggable = true
     div.dataset.cardId = card.id
     if (type === 'anniversary') {
       div.innerHTML = renderAnniversaryCardHtml(card)
+    } else if (type === 'hot') {
+      div.innerHTML = renderHotCardHtml(card)
     } else {
       div.innerHTML = `
         <img class="card-icon" alt="" />
@@ -523,6 +530,25 @@ const renderCards = () => {
       if (state.isDraggingCard) return
       if ((card?.type || 'link') === 'anniversary') {
         openAnniversaryModal(card.id)
+        return
+      }
+      if ((card?.type || 'link') === 'hot') {
+        const actionEl = evt.target?.closest?.('[data-hot-action]')
+        if (actionEl?.dataset?.hotAction === 'refresh') {
+          evt.preventDefault()
+          evt.stopPropagation()
+          await refreshHotCard(card.id)
+          return
+        }
+
+        const itemEl = evt.target?.closest?.('[data-hot-link]')
+        if (itemEl) {
+          const url = itemEl.dataset.hotLink
+          if (url) await send({ type: 'openTabs', urls: [url] })
+          return
+        }
+
+        openHotModal({ mode: 'edit', cardId: card.id })
         return
       }
       await send({ type: 'openTabs', urls: [card.url] })
@@ -570,6 +596,12 @@ const renderCards = () => {
     })
 
     root.appendChild(div)
+
+    if (type === 'hot') {
+      const renderToken = crypto.randomUUID()
+      div.dataset.hotRenderToken = renderToken
+      void ensureHotDataForCard(card, { cardEl: div, renderToken })
+    }
   }
 
   const addCard = document.createElement('button')
@@ -854,6 +886,177 @@ const addAnniversaryComponent = async () => {
   scheduleAutoPush()
 }
 
+const HOT_SOURCES = [
+  '哔哩哔哩',
+  '百度',
+  '知乎',
+  '百度贴吧',
+  '少数派',
+  'IT之家',
+  '澎湃新闻',
+  '今日头条',
+  '微博热搜',
+  '36氪',
+  '稀土掘金',
+  '腾讯新闻'
+]
+
+const fetchJsonWithTimeout = async (url, timeoutMs = 8000) => {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    const res = await fetch(url, { signal: controller.signal, cache: 'no-store' })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    return await res.json()
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+const getHotSourceTitle = (card) => String(card?.sourceTitle || card?.title || '知乎')
+
+const getHotApiUrl = (sourceTitle) =>
+  `https://bot.znzme.com/dailyhot?title=${encodeURIComponent(String(sourceTitle || '知乎'))}`
+
+const parseHotApiData = (raw) => {
+  const list = raw?.data
+  if (!Array.isArray(list)) return []
+  return list
+    .map((it) => ({
+      title: String(it?.title || '').trim(),
+      link: String(it?.link || '').trim()
+    }))
+    .filter((it) => it.title && it.link)
+}
+
+const renderHotCardHtml = (card) => {
+  const sourceTitle = escapeHtml(getHotSourceTitle(card))
+  return `
+    <div class="hot-card">
+      <div class="hot-header">
+        <div class="hot-title">${sourceTitle}</div>
+        <button class="hot-refresh" type="button" aria-label="刷新" data-hot-action="refresh">
+          <svg class="hot-refresh-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 12a9 9 0 0 1-15.3 6.4"></path>
+            <path d="M3 12a9 9 0 0 1 15.3-6.4"></path>
+            <polyline points="3 16 5.7 18.4 6.6 15"></polyline>
+            <polyline points="21 8 18.3 5.6 17.4 9"></polyline>
+          </svg>
+        </button>
+      </div>
+      <div class="hot-list" data-hot-list>
+        <div class="hot-empty">加载中...</div>
+      </div>
+    </div>
+  `
+}
+
+const updateHotCardDom = ({ cardEl, renderToken, items, errorText }) => {
+  if (!cardEl || cardEl.dataset.hotRenderToken !== renderToken) return
+  const listEl = cardEl.querySelector('[data-hot-list]')
+  if (!listEl) return
+
+  if (errorText) {
+    listEl.innerHTML = `<div class="hot-empty">${escapeHtml(errorText)}</div>`
+    return
+  }
+
+  if (!items?.length) {
+    listEl.innerHTML = `<div class="hot-empty">暂无数据</div>`
+    return
+  }
+
+  listEl.innerHTML = items
+    .slice(0, 50)
+    .map(
+      (it, idx) => `
+      <div class="hot-item" data-hot-link="${escapeHtml(it.link)}" title="${escapeHtml(it.title)}">
+        <div class="hot-rank hot-rank-${idx + 1}">${idx + 1}</div>
+        <div class="hot-text">${escapeHtml(it.title)}</div>
+      </div>
+    `
+    )
+    .join('')
+}
+
+const ensureHotDataForCard = async (card, { cardEl, renderToken }) => {
+  const sourceTitle = getHotSourceTitle(card)
+  const cached = state.hotCache.get(sourceTitle)
+  const now = Date.now()
+  if (cached && now - cached.ts < 5 * 60 * 1000 && Array.isArray(cached.items)) {
+    updateHotCardDom({ cardEl, renderToken, items: cached.items })
+    return
+  }
+
+  try {
+    const raw = await fetchJsonWithTimeout(getHotApiUrl(sourceTitle), 9000)
+    const items = parseHotApiData(raw)
+    state.hotCache.set(sourceTitle, { ts: Date.now(), items })
+    updateHotCardDom({ cardEl, renderToken, items })
+  } catch {
+    updateHotCardDom({ cardEl, renderToken, items: [], errorText: '加载失败，点击刷新重试' })
+  }
+}
+
+const refreshHotCard = async (cardId) => {
+  const card = getCardById(cardId)
+  if (!card || (card.type || 'link') !== 'hot') return
+  state.hotCache.delete(getHotSourceTitle(card))
+  renderCards()
+}
+
+const closeHotModal = () => {
+  $('#hotOverlay').hidden = true
+  state.editingHotCardId = null
+  state.hotModalMode = 'create'
+}
+
+const openHotModal = ({ mode, cardId }) => {
+  const overlay = $('#hotOverlay')
+  const titleEl = $('#hotModalTitle')
+  const select = $('#hotSourceSelect')
+
+  state.hotModalMode = mode === 'edit' ? 'edit' : 'create'
+  state.editingHotCardId = mode === 'edit' ? cardId : null
+
+  if (mode === 'edit') titleEl.textContent = getLang() === 'en' ? 'Hot search' : '热搜设置'
+  else titleEl.textContent = getLang() === 'en' ? 'Add hot search' : '新增热搜'
+
+  const current = mode === 'edit' ? getHotSourceTitle(getCardById(cardId)) : '知乎'
+  const chosen = HOT_SOURCES.includes(current) ? current : '知乎'
+  select.value = chosen
+
+  overlay.hidden = false
+  closeComponentList()
+  closeCardMenu()
+}
+
+const addHotComponent = async (sourceTitle) => {
+  const next = [...(state.config.cards || [])]
+  const safeTitle = HOT_SOURCES.includes(sourceTitle) ? sourceTitle : '知乎'
+  next.unshift({
+    id: crypto.randomUUID(),
+    type: 'hot',
+    title: safeTitle,
+    sourceTitle: safeTitle
+  })
+  state.config.cards = next
+  await saveConfig({ cards: next })
+  renderCards()
+  scheduleAutoPush()
+}
+
+const saveHotCardPatch = async (cardId, patch) => {
+  const next = [...(state.config.cards || [])]
+  const index = next.findIndex((c) => c.id === cardId)
+  if (index === -1) return
+  next[index] = { ...next[index], ...patch }
+  state.config.cards = next
+  await saveConfig({ cards: next })
+  renderCards()
+  scheduleAutoPush()
+}
+
 const closeAnniversaryModal = () => {
   $('#anniversaryOverlay').hidden = true
   state.editingAnniversaryCardId = null
@@ -949,6 +1152,7 @@ const initCardUi = () => {
       else if (!confirmOverlay.hidden) closeConfirm()
       else if (!overlay.hidden) closeCardModal()
       else if (!$('#anniversaryOverlay').hidden) closeAnniversaryModal()
+      else if (!$('#hotOverlay').hidden) closeHotModal()
       else if (!$('#componentListOverlay').hidden) closeComponentList()
       else if (!$('#addChooserOverlay').hidden) closeAddChooser()
     }
@@ -958,6 +1162,7 @@ const initCardUi = () => {
     const card = getCardById(state.contextCardId)
     if (!card) return closeCardMenu()
     if ((card?.type || 'link') === 'anniversary') openAnniversaryModal(card.id)
+    else if ((card?.type || 'link') === 'hot') openHotModal({ mode: 'edit', cardId: card.id })
     else openCardModal({ mode: 'edit', card })
   })
 
@@ -1034,14 +1239,40 @@ const initCardUi = () => {
 
   const componentListOverlay = $('#componentListOverlay')
   const componentListClose = $('#componentListCloseBtn')
+  const componentHotBtn = $('#componentHotBtn')
   const componentAnniversaryBtn = $('#componentAnniversaryBtn')
   componentListOverlay.addEventListener('click', (evt) => {
     if (evt.target === componentListOverlay) closeComponentList()
   })
   componentListClose.addEventListener('click', closeComponentList)
+  componentHotBtn.addEventListener('click', () => openHotModal({ mode: 'create' }))
   componentAnniversaryBtn.addEventListener('click', async () => {
     closeComponentList()
     await addAnniversaryComponent()
+  })
+
+  const hotOverlay = $('#hotOverlay')
+  const hotCloseBtn = $('#hotCloseBtn')
+  const hotCancelBtn = $('#hotCancelBtn')
+  const hotForm = $('#hotForm')
+  const hotSelect = $('#hotSourceSelect')
+  hotOverlay.addEventListener('click', (evt) => {
+    if (evt.target === hotOverlay) closeHotModal()
+  })
+  hotCloseBtn.addEventListener('click', closeHotModal)
+  hotCancelBtn.addEventListener('click', closeHotModal)
+  hotForm.addEventListener('submit', async (evt) => {
+    evt.preventDefault()
+    const sourceTitle = String(hotSelect.value || '知乎')
+    const safeTitle = HOT_SOURCES.includes(sourceTitle) ? sourceTitle : '知乎'
+    if (state.hotModalMode === 'edit' && state.editingHotCardId) {
+      const prev = getCardById(state.editingHotCardId)
+      if (prev) state.hotCache.delete(getHotSourceTitle(prev))
+      await saveHotCardPatch(state.editingHotCardId, { title: safeTitle, sourceTitle: safeTitle })
+    } else {
+      await addHotComponent(safeTitle)
+    }
+    closeHotModal()
   })
 
   const anniversaryOverlay = $('#anniversaryOverlay')

@@ -230,10 +230,42 @@
           </div>
           <div class="modal-body">
             <div class="component-list">
-              <button class="component-item disabled" id="componentHotBtn" type="button" disabled data-i18n="component_hot">热搜（即将支持）</button>
+              <button class="component-item" id="componentHotBtn" type="button" data-i18n="component_hot">热搜</button>
               <button class="component-item" id="componentAnniversaryBtn" type="button" data-i18n="component_anniversary">纪念日</button>
             </div>
           </div>
+        </div>
+      </div>
+
+      <div class="modal-overlay" id="hotOverlay" hidden>
+        <div class="modal modal-small" role="dialog" aria-modal="true" aria-label="热搜来源">
+          <div class="modal-header">
+            <div class="modal-title" id="hotModalTitle">热搜</div>
+            <button class="modal-close" id="hotCloseBtn" type="button" aria-label="关闭">×</button>
+          </div>
+          <form class="modal-body" id="hotForm">
+            <label class="modal-field">
+              <span class="label" data-i18n="hot_source_label">来源</span>
+              <select class="input" id="hotSourceSelect">
+                <option value="哔哩哔哩">哔哩哔哩</option>
+                <option value="百度">百度</option>
+                <option value="知乎">知乎</option>
+                <option value="百度贴吧">百度贴吧</option>
+                <option value="少数派">少数派</option>
+                <option value="IT之家">IT之家</option>
+                <option value="澎湃新闻">澎湃新闻</option>
+                <option value="今日头条">今日头条</option>
+                <option value="微博热搜">微博热搜</option>
+                <option value="36氪">36氪</option>
+                <option value="稀土掘金">稀土掘金</option>
+                <option value="腾讯新闻">腾讯新闻</option>
+              </select>
+            </label>
+            <div class="modal-actions">
+              <button class="primary-button" type="submit" id="hotSaveBtn" data-i18n="common_save">保存</button>
+              <button class="ghost-button" type="button" id="hotCancelBtn" data-i18n="common_cancel">取消</button>
+            </div>
+          </form>
         </div>
       </div>
 
