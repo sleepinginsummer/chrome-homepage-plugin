@@ -500,11 +500,11 @@ body {
   border-radius: 18px;
   overflow: hidden;
   background:
-    radial-gradient(1200px 400px at 20% 10%, rgba(255, 255, 255, 0.18) 0%, transparent 55%),
-    radial-gradient(800px 520px at 70% 40%, rgba(0, 242, 255, 0.12) 0%, transparent 60%),
-    rgba(10, 10, 10, 0.46);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.42);
+    radial-gradient(1200px 420px at 18% 12%, rgba(255, 232, 170, 0.22) 0%, rgba(255, 255, 255, 0.06) 58%),
+    radial-gradient(900px 560px at 72% 42%, rgba(255, 196, 61, 0.18) 0%, rgba(255, 255, 255, 0.04) 62%),
+    linear-gradient(180deg, rgba(64, 46, 18, 0.78) 0%, rgba(24, 18, 10, 0.78) 100%);
+  border: 1px solid rgba(255, 214, 120, 0.22);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.42), 0 10px 30px rgba(255, 196, 61, 0.12);
   backdrop-filter: blur(12px);
   align-items: stretch;
   justify-content: stretch;
@@ -520,9 +520,9 @@ body {
   border-radius: 18px;
   overflow: hidden;
   background:
-    radial-gradient(1200px 400px at 20% 10%, rgba(255, 255, 255, 0.16) 0%, transparent 55%),
-    radial-gradient(800px 520px at 70% 40%, rgba(255, 80, 150, 0.12) 0%, transparent 60%),
-    rgba(10, 10, 10, 0.46);
+    radial-gradient(1200px 400px at 20% 10%, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.06) 55%),
+    radial-gradient(800px 520px at 70% 40%, rgba(0, 242, 255, 0.12) 0%, rgba(255, 255, 255, 0.04) 60%),
+    linear-gradient(180deg, rgba(24, 33, 43, 0.72) 0%, rgba(12, 18, 26, 0.72) 100%);
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: 0 18px 60px rgba(0, 0, 0, 0.42);
   backdrop-filter: blur(12px);
