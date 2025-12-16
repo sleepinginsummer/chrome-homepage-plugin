@@ -1429,6 +1429,21 @@ body {
   line-height: 1.45;
 }
 
+.settings-hint a {
+  color: rgba(255, 255, 255, 0.9);
+  text-decoration: none;
+  display: inline-block;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+}
+
+.settings-hint a:hover {
+  text-decoration: underline;
+}
+
 .settings-actions {
   display: flex;
   gap: 10px;
