@@ -1107,6 +1107,16 @@ body {
   outline: none;
 }
 
+.modal-field select.input {
+  background-color: #0b0b0b;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.modal-field select.input option {
+  background-color: #0b0b0b;
+  color: rgba(255, 255, 255, 0.9);
+}
+
 .modal-field .input[type='date'] {
   color-scheme: dark;
   cursor: pointer;
