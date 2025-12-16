@@ -390,6 +390,7 @@ body {
   display: grid;
   grid-template-columns: repeat(auto-fill, var(--card-size));
   grid-auto-rows: var(--card-size);
+  grid-auto-flow: row dense;
   justify-content: center;
   gap: var(--card-gap-y) var(--card-gap-x);
   width: 100%;

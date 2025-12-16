@@ -57,3 +57,5 @@ A Chrome New Tab extension: multi-engine search + search history + site cards + 
    - `Git URL`: Gitee codes URL (e.g. `https://gitee.com/<user>/codes/<gistId>`)
    - `Token`: Gitee access token (with permission to the codes)
 3. "Push" creates/updates `config.json` in the codes; "Pull" reads `config.json` and overwrites local config; or enable "Auto Sync"
+
+现在有一个问题 如果添加两个纪念日组件 网址组件会在同一行展示，但是如果添加四个组件，网址会被往下排列 但是第一行的右侧还有4个空位可以放置网址卡片
