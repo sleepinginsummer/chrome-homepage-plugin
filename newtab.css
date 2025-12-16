@@ -1429,15 +1429,17 @@ body {
   line-height: 1.45;
 }
 
+#settingsPanelAbout .settings-hint {
+  grid-column: 1 / -1;
+}
+
 .settings-hint a {
   color: rgba(255, 255, 255, 0.9);
   text-decoration: none;
-  display: inline-block;
-  max-width: 100%;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  vertical-align: bottom;
+  display: inline;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .settings-hint a:hover {
