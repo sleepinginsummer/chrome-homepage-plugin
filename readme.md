@@ -19,7 +19,7 @@
 1. 打开 Chrome：`chrome://extensions`
 2. 开启右上角「开发者模式」
 3. 点击「加载已解压的扩展程序」
-4. 选择目录：`/Users/syy/Desktop/project/chrome-home-plugin`
+4. 选择目录：`/xxx/xxx/chrome-home-plugin`
 
 ### 同步配置（推荐：Gitee 代码片段）
 

@@ -626,7 +626,7 @@ const saveConfig = async (patch) => {
 
 const addCard = async ({ title, url, icon }) => {
   const next = [...(state.config.cards || [])]
-  next.unshift({
+  next.push({
     id: crypto.randomUUID(),
     title,
     url,
@@ -743,7 +743,7 @@ const renderAnniversaryCardHtml = (card) => {
   const featuredDate = featuredCalc ? formatMonthDay(featuredCalc) : ''
   const daysText = featuredCalc ? String(featuredCalc.days) : '--'
 
-  const mini = items.slice(0, 4).map((it) => {
+  const mini = items.map((it) => {
     const c = calcNextAnniversary(it.date)
     const t = escapeHtml(String(it.title || ''))
     const date = c ? formatMonthDay(c) : ''
@@ -874,7 +874,7 @@ const closeComponentList = () => {
 
 const addAnniversaryComponent = async () => {
   const next = [...(state.config.cards || [])]
-  next.unshift({
+  next.push({
     id: crypto.randomUUID(),
     type: 'anniversary',
     title: '纪念日',
@@ -1034,7 +1034,7 @@ const openHotModal = ({ mode, cardId }) => {
 const addHotComponent = async (sourceTitle) => {
   const next = [...(state.config.cards || [])]
   const safeTitle = HOT_SOURCES.includes(sourceTitle) ? sourceTitle : '知乎'
-  next.unshift({
+  next.push({
     id: crypto.randomUUID(),
     type: 'hot',
     title: safeTitle,
