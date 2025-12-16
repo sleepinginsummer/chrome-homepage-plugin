@@ -35,6 +35,12 @@ body {
   color: #e0e0e0;
   overflow-x: hidden;
   overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.multi-search-page::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .grid-bg {
