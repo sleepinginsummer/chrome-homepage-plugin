@@ -35,7 +35,7 @@ const I18N = {
   zh: {
     open_settings: '设置',
     brand_mini: 'SMART SEARCH',
-    hint: 'ONE INPUT, MULTIPLE ENGINES. INSTANT ACCESS.',
+    hint: '一次输入 多个引擎 同时搜索',
     search_placeholder: '输入关键词开始搜索...',
     search_btn: 'SEARCH',
     clear_history: '清空历史',
