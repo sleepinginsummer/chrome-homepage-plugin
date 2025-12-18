@@ -287,6 +287,11 @@ const pullRemoteConfig = async (sync) => {
   throw new Error(`不支持的 provider：${normalized.provider}`)
 }
 
+const shouldIgnorePullBeforePushError = (err) => {
+  const message = err?.message || String(err || '')
+  return message.includes('远端代码片段缺少文件：') || message.includes('远端文件不存在，请先推送一次')
+}
+
 const pushRemoteConfig = async (sync, config) => {
   const normalized = validateSyncConfig(sync)
   const message = `chore: update chrome-home-plugin config (${new Date().toISOString()})`
@@ -354,7 +359,16 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     }
     if (message?.type === 'pushRemote') {
       const config = await readConfig()
-      await pushRemoteConfig(config.sync, config)
+      let nextConfig = config
+      try {
+        const remote = await pullRemoteConfig(config.sync)
+        const remoteWithDefaults = deepMerge(DEFAULT_CONFIG, remote)
+        nextConfig = deepMerge(remoteWithDefaults, config)
+        await writeConfig(nextConfig)
+      } catch (err) {
+        if (!shouldIgnorePullBeforePushError(err)) throw err
+      }
+      await pushRemoteConfig(nextConfig.sync, nextConfig)
       const lastSyncAt = await writeLastSyncAt()
       sendResponse({ ok: true, lastSyncAt })
       return
