@@ -1586,6 +1586,27 @@ const initSearchForm = () => {
   })
 }
 
+/**
+ * 点击空白区域时将焦点移动到搜索输入框。
+ */
+const initBlankClickFocus = () => {
+  document.addEventListener('click', (evt) => {
+    const target = evt.target
+    if (!(target instanceof Element)) return
+    if (target.closest('.search-form')) return
+    if (target.closest('input, textarea, select, button, a, label, [contenteditable="true"]')) return
+
+    const settingsOverlay = $('#settingsOverlay')
+    if (settingsOverlay && !settingsOverlay.hasAttribute('hidden') && target.closest('#settingsOverlay')) return
+
+    const popupOverlay = $('#popupOverlay')
+    if (popupOverlay && !popupOverlay.hasAttribute('hidden') && target.closest('#popupOverlay')) return
+
+    // 点击空白区域时，主动聚焦搜索框
+    $('#keywordInput')?.focus()
+  })
+}
+
 const main = async () => {
   const res = await send({ type: 'getConfig' })
   state.config = res?.data
@@ -1595,6 +1616,7 @@ const main = async () => {
   renderHistory()
   renderCards()
   initSearchForm()
+  initBlankClickFocus()
   initHistory()
   initPopup()
   initCardUi()
