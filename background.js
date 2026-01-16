@@ -128,10 +128,21 @@ chrome.runtime.onInstalled.addListener(async () => {
   console.log('[chrome-home] onInstalled:done')
 })
 
-/** 依次打开多个标签页 */
-const openTabs = async (urls) => {
+/** 按需使用当前标签页打开首个地址，其余在后台打开 */
+const openTabs = async (urls, currentTabId) => {
   console.log('[chrome-home] openTabs', { count: Array.isArray(urls) ? urls.length : 0 })
-  for (const url of urls) {
+  const list = Array.isArray(urls) ? urls.filter(Boolean) : []
+  if (!list.length) return
+
+  const [first, ...rest] = list
+  if (typeof currentTabId === 'number') {
+    // 保持在当前标签页打开首个结果
+    await chrome.tabs.update(currentTabId, { url: first, active: true })
+  } else {
+    await chrome.tabs.create({ url: first, active: true })
+  }
+
+  for (const url of rest) {
     await chrome.tabs.create({ url, active: false })
   }
 }
@@ -416,7 +427,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       return
     }
     if (message?.type === 'openTabs') {
-      await openTabs(message.urls || [])
+      await openTabs(message.urls || [], _sender?.tab?.id)
       sendResponse({ ok: true })
       return
     }
