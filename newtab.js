@@ -1,5 +1,7 @@
 const $ = (selector) => document.querySelector(selector)
 
+import { runStartupSync } from './sync-startup.js'
+
 const LAST_SYNC_AT_KEY = 'chromeHomeLastSyncAt'
 
 const state = {
@@ -1621,6 +1623,13 @@ const main = async () => {
   initPopup()
   initCardUi()
   initSettingsModal()
+  // 启动时若开启自动同步，执行一次拉取 + 推送。
+  await runStartupSync({
+    sync: normalizeSync(state.config?.sync),
+    send,
+    setStatus: setSyncStatus,
+    renderLastSyncAt
+  })
 
   $('#keywordInput').focus()
 }
