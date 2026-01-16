@@ -26,23 +26,90 @@ const DEFAULT_CONFIG = {
   }
 }
 
+/** storage.sync.get 的 Promise/回调兼容封装 */
+const storageSyncGet = (keys) =>
+  new Promise((resolve, reject) => {
+    try {
+      chrome.storage.sync.get(keys, (result) => {
+        const err = chrome.runtime?.lastError
+        if (err) {
+          reject(new Error(err.message))
+          return
+        }
+        resolve(result || {})
+      })
+    } catch (error) {
+      reject(error)
+    }
+  })
+
+/** storage.sync.set 的 Promise/回调兼容封装 */
+const storageSyncSet = (data) =>
+  new Promise((resolve, reject) => {
+    try {
+      chrome.storage.sync.set(data, () => {
+        const err = chrome.runtime?.lastError
+        if (err) {
+          reject(new Error(err.message))
+          return
+        }
+        resolve()
+      })
+    } catch (error) {
+      reject(error)
+    }
+  })
+
+/** storage.local.set 的 Promise/回调兼容封装 */
+const storageLocalSet = (data) =>
+  new Promise((resolve, reject) => {
+    try {
+      chrome.storage.local.set(data, () => {
+        const err = chrome.runtime?.lastError
+        if (err) {
+          reject(new Error(err.message))
+          return
+        }
+        resolve()
+      })
+    } catch (error) {
+      reject(error)
+    }
+  })
+
+/** 在缺少 structuredClone 时安全复制对象 */
+const safeStructuredClone = (value) => {
+  if (typeof structuredClone === 'function') return structuredClone(value)
+  return JSON.parse(JSON.stringify(value))
+}
+
+/** 读取配置并合并默认值 */
 const readConfig = async () => {
-  const result = await chrome.storage.sync.get(STORAGE_KEY)
-  return result[STORAGE_KEY] ? deepMerge(DEFAULT_CONFIG, result[STORAGE_KEY]) : structuredClone(DEFAULT_CONFIG)
+  console.log('[chrome-home] readConfig:start')
+  const result = await storageSyncGet(STORAGE_KEY)
+  const merged = result[STORAGE_KEY] ? deepMerge(DEFAULT_CONFIG, result[STORAGE_KEY]) : safeStructuredClone(DEFAULT_CONFIG)
+  console.log('[chrome-home] readConfig:done')
+  return merged
 }
 
+/** 写入配置 */
 const writeConfig = async (nextConfig) => {
-  await chrome.storage.sync.set({ [STORAGE_KEY]: nextConfig })
+  console.log('[chrome-home] writeConfig:start')
+  await storageSyncSet({ [STORAGE_KEY]: nextConfig })
+  console.log('[chrome-home] writeConfig:done')
 }
 
+/** 写入最近同步时间 */
 const writeLastSyncAt = async (isoTime) => {
+  console.log('[chrome-home] writeLastSyncAt:start')
   const value = typeof isoTime === 'string' && isoTime ? isoTime : new Date().toISOString()
-  await chrome.storage.local.set({ [LAST_SYNC_AT_KEY]: value })
+  await storageLocalSet({ [LAST_SYNC_AT_KEY]: value })
+  console.log('[chrome-home] writeLastSyncAt:done')
   return value
 }
 
 const deepMerge = (base, patch) => {
-  if (!patch || typeof patch !== 'object') return structuredClone(base)
+  if (!patch || typeof patch !== 'object') return safeStructuredClone(base)
   const out = Array.isArray(base) ? [...base] : { ...base }
   for (const [key, value] of Object.entries(patch)) {
     if (value && typeof value === 'object' && !Array.isArray(value) && base && typeof base[key] === 'object' && !Array.isArray(base[key])) {
@@ -55,11 +122,15 @@ const deepMerge = (base, patch) => {
 }
 
 chrome.runtime.onInstalled.addListener(async () => {
+  console.log('[chrome-home] onInstalled:start')
   const config = await readConfig()
   await writeConfig(config)
+  console.log('[chrome-home] onInstalled:done')
 })
 
+/** 依次打开多个标签页 */
 const openTabs = async (urls) => {
+  console.log('[chrome-home] openTabs', { count: Array.isArray(urls) ? urls.length : 0 })
   for (const url of urls) {
     await chrome.tabs.create({ url, active: false })
   }
@@ -331,6 +402,7 @@ const pushRemoteConfig = async (sync, config) => {
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  console.log('[chrome-home] onMessage', message?.type)
   ;(async () => {
     if (message?.type === 'getConfig') {
       sendResponse({ ok: true, data: await readConfig() })
@@ -381,6 +453,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     }
     sendResponse({ ok: false, error: '未知消息类型' })
   })().catch((err) => {
+    console.error('[chrome-home] onMessage:error', err)
     sendResponse({ ok: false, error: err?.message || String(err) })
   })
   return true
