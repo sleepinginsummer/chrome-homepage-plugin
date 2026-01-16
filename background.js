@@ -147,6 +147,23 @@ const openTabs = async (urls, currentTabId) => {
   }
 }
 
+/** 总是新开标签页打开首个地址并切换，其余在后台打开 */
+const openTabsInNewActive = async (urls) => {
+  console.log('[chrome-home] openTabsInNewActive', {
+    count: Array.isArray(urls) ? urls.length : 0,
+  })
+  const list = Array.isArray(urls) ? urls.filter(Boolean) : []
+  if (!list.length) return
+
+  const [first, ...rest] = list
+  // 强制新开标签页并切换到该页
+  await chrome.tabs.create({ url: first, active: true })
+
+  for (const url of rest) {
+    await chrome.tabs.create({ url, active: false })
+  }
+}
+
 const normalizeBase64 = (base64) => base64.replace(/\n/g, '')
 
 const encodePath = (path) =>
@@ -428,6 +445,11 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     }
     if (message?.type === 'openTabs') {
       await openTabs(message.urls || [], _sender?.tab?.id)
+      sendResponse({ ok: true })
+      return
+    }
+    if (message?.type === 'openTabsInNewActive') {
+      await openTabsInNewActive(message.urls || [])
       sendResponse({ ok: true })
       return
     }

@@ -544,14 +544,14 @@ const renderCards = () => {
         const itemEl = evt.target?.closest?.('[data-hot-link]')
         if (itemEl) {
           const url = itemEl.dataset.hotLink
-          if (url) await send({ type: 'openTabs', urls: [url] })
+          if (url) await send({ type: 'openTabsInNewActive', urls: [url] })
           return
         }
 
         openHotModal({ mode: 'edit', cardId: card.id })
         return
       }
-      await send({ type: 'openTabs', urls: [card.url] })
+      await send({ type: 'openTabsInNewActive', urls: [card.url] })
     })
 
     div.addEventListener('contextmenu', (evt) => {
