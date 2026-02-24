@@ -1,3 +1,5 @@
+import { createExtensionApiClient } from './extension-api.js'
+
 const $ = (selector) => document.querySelector(selector)
 
 const DEFAULT_SYNC_PATH = 'chrome-home-plugin/config.json'
@@ -26,11 +28,6 @@ const normalizeSync = (sync) => {
   }
 }
 
-const send = (payload) =>
-  new Promise((resolve) => {
-    chrome.runtime.sendMessage(payload, (response) => resolve(response))
-  })
-
 const setStatus = (text, kind = 'info') => {
   const el = $('#status')
   el.textContent = text || ''
@@ -38,6 +35,22 @@ const setStatus = (text, kind = 'info') => {
   else if (kind === 'ok') el.style.color = '#00f2ff'
   else el.style.color = 'rgba(255,255,255,0.7)'
 }
+
+/**
+ * 扩展内部消息发送封装：
+ * - 优先走 background/service worker
+ * - 若短暂离线导致 “Receiving end does not exist”，自动切换到本地兜底（storage/tabs/fetch）
+ */
+let fallbackTipTimer = null
+const apiClient = createExtensionApiClient({
+  chromeApi: chrome,
+  onFallback: (reason) => {
+    setStatus(`后台暂不可用，已切换本地模式（${reason}）`, 'info')
+    if (fallbackTipTimer) clearTimeout(fallbackTipTimer)
+    fallbackTipTimer = setTimeout(() => setStatus(''), 3000)
+  }
+})
+const send = (payload) => apiClient.send(payload)
 
 const getFormSync = () => ({
   ...(() => {

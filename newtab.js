@@ -1,6 +1,7 @@
 const $ = (selector) => document.querySelector(selector)
 
 import { runStartupSync } from './sync-startup.js'
+import { createExtensionApiClient } from './extension-api.js'
 
 const LAST_SYNC_AT_KEY = 'chromeHomeLastSyncAt'
 
@@ -19,10 +20,22 @@ const state = {
   confirmAction: null
 }
 
-const send = (payload) =>
-  new Promise((resolve) => {
-    chrome.runtime.sendMessage(payload, (response) => resolve(response))
-  })
+/**
+ * 扩展内部消息发送封装：
+ * - 优先走 background/service worker
+ * - 若短暂离线导致 “Receiving end does not exist”，自动切换到本地兜底（storage/tabs/fetch）
+ */
+let fallbackTipTimer = null
+const apiClient = createExtensionApiClient({
+  chromeApi: chrome,
+  onFallback: (reason) => {
+    // 重要逻辑：只做轻提示，不打断用户使用；并自动清空。
+    setSyncStatus(`后台暂不可用，已切换本地模式（${reason}）`, 'info')
+    if (fallbackTipTimer) clearTimeout(fallbackTipTimer)
+    fallbackTipTimer = setTimeout(() => setSyncStatus(''), 3000)
+  }
+})
+const send = (payload) => apiClient.send(payload)
 
 const setSyncStatus = (text, kind = 'info') => {
   const status = $('#syncStatus')
