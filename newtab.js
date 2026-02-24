@@ -299,6 +299,16 @@ const getHostname = (url) => {
   }
 }
 
+/**
+ * 生成 Google S2 favicon 服务地址（需要在 manifest 中配置 host_permissions）。
+ *
+ * 说明：
+ * - 某些 Chrome 内置 `chrome://favicon2/` 资源在扩展页会被拦截（Not allowed to load local resource）。
+ * - 因此这里使用可跨站稳定访问的 https favicon 服务作为更通用的候选项。
+ */
+const googleS2FaviconUrl = (pageUrl, size = 64) =>
+  `https://www.google.com/s2/favicons?sz=${encodeURIComponent(String(size))}&domain_url=${encodeURIComponent(String(pageUrl || ''))}`
+
 const faviconAggregatedUrl = (hostname) => `https://favicon.im/${encodeURIComponent(hostname)}?larger=true`
 
 const faviconCandidates = (url) => {
@@ -306,11 +316,26 @@ const faviconCandidates = (url) => {
   try {
     const u = new URL(normalized)
     const hostname = u.hostname
-    return [`${u.origin}/favicon.ico`, faviconAggregatedUrl(hostname)]
+    // 重要逻辑：优先站点自身 favicon，其次 Google S2（更稳定），最后第三方聚合兜底。
+    return [`${u.origin}/favicon.ico`, googleS2FaviconUrl(u.toString(), 64), faviconAggregatedUrl(hostname)]
   } catch {
     const hostname = getHostname(url)
-    return [faviconAggregatedUrl(hostname)]
+    // 兜底：无法解析 URL 时，仍尝试第三方聚合（不影响主流程）。
+    return [googleS2FaviconUrl(hostname, 64), faviconAggregatedUrl(hostname)]
   }
+}
+
+/**
+ * 在浏览器空闲时执行任务；不支持 requestIdleCallback 时用 setTimeout 兜底。
+ * 适用场景：启动同步/热搜拉取等非首屏关键路径任务。
+ */
+const runWhenIdle = (task, timeoutMs = 1200) => {
+  if (typeof requestIdleCallback === 'function') {
+    requestIdleCallback(() => task?.(), { timeout: timeoutMs })
+    return
+  }
+  // 重要逻辑：兜底路径尽量短，避免影响首屏。
+  setTimeout(() => task?.(), Math.min(16, timeoutMs))
 }
 
 const loadImageWithTimeout = (img, urls, timeoutMs = 5000) => {
@@ -533,6 +558,9 @@ const renderCards = () => {
       `
 
       const icon = div.querySelector('.card-icon')
+      // 性能优化：避免阻塞布局/解码；并允许浏览器延迟加载离屏图像。
+      icon.decoding = 'async'
+      icon.loading = 'lazy'
       if (card.icon) {
         icon.src = card.icon
       } else {
@@ -615,7 +643,8 @@ const renderCards = () => {
     if (type === 'hot') {
       const renderToken = crypto.randomUUID()
       div.dataset.hotRenderToken = renderToken
-      void ensureHotDataForCard(card, { cardEl: div, renderToken })
+      // 性能优化：热搜数据请求延迟到空闲时刻，避免与首屏渲染抢主线程/网络。
+      void runWhenIdle(() => ensureHotDataForCard(card, { cardEl: div, renderToken }), 800)
     }
   }
 
@@ -1636,15 +1665,18 @@ const main = async () => {
   initPopup()
   initCardUi()
   initSettingsModal()
-  // 启动时若开启自动同步，执行一次拉取 + 推送。
-  await runStartupSync({
-    sync: normalizeSync(state.config?.sync),
-    send,
-    setStatus: setSyncStatus,
-    renderLastSyncAt
-  })
-
   $('#keywordInput').focus()
+
+  // 性能优化：启动同步属于非首屏关键路径任务，延迟到空闲时执行，避免“打开新标签页时卡顿”。
+  runWhenIdle(async () => {
+    // 启动时若开启自动同步，执行一次拉取 + 推送。
+    await runStartupSync({
+      sync: normalizeSync(state.config?.sync),
+      send,
+      setStatus: setSyncStatus,
+      renderLastSyncAt
+    })
+  }, 1500)
 }
 
 main().catch((err) => setError(err?.message || String(err)))
