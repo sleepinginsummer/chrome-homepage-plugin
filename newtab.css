@@ -622,16 +622,17 @@ body {
   display: grid;
   grid-template-columns: 1fr;
   grid-template-rows: auto minmax(0, 1fr);
-  gap: 10px;
-  padding: 16px;
+  gap: 4px;
+  padding: 0 5px 5px;
 }
 
 .stock-refresh {
   position: absolute;
-  right: 12px;
-  top: 12px;
-  width: 24px;
-  height: 24px;
+  right: 5px;
+  top: 1px;
+  z-index: 3;
+  width: 22px;
+  height: 22px;
   padding: 0;
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.14);
@@ -665,16 +666,17 @@ body {
   height: 100%;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  gap: 10px;
-  padding: 16px;
+  gap: 4px;
+  padding: 0 5px 5px;
 }
 
 .metals-refresh {
   position: absolute;
-  right: 12px;
-  top: 12px;
-  width: 24px;
-  height: 24px;
+  right: 5px;
+  top: 1px;
+  z-index: 3;
+  width: 22px;
+  height: 22px;
   padding: 0;
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.14);
@@ -704,29 +706,35 @@ body {
 
 .card-head-row {
   position: relative;
-  min-height: 24px;
-  padding-right: 40px;
+  height: 25px;
+  min-height: 25px;
   display: flex;
   align-items: center;
   justify-content: center;
+  pointer-events: none;
 }
 
 .card-head-title {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  max-width: calc(100% - 120px);
-  font-size: 15px;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.95);
+  flex: 1;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1.1;
+  color: rgba(255, 255, 255, 0.96);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  padding: 0 30px;
 }
 
 .card-head-time {
+  position: absolute;
+  right: 30px;
+  top: 50%;
+  transform: translateY(-50%);
   margin-left: auto;
-  font-size: 12px;
+  font-size: 11px;
+  line-height: 1;
   color: rgba(255, 255, 255, 0.62);
   white-space: nowrap;
 }
@@ -739,7 +747,7 @@ body {
   overflow-x: hidden;
   min-height: 0;
   max-height: 100%;
-  padding: 2px;
+  padding: 0 2px 2px;
   align-content: start;
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
@@ -864,7 +872,7 @@ body {
   grid-auto-rows: min-content;
   align-items: start;
   gap: 10px;
-  padding: 6px 2px;
+  padding: 0 2px 2px;
   overflow-y: auto;
   overflow-x: hidden;
   max-height: 100%;

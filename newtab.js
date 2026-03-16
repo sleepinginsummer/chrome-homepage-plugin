@@ -1544,7 +1544,13 @@ const refreshMetalsCard = async (cardId) => {
   const card = getCardById(cardId)
   if (!card || (card.type || 'link') !== 'metals') return
   state.metalsCache.delete(card.id)
-  renderCards()
+  const cardEl = document.querySelector(`.card[data-card-id="${card.id}"]`)
+  const renderToken = cardEl?.dataset?.metalsRenderToken
+  if (!cardEl || !renderToken) {
+    renderCards()
+    return
+  }
+  await ensureMetalsDataForCard(card, { cardEl, renderToken, forceRefresh: true })
 }
 
 /**
@@ -1583,7 +1589,13 @@ const refreshStockCard = async (cardId) => {
   const card = getCardById(cardId)
   if (!card || (card.type || 'link') !== 'stock') return
   state.stockCache.delete(card.id)
-  renderCards()
+  const cardEl = document.querySelector(`.card[data-card-id="${card.id}"]`)
+  const renderToken = cardEl?.dataset?.stockRenderToken
+  if (!cardEl || !renderToken) {
+    renderCards()
+    return
+  }
+  await ensureStockDataForCard(card, { cardEl, renderToken, forceRefresh: true })
 }
 
 /**
@@ -1760,7 +1772,13 @@ const refreshHotCard = async (cardId) => {
   if (!card || (card.type || 'link') !== 'hot') return
   state.hotCache.delete(getHotSourceTitle(card))
   state.hotPendingRequests.delete(getHotSourceTitle(card))
-  renderCards()
+  const cardEl = document.querySelector(`.card[data-card-id="${card.id}"]`)
+  const renderToken = cardEl?.dataset?.hotRenderToken
+  if (!cardEl || !renderToken) {
+    renderCards()
+    return
+  }
+  await ensureHotDataForCard(card, { cardEl, renderToken })
 }
 
 const closeHotModal = () => {
