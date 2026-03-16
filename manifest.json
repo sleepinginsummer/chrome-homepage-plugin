@@ -17,7 +17,9 @@
     "https://gitee.com/*",
     "https://www.google.com/*",
     "https://bot.znzme.com/*",
-    "https://qt.gtimg.cn/*"
+    "https://qt.gtimg.cn/*",
+    "https://api.gold-api.com/*",
+    "https://open.er-api.com/*"
   ],
   "icons": {
     "16": "icons/icon16.png",

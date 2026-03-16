@@ -238,8 +238,9 @@
           </div>
           <div class="modal-body">
             <div class="component-list">
-              <button class="component-item" id="componentHotBtn" type="button" data-i18n="component_hot">热搜</button>
+              <button class="component-item" id="componentHotBtn" type="button" data-i18n="component_hot">热搜</button>
               <button class="component-item" id="componentStockBtn" type="button" data-i18n="component_stock">股票</button>
+              <button class="component-item" id="componentMetalsBtn" type="button" data-i18n="component_metals">黄金白银</button>
               <button class="component-item" id="componentAnniversaryBtn" type="button" data-i18n="component_anniversary">纪念日</button>
             </div>
           </div>
@@ -278,25 +279,30 @@
         </div>
       </div>
       <div class="modal-overlay" id="stockOverlay" hidden>
-        <div class="modal modal-small" role="dialog" aria-modal="true" aria-label="股票设置">
+        <div class="modal modal-wide" role="dialog" aria-modal="true" aria-label="股票设置">
           <div class="modal-header">
             <div class="modal-title" id="stockModalTitle" data-i18n="stock_title">股票</div>
             <button class="modal-close" id="stockCloseBtn" type="button" aria-label="关闭">×</button>
           </div>
-          <form class="modal-body" id="stockForm">
-            <label class="modal-field">
-              <span class="label" data-i18n="stock_card_title">标题</span>
-              <input class="input" id="stockTitleInput" type="text" maxlength="40" placeholder="例如：我的股票" data-i18n-placeholder="stock_card_title_ph" />
-            </label>
-            <label class="modal-field">
-              <span class="label" data-i18n="stock_symbols_label">股票代码</span>
-              <input class="input" id="stockSymbolsInput" type="text" placeholder="例如：AAPL, MSFT, TSLA" data-i18n-placeholder="stock_symbols_ph" />
-            </label>
-            <div class="modal-actions">
-              <button class="primary-button" type="submit" id="stockSaveBtn" data-i18n="common_save">保存</button>
-              <button class="ghost-button" type="button" id="stockCancelBtn" data-i18n="common_cancel">取消</button>
+          <div class="modal-body">
+            <div class="stock-edit">
+              <div class="stock-list" id="stockList"></div>
+              <form class="stock-form" id="stockForm">
+                <label class="modal-field">
+                  <span class="label" data-i18n="stock_card_title">标题</span>
+                  <input class="input" id="stockTitleInput" type="text" maxlength="40" placeholder="例如：我的股票" data-i18n-placeholder="stock_card_title_ph" />
+                </label>
+                <label class="modal-field">
+                  <span class="label" data-i18n="stock_symbols_label">股票代码</span>
+                  <input class="input" id="stockSymbolInput" type="text" placeholder="例如：AAPL、603993、HK00700" data-i18n-placeholder="stock_symbols_ph" />
+                </label>
+                <div class="modal-actions">
+                  <button class="primary-button" type="submit" id="stockSaveBtn" data-i18n="common_save">保存</button>
+                  <button class="ghost-button" type="button" id="stockCancelBtn" data-i18n="common_cancel">取消</button>
+                </div>
+              </form>
             </div>
-          </form>
+          </div>
         </div>
       </div>
 
