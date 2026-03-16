@@ -18,6 +18,7 @@ const state = {
   stockCache: new Map(),
   stockModalMode: 'create',
   editingStockCardId: null,
+  hotPendingRequests: new Map(),
   isDraggingCard: false,
   contextCardId: null,
   confirmAction: null
@@ -1133,7 +1134,9 @@ const parseTencentTime = (timeText) => {
   const date = new Date(timeText)
   if (Number.isNaN(date.getTime())) return null
   return Math.floor(date.getTime() / 1000)
-}\r\n/**
+}
+
+/**
  * 格式化股票价格展示。
  */
 const formatStockPrice = (price, currency) => {
@@ -1303,6 +1306,14 @@ const refreshStockCard = async (cardId) => {
   state.stockCache.delete(card.id)
   renderCards()
 }
+
+/**
+ * 拉取 JSON 接口数据，并在超时时主动中止请求。
+ *
+ * @param {string} url 接口地址。
+ * @param {number} timeoutMs 超时时间，单位毫秒。
+ * @returns {Promise<any>} 解析后的 JSON 数据。
+ */
 const fetchJsonWithTimeout = async (url, timeoutMs = 8000) => {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
@@ -1333,6 +1344,19 @@ const fetchTextWithTimeout = async (url, timeoutMs = 8000) => {
 }
 const getHotSourceTitle = (card) => String(card?.sourceTitle || card?.title || '知乎')
 
+/**
+ * 热搜接口地址构造器。
+ *
+ * API 文档：
+ * - 方法：`GET`
+ * - 地址：`https://bot.znzme.com/dailyhot`
+ * - 查询参数：`title`，热搜来源名称，例如“知乎”“微博热搜”
+ * - 成功响应：JSON，对象中的 `data` 字段为数组；数组项包含 `title` 与 `link`
+ * - 使用约束：前端会对同一来源做并发复用与 5 分钟缓存，避免重复请求造成误判失败
+ *
+ * @param {string} sourceTitle 热搜来源名称。
+ * @returns {string} 完整接口地址。
+ */
 const getHotApiUrl = (sourceTitle) =>
   `https://bot.znzme.com/dailyhot?title=${encodeURIComponent(String(sourceTitle || '知乎'))}`
 
@@ -1397,21 +1421,57 @@ const updateHotCardDom = ({ cardEl, renderToken, items, errorText }) => {
     .join('')
 }
 
-const ensureHotDataForCard = async (card, { cardEl, renderToken }) => {
-  const sourceTitle = getHotSourceTitle(card)
+/**
+ * 获取指定热搜源的数据。
+ * - 命中缓存时直接返回缓存结果
+ * - 存在进行中的同源请求时复用同一个 Promise，避免重复请求被浏览器取消
+ *
+ * @param {string} sourceTitle 热搜来源名称。
+ * @returns {Promise<Array<{title: string, link: string}>>} 热搜列表。
+ */
+const getHotItems = async (sourceTitle) => {
   const cached = state.hotCache.get(sourceTitle)
   const now = Date.now()
   if (cached && now - cached.ts < 5 * 60 * 1000 && Array.isArray(cached.items)) {
-    updateHotCardDom({ cardEl, renderToken, items: cached.items })
-    return
+    return cached.items
   }
 
+  const pending = state.hotPendingRequests.get(sourceTitle)
+  if (pending) return pending
+
+  const request = fetchJsonWithTimeout(getHotApiUrl(sourceTitle), 9000)
+    .then((raw) => {
+      const items = parseHotApiData(raw)
+      state.hotCache.set(sourceTitle, { ts: Date.now(), items })
+      return items
+    })
+    .finally(() => {
+      state.hotPendingRequests.delete(sourceTitle)
+    })
+
+  state.hotPendingRequests.set(sourceTitle, request)
+  return request
+}
+
+/**
+ * 为热搜卡片加载并渲染数据。
+ *
+ * @param {{ sourceTitle?: string, title?: string }} card 热搜卡片配置。
+ * @param {{ cardEl: HTMLElement, renderToken: string }} options 渲染上下文。
+ * @returns {Promise<void>}
+ */
+const ensureHotDataForCard = async (card, { cardEl, renderToken }) => {
+  const sourceTitle = getHotSourceTitle(card)
   try {
-    const raw = await fetchJsonWithTimeout(getHotApiUrl(sourceTitle), 9000)
-    const items = parseHotApiData(raw)
-    state.hotCache.set(sourceTitle, { ts: Date.now(), items })
+    const items = await getHotItems(sourceTitle)
     updateHotCardDom({ cardEl, renderToken, items })
   } catch {
+    // 重要逻辑：请求失败时优先回退到旧缓存，减少接口瞬时抖动对界面的影响。
+    const fallbackItems = state.hotCache.get(sourceTitle)?.items
+    if (Array.isArray(fallbackItems) && fallbackItems.length) {
+      updateHotCardDom({ cardEl, renderToken, items: fallbackItems })
+      return
+    }
     updateHotCardDom({ cardEl, renderToken, items: [], errorText: '加载失败，点击刷新重试' })
   }
 }
@@ -1420,6 +1480,7 @@ const refreshHotCard = async (cardId) => {
   const card = getCardById(cardId)
   if (!card || (card.type || 'link') !== 'hot') return
   state.hotCache.delete(getHotSourceTitle(card))
+  state.hotPendingRequests.delete(getHotSourceTitle(card))
   renderCards()
 }
 
