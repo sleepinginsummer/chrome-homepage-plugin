@@ -7,7 +7,8 @@
  * - 统一 storage 的 Promise 封装，并正确读取 chrome.runtime.lastError，避免 Unchecked runtime.lastError 噪音。
  *
  * 注意：
- * - 所有数据均存储于 chrome.storage.sync（配置）与 chrome.storage.local（最近同步时间）。
+ * - 配置存储于 chrome.storage.local，最近同步时间也存储于 chrome.storage.local。
+ * - 兼容旧版本：若 local 中没有配置，会尝试从 chrome.storage.sync 读取一次旧配置并迁移到 local。
  * - 返回的配置始终会与 DEFAULT_CONFIG 深合并，保证 engines 等关键字段不为 undefined。
  */
 
@@ -71,7 +72,7 @@ export const deepMerge = (base, patch) => {
 }
 
 /**
- * storage.sync.get 的 Promise/回调兼容封装（带 lastError 处理）。
+ * storage.sync.get 的 Promise/回调兼容封装（仅用于旧配置迁移，带 lastError 处理）。
  */
 export const storageSyncGet = (chromeApi, keys) =>
   new Promise((resolve, reject) => {
@@ -90,7 +91,7 @@ export const storageSyncGet = (chromeApi, keys) =>
   })
 
 /**
- * storage.sync.set 的 Promise/回调兼容封装（带 lastError 处理）。
+ * storage.sync.set 的 Promise/回调兼容封装（保留给测试/兼容场景，带 lastError 处理）。
  */
 export const storageSyncSet = (chromeApi, data) =>
   new Promise((resolve, reject) => {
@@ -150,16 +151,25 @@ export const storageLocalGet = (chromeApi, keys) =>
  * 读取配置并与默认值合并，确保 engines 等字段存在。
  */
 export const readConfig = async (chromeApi) => {
-  const result = await storageSyncGet(chromeApi, STORAGE_KEY)
-  const raw = result?.[STORAGE_KEY]
-  return raw ? deepMerge(DEFAULT_CONFIG, raw) : safeStructuredClone(DEFAULT_CONFIG)
+  const localResult = await storageLocalGet(chromeApi, STORAGE_KEY)
+  const localRaw = localResult?.[STORAGE_KEY]
+  if (localRaw) return deepMerge(DEFAULT_CONFIG, localRaw)
+
+  // 重要逻辑：从旧版 chrome.storage.sync 平滑迁移到本机 local，避免升级后配置丢失。
+  const syncResult = await storageSyncGet(chromeApi, STORAGE_KEY)
+  const syncRaw = syncResult?.[STORAGE_KEY]
+  if (!syncRaw) return safeStructuredClone(DEFAULT_CONFIG)
+
+  const migrated = deepMerge(DEFAULT_CONFIG, syncRaw)
+  await writeConfig(chromeApi, migrated)
+  return migrated
 }
 
 /**
- * 写入完整配置对象到 storage.sync。
+ * 写入完整配置对象到 storage.local，避免 Chrome 账号同步与 Gitee 同步互相覆盖。
  */
 export const writeConfig = async (chromeApi, nextConfig) => {
-  await storageSyncSet(chromeApi, { [STORAGE_KEY]: nextConfig })
+  await storageLocalSet(chromeApi, { [STORAGE_KEY]: nextConfig })
 }
 
 /**
