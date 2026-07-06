@@ -33,9 +33,9 @@
  * - 本地兜底的行为应尽量与 background.js 的 onMessage 分支一致。
  */
 
-import { DEFAULT_CONFIG, deepMerge, readConfig, writeConfig, writeLastSyncAt } from './config-store.js'
+import { DEFAULT_CONFIG, deepMerge, readConfig, readLastRemoteHash, writeConfig, writeLastRemoteHash, writeLastSyncAt } from './config-store.js'
 import { openTabs, openTabsInNewActive } from './tabs-ops.js'
-import { computeConfigBeforePush, pullRemoteConfig, pushRemoteConfig, testRemoteConfig } from './remote-sync.js'
+import { computeConfigBeforePush, computeConfigHash, pullRemoteConfig, pushRemoteConfigAndVerify, testRemoteConfig } from './remote-sync.js'
 
 const GOLD_API_BASE_URL = 'https://api.gold-api.com/price'
 const USD_CNY_API_URL = 'https://open.er-api.com/v6/latest/USD'
@@ -184,6 +184,7 @@ export const handleMessageLocally = async (chromeApi, message) => {
     const remote = await pullRemoteConfig(config.sync)
     const merged = deepMerge(DEFAULT_CONFIG, remote)
     await writeConfig(chromeApi, merged)
+    await writeLastRemoteHash(chromeApi, await computeConfigHash(remote))
     const lastSyncAt = await writeLastSyncAt(chromeApi)
     return { ok: true, data: merged, lastSyncAt }
   }
@@ -194,10 +195,12 @@ export const handleMessageLocally = async (chromeApi, message) => {
       sync: config.sync,
       localConfig: config,
       deepMerge,
-      defaultConfig: DEFAULT_CONFIG
+      defaultConfig: DEFAULT_CONFIG,
+      lastRemoteHash: await readLastRemoteHash(chromeApi)
     })
     await writeConfig(chromeApi, nextConfig)
-    await pushRemoteConfig(nextConfig.sync, nextConfig)
+    const verifiedRemote = await pushRemoteConfigAndVerify(nextConfig.sync, nextConfig)
+    await writeLastRemoteHash(chromeApi, await computeConfigHash(verifiedRemote))
     const lastSyncAt = await writeLastSyncAt(chromeApi)
     return { ok: true, lastSyncAt }
   }

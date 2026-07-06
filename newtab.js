@@ -357,17 +357,32 @@ const googleS2FaviconUrl = (pageUrl, size = 64) =>
 
 const faviconAggregatedUrl = (hostname) => `https://favicon.im/${encodeURIComponent(hostname)}?larger=true`
 
+const getCardInitial = (card) => {
+  const raw = String(card?.title || getHostname(card?.url || '') || '?').trim()
+  const first = Array.from(raw)[0] || '?'
+  return first.toUpperCase()
+}
+
+const renderLetterIconFallback = (img, card) => {
+  if (!img || img.dataset.fallbackRendered === 'true') return
+  img.dataset.fallbackRendered = 'true'
+
+  const fallback = document.createElement('div')
+  fallback.className = 'card-icon card-icon-letter'
+  fallback.textContent = getCardInitial(card)
+  fallback.setAttribute('aria-hidden', 'true')
+  img.replaceWith(fallback)
+}
+
 const faviconCandidates = (url) => {
   const normalized = normalizeUrl(url)
   try {
     const u = new URL(normalized)
-    const hostname = u.hostname
-    // 重要逻辑：优先站点自身 favicon，其次 Google S2（更稳定），最后第三方聚合兜底。
-    return [`${u.origin}/favicon.ico`, googleS2FaviconUrl(u.toString(), 64), faviconAggregatedUrl(hostname)]
+    // 关键逻辑：不再使用 Google S2 / favicon.im 作为兜底；这些服务会在找不到图标时返回默认地球图标，无法触发 onerror。
+    // 站点自身 favicon 失败时，交给首字母图标兜底，避免展示误导性的默认图标。
+    return [`${u.origin}/favicon.ico`]
   } catch {
-    const hostname = getHostname(url)
-    // 兜底：无法解析 URL 时，仍尝试第三方聚合（不影响主流程）。
-    return [googleS2FaviconUrl(hostname, 64), faviconAggregatedUrl(hostname)]
+    return []
   }
 }
 
@@ -384,9 +399,13 @@ const runWhenIdle = (task, timeoutMs = 1200) => {
   setTimeout(() => task?.(), Math.min(16, timeoutMs))
 }
 
-const loadImageWithTimeout = (img, urls, timeoutMs = 5000) => {
+const loadImageWithTimeout = (img, urls, timeoutMs = 5000, onAllFailed = null) => {
   const list = (urls || []).filter(Boolean)
-  if (!img || !list.length) return () => {}
+  if (!img) return () => {}
+  if (!list.length) {
+    onAllFailed?.()
+    return () => {}
+  }
   let index = 0
   let done = false
   let timer = null
@@ -403,6 +422,7 @@ const loadImageWithTimeout = (img, urls, timeoutMs = 5000) => {
     if (index >= list.length) {
       done = true
       cleanup()
+      onAllFailed?.()
       return
     }
 
@@ -620,9 +640,12 @@ const renderCards = () => {
       icon.decoding = 'async'
       icon.loading = 'lazy'
       if (card.icon) {
+        // 关键逻辑：用户自定义 icon 加载失败时，不显示裂图，退回标题首字母。
+        icon.onerror = () => renderLetterIconFallback(icon, card)
         icon.src = card.icon
       } else {
-        loadImageWithTimeout(icon, faviconCandidates(card.url), 5000)
+        // 关键逻辑：默认 favicon 候选全部失败时，用标题首字母兜底。
+        loadImageWithTimeout(icon, faviconCandidates(card.url), 5000, () => renderLetterIconFallback(icon, card))
       }
       div.querySelector('.card-title').textContent = card.title
     }

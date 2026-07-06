@@ -504,6 +504,18 @@ body {
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
+.card-icon-letter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(0, 242, 255, 0.9), rgba(128, 90, 213, 0.95));
+  color: rgba(255, 255, 255, 0.96);
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
 .card-title {
   font-size: 12px;
   color: rgba(255, 255, 255, 0.85);

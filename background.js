@@ -1,6 +1,6 @@
-import { DEFAULT_CONFIG, deepMerge, readConfig, writeConfig, writeLastSyncAt } from './config-store.js'
+import { DEFAULT_CONFIG, deepMerge, readConfig, readLastRemoteHash, writeConfig, writeLastRemoteHash, writeLastSyncAt } from './config-store.js'
 import { openTabs, openTabsInNewActive } from './tabs-ops.js'
-import { computeConfigBeforePush, pullRemoteConfig, pushRemoteConfig, testRemoteConfig } from './remote-sync.js'
+import { computeConfigBeforePush, computeConfigHash, pullRemoteConfig, pushRemoteConfigAndVerify, testRemoteConfig } from './remote-sync.js'
 
 const GOLD_API_BASE_URL = 'https://api.gold-api.com/price'
 const USD_CNY_API_URL = 'https://open.er-api.com/v6/latest/USD'
@@ -161,6 +161,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       const remote = await pullRemoteConfig(config.sync)
       const merged = deepMerge(DEFAULT_CONFIG, remote)
       await writeConfig(chrome, merged)
+      await writeLastRemoteHash(chrome, await computeConfigHash(remote))
       const lastSyncAt = await writeLastSyncAt(chrome)
       sendResponse({ ok: true, data: merged, lastSyncAt })
       return
@@ -171,10 +172,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         sync: config.sync,
         localConfig: config,
         deepMerge,
-        defaultConfig: DEFAULT_CONFIG
+        defaultConfig: DEFAULT_CONFIG,
+        lastRemoteHash: await readLastRemoteHash(chrome)
       })
       await writeConfig(chrome, nextConfig)
-      await pushRemoteConfig(nextConfig.sync, nextConfig)
+      const verifiedRemote = await pushRemoteConfigAndVerify(nextConfig.sync, nextConfig)
+      await writeLastRemoteHash(chrome, await computeConfigHash(verifiedRemote))
       const lastSyncAt = await writeLastSyncAt(chrome)
       sendResponse({ ok: true, lastSyncAt })
       return

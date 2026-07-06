@@ -14,6 +14,7 @@
 
 export const STORAGE_KEY = 'chromeHomeConfig'
 export const LAST_SYNC_AT_KEY = 'chromeHomeLastSyncAt'
+export const LAST_REMOTE_HASH_KEY = 'chromeHomeLastRemoteHash'
 
 export const DEFAULT_ENGINES = [
   { name: 'GOOGLE', baseUrl: 'https://www.google.com/search?q=' },
@@ -170,6 +171,23 @@ export const readConfig = async (chromeApi) => {
  */
 export const writeConfig = async (chromeApi, nextConfig) => {
   await storageLocalSet(chromeApi, { [STORAGE_KEY]: nextConfig })
+}
+
+/**
+ * 写入最近一次成功拉取/推送确认后的远端配置 hash，用于防止旧本地配置覆盖新远端。
+ */
+export const writeLastRemoteHash = async (chromeApi, hash) => {
+  const value = typeof hash === 'string' ? hash : ''
+  await storageLocalSet(chromeApi, { [LAST_REMOTE_HASH_KEY]: value })
+  return value
+}
+
+/**
+ * 读取最近一次成功拉取/推送确认后的远端配置 hash。
+ */
+export const readLastRemoteHash = async (chromeApi) => {
+  const result = await storageLocalGet(chromeApi, LAST_REMOTE_HASH_KEY)
+  return result?.[LAST_REMOTE_HASH_KEY] || ''
 }
 
 /**
