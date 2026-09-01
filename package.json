@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "vitest"
+    "test": "vitest",
+    "package": "node scripts/package.mjs"
   },
   "devDependencies": {
     "vitest": "^1.6.0"
