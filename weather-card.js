@@ -26,9 +26,11 @@ const WEATHER_ICON_FILES = {
 }
 
 export const renderWeatherIcon = (condition, className = 'weather-icon') => {
-  const iconName = WEATHER_ICON_FILES[getWeatherKind(condition)]
-  const animatedSource = `assets/meteocons/animated/${iconName}.svg`
+  const kind = getWeatherKind(condition)
+  const iconName = WEATHER_ICON_FILES[kind]
   const staticSource = `assets/meteocons/static/${iconName}.svg`
+  // 晴天太阳保持静止，避免持续旋转分散对温度信息的注意力。
+  const animatedSource = kind === 'clear' ? staticSource : `assets/meteocons/animated/${iconName}.svg`
   return `
     <picture class="${className}">
       <source media="(prefers-reduced-motion: reduce)" srcset="${staticSource}">

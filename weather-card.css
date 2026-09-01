@@ -1,5 +1,7 @@
 .card.card-weather {
+  --weather-backdrop: none;
   position: relative;
+  isolation: isolate;
   grid-column: span 8;
   grid-row: span 2;
   overflow: hidden;
@@ -15,33 +17,74 @@
 .card.card-weather:hover { transform: translateY(-1px); }
 
 .card.card-weather[data-weather-kind="clear"] {
+  --weather-backdrop: url("assets/weather-backgrounds/clear.jpg");
   border-color: rgba(248, 175, 24, 0.42);
   background: linear-gradient(135deg, rgba(73, 53, 27, 0.97), rgba(32, 56, 70, 0.95));
 }
 
 .card.card-weather[data-weather-kind="cloudy"] {
+  --weather-backdrop: url("assets/weather-backgrounds/cloudy.jpg");
   border-color: rgba(166, 194, 211, 0.34);
   background: linear-gradient(135deg, rgba(50, 65, 75, 0.97), rgba(29, 45, 58, 0.95));
 }
 
 .card.card-weather[data-weather-kind="rain"] {
+  --weather-backdrop: url("assets/weather-backgrounds/rain.jpg");
   border-color: rgba(59, 155, 213, 0.42);
   background: linear-gradient(135deg, rgba(17, 54, 68, 0.97), rgba(17, 31, 51, 0.96));
 }
 
 .card.card-weather[data-weather-kind="snow"] {
+  --weather-backdrop: url("assets/weather-backgrounds/snow.jpg");
   border-color: rgba(202, 232, 246, 0.44);
   background: linear-gradient(135deg, rgba(65, 87, 98, 0.97), rgba(35, 50, 67, 0.96));
 }
 
 .card.card-weather[data-weather-kind="storm"] {
+  --weather-backdrop: url("assets/weather-backgrounds/storm.jpg");
   border-color: rgba(178, 145, 232, 0.46);
   background: linear-gradient(135deg, rgba(43, 36, 63, 0.98), rgba(19, 27, 43, 0.97));
 }
 
 .card.card-weather[data-weather-kind="fog"] {
+  --weather-backdrop: url("assets/weather-backgrounds/fog.jpg");
   border-color: rgba(188, 207, 199, 0.34);
   background: linear-gradient(135deg, rgba(59, 71, 69, 0.97), rgba(37, 45, 52, 0.96));
+}
+
+.card.card-weather::before,
+.card.card-weather::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.card.card-weather::before {
+  inset: -3%;
+  background-image: var(--weather-backdrop);
+  background-position: center;
+  background-size: cover;
+  opacity: 0.72;
+  transform: scale(1.03);
+  animation: weather-backdrop-drift 22s ease-in-out infinite alternate;
+}
+
+.card.card-weather::after {
+  background:
+    linear-gradient(90deg, rgba(7, 16, 28, 0.68), rgba(7, 16, 28, 0.48) 48%, rgba(7, 16, 28, 0.66)),
+    linear-gradient(180deg, rgba(8, 18, 30, 0.18), rgba(8, 18, 30, 0.5));
+}
+
+.card.card-weather > * {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes weather-backdrop-drift {
+  from { transform: translate3d(-0.8%, 0, 0) scale(1.03); }
+  to { transform: translate3d(0.8%, -0.5%, 0) scale(1.07); }
 }
 
 .weather-card {
@@ -195,6 +238,10 @@
 .weather-day-condition { min-width: 0; font-size: 11px; color: rgba(255, 255, 255, 0.68); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .weather-day-temp { grid-column: 1 / -1; margin-top: 1px; font-size: 12px; font-weight: 720; color: rgba(255, 255, 255, 0.96); text-align: right; white-space: nowrap; }
 .weather-empty { grid-row: 1 / -1; display: grid; place-items: center; color: rgba(255, 255, 255, 0.68); font-size: 13px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .card.card-weather::before { animation: none; }
+}
 
 @media (max-width: 1100px) {
   .card.card-weather { grid-column: span 4; }

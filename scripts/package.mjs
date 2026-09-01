@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
@@ -29,7 +29,7 @@ const runtimeEntries = [
   'sync-startup.js', 'hot-news.js', 'request-cache.js',
   'weather.js', 'weather-card.js', 'weather-card.css',
   'card-drag.js', 'card-icon.js',
-  'icon.svg', 'icons', 'assets/meteocons', 'LICENSE'
+  'icon.svg', 'icons', 'assets', 'LICENSE'
 ]
 
 for (const entry of runtimeEntries) {
@@ -56,6 +56,21 @@ const unzipResult = spawnSync('unzip', ['-p', relativeOutput, 'manifest.json'], 
 if (unzipResult.status !== 0) throw new Error(`ZIP 校验失败: ${unzipResult.stderr}`)
 const packagedManifest = JSON.parse(unzipResult.stdout)
 if (packagedManifest.version !== version) throw new Error('ZIP 内 manifest 版本不正确')
+
+const archiveListResult = spawnSync('unzip', ['-Z1', relativeOutput], {
+  cwd: rootDir,
+  encoding: 'utf8'
+})
+if (archiveListResult.status !== 0) throw new Error(`ZIP 文件清单校验失败: ${archiveListResult.stderr}`)
+const archiveEntries = new Set(archiveListResult.stdout.split('\n').filter(Boolean))
+const collectRuntimeFiles = (entry) => {
+  const absolutePath = join(rootDir, entry)
+  if (!statSync(absolutePath).isDirectory()) return [entry]
+  return readdirSync(absolutePath).flatMap((child) => collectRuntimeFiles(`${entry}/${child}`))
+}
+for (const entry of runtimeEntries.flatMap(collectRuntimeFiles)) {
+  if (!archiveEntries.has(entry)) throw new Error(`ZIP 缺少运行时文件: ${entry}`)
+}
 
 const checksum = createHash('sha256').update(readFileSync(output)).digest('hex')
 console.log(`${checksum}  ${relativeOutput}`)

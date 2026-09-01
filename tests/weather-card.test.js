@@ -11,8 +11,13 @@ describe('weather card', () => {
     expect(getWeatherKind('雾')).toBe('fog')
   })
 
+  it('晴天始终使用静态太阳', () => {
+    const html = renderWeatherIcon('晴', 'test-icon')
+    expect(html).toContain('assets/meteocons/static/clear-day.svg')
+    expect(html).not.toContain('assets/meteocons/animated/clear-day.svg')
+  })
+
   it.each([
-    ['晴', 'clear-day'],
     ['多云', 'cloudy'],
     ['小雨', 'rain'],
     ['雷阵雨', 'thunderstorms'],
