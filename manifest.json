@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Chrome Home Plugin",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "多引擎搜索 + 常用网址卡片 + 配置同步",
   "chrome_url_overrides": {
     "newtab": "newtab.html"
@@ -11,12 +11,12 @@
     "service_worker": "background.js",
     "type": "module"
   },
-  "permissions": ["storage", "tabs"],
+  "permissions": ["storage", "tabs", "favicon"],
   "host_permissions": [
     "https://api.github.com/*",
     "https://gitee.com/*",
-    "https://www.google.com/*",
     "https://bot.znzme.com/*",
+    "http://47.102.98.123:8778/*",
     "https://qt.gtimg.cn/*",
     "https://api.gold-api.com/*",
     "https://open.er-api.com/*"

@@ -1,0 +1,211 @@
+.card.card-weather {
+  position: relative;
+  grid-column: span 8;
+  grid-row: span 2;
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 196, 255, 0.24);
+  background: linear-gradient(135deg, rgba(24, 39, 55, 0.97), rgba(17, 27, 41, 0.95));
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.42), 0 10px 34px rgba(82, 151, 220, 0.1);
+  backdrop-filter: blur(12px);
+  align-items: stretch;
+  justify-content: stretch;
+}
+
+.card.card-weather:hover { transform: translateY(-1px); }
+
+.card.card-weather[data-weather-kind="clear"] {
+  border-color: rgba(248, 175, 24, 0.42);
+  background: linear-gradient(135deg, rgba(73, 53, 27, 0.97), rgba(32, 56, 70, 0.95));
+}
+
+.card.card-weather[data-weather-kind="cloudy"] {
+  border-color: rgba(166, 194, 211, 0.34);
+  background: linear-gradient(135deg, rgba(50, 65, 75, 0.97), rgba(29, 45, 58, 0.95));
+}
+
+.card.card-weather[data-weather-kind="rain"] {
+  border-color: rgba(59, 155, 213, 0.42);
+  background: linear-gradient(135deg, rgba(17, 54, 68, 0.97), rgba(17, 31, 51, 0.96));
+}
+
+.card.card-weather[data-weather-kind="snow"] {
+  border-color: rgba(202, 232, 246, 0.44);
+  background: linear-gradient(135deg, rgba(65, 87, 98, 0.97), rgba(35, 50, 67, 0.96));
+}
+
+.card.card-weather[data-weather-kind="storm"] {
+  border-color: rgba(178, 145, 232, 0.46);
+  background: linear-gradient(135deg, rgba(43, 36, 63, 0.98), rgba(19, 27, 43, 0.97));
+}
+
+.card.card-weather[data-weather-kind="fog"] {
+  border-color: rgba(188, 207, 199, 0.34);
+  background: linear-gradient(135deg, rgba(59, 71, 69, 0.97), rgba(37, 45, 52, 0.96));
+}
+
+.weather-card {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-rows: 25px minmax(0, 1fr);
+  padding: 0 7px 7px;
+}
+
+.weather-refresh {
+  position: absolute;
+  right: 5px;
+  top: 1px;
+  z-index: 3;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.92);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.12s ease, background 0.16s ease, border-color 0.16s ease;
+}
+
+.weather-refresh:hover,
+.weather-refresh:focus-visible {
+  border-color: rgba(133, 205, 255, 0.58);
+  background: rgba(133, 205, 255, 0.14);
+  outline: none;
+}
+
+.weather-refresh:active { transform: scale(0.96); }
+.weather-refresh-icon { width: 14px; height: 14px; display: block; }
+
+.weather-content {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: 64px minmax(0, 1fr);
+  gap: 6px;
+}
+
+.weather-current {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px 3px;
+}
+
+.weather-current-icon {
+  width: 62px;
+  height: 62px;
+  flex: 0 0 62px;
+  display: grid;
+  place-items: center;
+}
+
+.weather-main-icon {
+  width: 62px;
+  height: 62px;
+  display: block;
+}
+
+.weather-icon-asset {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+}
+
+.weather-temperature {
+  font-size: 38px;
+  line-height: 1;
+  font-weight: 760;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.weather-temperature span {
+  font-size: 20px;
+  vertical-align: top;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.weather-current-copy { min-width: 0; }
+.weather-condition { font-size: 15px; line-height: 1.2; font-weight: 720; color: rgba(255, 255, 255, 0.96); }
+.weather-wind { margin-top: 4px; font-size: 11px; color: rgba(255, 255, 255, 0.65); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.weather-metrics {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+
+.weather-metrics > div {
+  min-width: 78px;
+  padding: 6px 9px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.16);
+  display: grid;
+  gap: 2px;
+}
+
+.weather-metrics span { font-size: 10px; color: rgba(255, 255, 255, 0.58); }
+.weather-metrics strong { font-size: 13px; line-height: 1.1; color: rgba(255, 255, 255, 0.94); }
+
+.weather-forecast {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(96px, 1fr));
+  gap: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(5, 13, 23, 0.2);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+.weather-day {
+  min-width: 0;
+  padding: 5px 8px;
+  border-right: 1px solid rgba(255, 255, 255, 0.09);
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 5px;
+}
+
+.weather-day:last-child { border-right: 0; }
+.weather-day-clear { background: rgba(248, 175, 24, 0.06); }
+.weather-day-cloudy { background: rgba(189, 211, 224, 0.04); }
+.weather-day-rain { background: rgba(39, 132, 201, 0.07); }
+.weather-day-snow { background: rgba(211, 238, 249, 0.07); }
+.weather-day-storm { background: rgba(145, 104, 210, 0.08); }
+.weather-day-fog { background: rgba(188, 207, 199, 0.06); }
+
+.weather-day-label { font-size: 11px; font-weight: 720; color: rgba(255, 255, 255, 0.84); }
+.weather-day-icon { grid-row: 1 / 3; width: 38px; height: 38px; display: block; }
+.weather-day-condition { min-width: 0; font-size: 11px; color: rgba(255, 255, 255, 0.68); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.weather-day-temp { grid-column: 1 / -1; margin-top: 1px; font-size: 12px; font-weight: 720; color: rgba(255, 255, 255, 0.96); text-align: right; white-space: nowrap; }
+.weather-empty { grid-row: 1 / -1; display: grid; place-items: center; color: rgba(255, 255, 255, 0.68); font-size: 13px; }
+
+@media (max-width: 1100px) {
+  .card.card-weather { grid-column: span 4; }
+  .weather-metrics > div { min-width: 66px; padding-inline: 7px; }
+}
+
+@media (max-width: 720px) {
+  .weather-current { gap: 6px; padding-inline: 4px; }
+  .weather-current-icon,
+  .weather-main-icon { width: 50px; height: 50px; }
+  .weather-current-icon { flex-basis: 50px; }
+  .weather-temperature { font-size: 30px; }
+  .weather-metrics > div { min-width: 58px; }
+}

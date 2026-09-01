@@ -2,6 +2,11 @@ const $ = (selector) => document.querySelector(selector)
 
 import { runStartupSync } from './sync-startup.js'
 import { createExtensionApiClient } from './extension-api.js'
+import { createHotNewsClient } from './hot-news.js'
+import { createWeatherClient } from './weather.js'
+import { renderWeatherCardHtml, updateWeatherCardDom } from './weather-card.js'
+import { createCardDragController } from './card-drag.js'
+import { createCardIconCandidates, getCardInitial, loadCardIcon } from './card-icon.js'
 
 const LAST_SYNC_AT_KEY = 'chromeHomeLastSyncAt'
 
@@ -14,19 +19,21 @@ const state = {
   editingAnniversaryItemId: null,
   editingHotCardId: null,
   hotModalMode: 'create',
-  hotCache: new Map(),
+  editingWeatherCardId: null,
+  weatherModalMode: 'create',
   stockCache: new Map(),
   stockPollTimers: new Map(),
   metalsCache: new Map(),
   metalsPollTimers: new Map(),
+  iconLoadCleanups: new Set(),
   stockModalMode: 'create',
   editingStockCardId: null,
   editingStockSymbol: null,
-  hotPendingRequests: new Map(),
   isDraggingCard: false,
   contextCardId: null,
   confirmAction: null
 }
+let cardDragController = null
 
 /**
  * 扩展内部消息发送封装：
@@ -44,6 +51,8 @@ const apiClient = createExtensionApiClient({
   }
 })
 const send = (payload) => apiClient.send(payload)
+const hotNewsClient = createHotNewsClient()
+const weatherClient = createWeatherClient({ storage: chrome.storage.local })
 
 const setSyncStatus = (text, kind = 'info') => {
   const status = $('#syncStatus')
@@ -120,7 +129,17 @@ const I18N = {
     metals_usd: '美元',
     metals_cny: '人民币',
     metals_loading: '加载中...',
-    metals_error: '加载失败，点击刷新重试'
+    metals_error: '加载失败，点击刷新重试',
+    component_weather: '天气',
+    weather_title: '天气',
+    weather_city_label: '城市名称',
+    weather_city_ph: '例如：南京',
+    weather_loading: '正在获取天气...',
+    weather_error: '天气加载失败，点击刷新重试',
+    weather_empty: '暂无天气数据',
+    weather_humidity: '湿度',
+    weather_updated_at: '更新于',
+    weather_refresh: '刷新天气'
   },
   en: {
     open_settings: 'Settings',
@@ -188,7 +207,17 @@ const I18N = {
     metals_usd: 'USD',
     metals_cny: 'CNY',
     metals_loading: 'Loading...',
-    metals_error: 'Load failed, click refresh to retry'
+    metals_error: 'Load failed, click refresh to retry',
+    component_weather: 'Weather',
+    weather_title: 'Weather',
+    weather_city_label: 'City',
+    weather_city_ph: 'e.g. Nanjing',
+    weather_loading: 'Loading weather...',
+    weather_error: 'Load failed, click refresh to retry',
+    weather_empty: 'No weather data',
+    weather_humidity: 'Humidity',
+    weather_updated_at: 'Updated',
+    weather_refresh: 'Refresh weather'
   }
 }
 
@@ -337,40 +366,6 @@ const normalizeIconUrl = (raw) => {
   }
 }
 
-const getHostname = (url) => {
-  try {
-    return new URL(url).hostname
-  } catch {
-    return url
-  }
-}
-
-/**
- * 生成 Google S2 favicon 服务地址（需要在 manifest 中配置 host_permissions）。
- *
- * 说明：
- * - 某些 Chrome 内置 `chrome://favicon2/` 资源在扩展页会被拦截（Not allowed to load local resource）。
- * - 因此这里使用可跨站稳定访问的 https favicon 服务作为更通用的候选项。
- */
-const googleS2FaviconUrl = (pageUrl, size = 64) =>
-  `https://www.google.com/s2/favicons?sz=${encodeURIComponent(String(size))}&domain_url=${encodeURIComponent(String(pageUrl || ''))}`
-
-const faviconAggregatedUrl = (hostname) => `https://favicon.im/${encodeURIComponent(hostname)}?larger=true`
-
-const faviconCandidates = (url) => {
-  const normalized = normalizeUrl(url)
-  try {
-    const u = new URL(normalized)
-    const hostname = u.hostname
-    // 重要逻辑：优先站点自身 favicon，其次 Google S2（更稳定），最后第三方聚合兜底。
-    return [`${u.origin}/favicon.ico`, googleS2FaviconUrl(u.toString(), 64), faviconAggregatedUrl(hostname)]
-  } catch {
-    const hostname = getHostname(url)
-    // 兜底：无法解析 URL 时，仍尝试第三方聚合（不影响主流程）。
-    return [googleS2FaviconUrl(hostname, 64), faviconAggregatedUrl(hostname)]
-  }
-}
-
 /**
  * 在浏览器空闲时执行任务；不支持 requestIdleCallback 时用 setTimeout 兜底。
  * 适用场景：启动同步/热搜拉取等非首屏关键路径任务。
@@ -382,53 +377,6 @@ const runWhenIdle = (task, timeoutMs = 1200) => {
   }
   // 重要逻辑：兜底路径尽量短，避免影响首屏。
   setTimeout(() => task?.(), Math.min(16, timeoutMs))
-}
-
-const loadImageWithTimeout = (img, urls, timeoutMs = 5000) => {
-  const list = (urls || []).filter(Boolean)
-  if (!img || !list.length) return () => {}
-  let index = 0
-  let done = false
-  let timer = null
-
-  const cleanup = () => {
-    if (timer) clearTimeout(timer)
-    timer = null
-    img.onload = null
-    img.onerror = null
-  }
-
-  const tryNext = () => {
-    if (done) return
-    if (index >= list.length) {
-      done = true
-      cleanup()
-      return
-    }
-
-    const src = list[index++]
-    cleanup()
-
-    img.onload = () => {
-      done = true
-      cleanup()
-    }
-    img.onerror = () => {
-      tryNext()
-    }
-
-    timer = setTimeout(() => {
-      tryNext()
-    }, timeoutMs)
-
-    img.src = src
-  }
-
-  tryNext()
-  return () => {
-    done = true
-    cleanup()
-  }
 }
 
 const renderEngines = () => {
@@ -583,7 +531,188 @@ const updateHistoryTransforms = () => {
   }
 }
 
+const renderCardBody = (card, div) => {
+  const type = card?.type || 'link'
+  const classNames = {
+    anniversary: 'card card-anniversary',
+    hot: 'card card-hot',
+    stock: 'card card-stock',
+    metals: 'card card-metals',
+    weather: 'card card-weather'
+  }
+  div.className = classNames[type] || 'card'
+
+  if (type === 'anniversary') div.innerHTML = renderAnniversaryCardHtml(card)
+  else if (type === 'hot') div.innerHTML = renderHotCardHtml(card)
+  else if (type === 'stock') div.innerHTML = renderStockCardHtml(card)
+  else if (type === 'metals') div.innerHTML = renderMetalsCardHtml(card)
+  else if (type === 'weather') div.innerHTML = renderWeatherCardHtml(card, getWeatherText())
+  else {
+    div.innerHTML = `
+      <div class="card-icon" aria-hidden="true">
+        <span class="card-icon-fallback"></span>
+        <img class="card-icon-image" alt="" />
+      </div>
+      <div class="card-title"></div>
+    `
+    const icon = div.querySelector('.card-icon')
+    const image = div.querySelector('.card-icon-image')
+    icon.querySelector('.card-icon-fallback').textContent = getCardInitial(card.title)
+    image.decoding = 'async'
+    image.loading = 'lazy'
+    const candidates = createCardIconCandidates({
+      pageUrl: card.url,
+      customIcon: card.icon,
+      runtimeGetURL: chrome.runtime?.getURL?.bind(chrome.runtime)
+    })
+    const cancelIconLoad = loadCardIcon(image, candidates, {
+      timeoutMs: 5000,
+      onLoaded: (_source, dimensions) => {
+        const sourceSize = Math.min(dimensions.width, dimensions.height)
+        icon.classList.toggle('is-low-resolution', sourceSize < 24)
+        icon.classList.toggle('is-medium-resolution', sourceSize >= 24 && sourceSize < 48)
+        icon.classList.add('has-image')
+      }
+    })
+    state.iconLoadCleanups.add(cancelIconLoad)
+    div.querySelector('.card-title').textContent = card.title
+  }
+}
+
+const initializePollingCard = (card, div, { tokenDatasetKey, ensureData, timers }) => {
+  const renderToken = crypto.randomUUID()
+  div.dataset[tokenDatasetKey] = renderToken
+  void ensureData(card, { cardEl: div, renderToken, forceRefresh: true })
+  const timer = setInterval(() => {
+    const latestCard = getCardById(card.id)
+    if (!latestCard) return
+    void ensureData(latestCard, {
+      cardEl: div,
+      renderToken: div.dataset[tokenDatasetKey],
+      forceRefresh: true
+    })
+  }, STOCK_REFRESH_INTERVAL)
+  timers.set(card.id, timer)
+}
+
+const initializeCardData = (card, div) => {
+  const type = card?.type || 'link'
+  if (type === 'hot') {
+    const renderToken = crypto.randomUUID()
+    div.dataset.hotRenderToken = renderToken
+    void runWhenIdle(() => ensureHotDataForCard(card, { cardEl: div, renderToken }), 800)
+    return
+  }
+
+  if (type === 'weather') {
+    const renderToken = crypto.randomUUID()
+    div.dataset.weatherRenderToken = renderToken
+    void runWhenIdle(() => ensureWeatherDataForCard(card, { cardEl: div, renderToken }), 800)
+    return
+  }
+
+  if (type === 'stock') {
+    initializePollingCard(card, div, {
+      tokenDatasetKey: 'stockRenderToken',
+      ensureData: ensureStockDataForCard,
+      timers: state.stockPollTimers
+    })
+    return
+  }
+
+  if (type === 'metals') {
+    initializePollingCard(card, div, {
+      tokenDatasetKey: 'metalsRenderToken',
+      ensureData: ensureMetalsDataForCard,
+      timers: state.metalsPollTimers
+    })
+  }
+}
+
+const handleHotCardClick = async (card, evt) => {
+  const actionEl = evt.target?.closest?.('[data-hot-action]')
+  if (actionEl?.dataset?.hotAction === 'refresh') {
+    evt.preventDefault()
+    evt.stopPropagation()
+    await refreshHotCard(card.id)
+    return
+  }
+  const itemEl = evt.target?.closest?.('[data-hot-link]')
+  if (itemEl) {
+    const url = itemEl.dataset.hotLink
+    if (url) await send({ type: 'openTabsInNewActive', urls: [url] })
+    return
+  }
+  openHotModal({ mode: 'edit', cardId: card.id })
+}
+
+const handleStockCardClick = async (card, evt) => {
+  const actionEl = evt.target?.closest?.('[data-stock-action]')
+  if (actionEl?.dataset?.stockAction === 'refresh') {
+    evt.preventDefault()
+    evt.stopPropagation()
+    await refreshStockCard(card.id)
+    return
+  }
+  const itemEl = evt.target?.closest?.('[data-stock-symbol]')
+  if (!itemEl) {
+    openStockModal({ mode: 'edit', cardId: card.id })
+    return
+  }
+  const symbol = itemEl.dataset.stockSymbol
+  if (!symbol) return
+  const url = `https://gu.qq.com/${encodeURIComponent(formatTencentSymbol(symbol))}`
+  await send({ type: 'openTabsInNewActive', urls: [url] })
+}
+
+const handleWeatherCardClick = async (card, evt) => {
+  const actionEl = evt.target?.closest?.('[data-weather-action]')
+  if (actionEl?.dataset?.weatherAction === 'refresh') {
+    evt.preventDefault()
+    evt.stopPropagation()
+    await refreshWeatherCard(card.id)
+    return
+  }
+  openWeatherModal({ mode: 'edit', cardId: card.id })
+}
+
+const handleMetalsCardClick = async (card, evt) => {
+  const actionEl = evt.target?.closest?.('[data-metals-action]')
+  if (actionEl?.dataset?.metalsAction === 'refresh') {
+    evt.preventDefault()
+    evt.stopPropagation()
+    await refreshMetalsCard(card.id)
+    return
+  }
+  const itemEl = evt.target?.closest?.('[data-metals-symbol]')
+  const symbol = itemEl?.dataset?.metalsSymbol
+  if (!symbol) return
+  const url = `https://finance.yahoo.com/quote/${encodeURIComponent(symbol)}`
+  await send({ type: 'openTabsInNewActive', urls: [url] })
+}
+
+const cardClickHandlers = {
+  anniversary: (card) => openAnniversaryModal(card.id),
+  hot: handleHotCardClick,
+  stock: handleStockCardClick,
+  weather: handleWeatherCardClick,
+  metals: handleMetalsCardClick
+}
+
+const handleCardClick = async (card, evt) => {
+  if (state.isDraggingCard) return
+  const handler = cardClickHandlers[card?.type || 'link']
+  if (handler) {
+    await handler(card, evt)
+    return
+  }
+  await send({ type: 'openTabsInNewActive', urls: [card.url] })
+}
+
 const renderCards = () => {
+  cardDragController?.cancel({ restore: false })
+  for (const cancelIconLoad of state.iconLoadCleanups) cancelIconLoad()
+  state.iconLoadCleanups.clear()
   const root = $('#cardsGrid')
   root.innerHTML = ''
   for (const timer of state.stockPollTimers.values()) clearInterval(timer)
@@ -592,185 +721,21 @@ const renderCards = () => {
   state.metalsPollTimers.clear()
   const cards = state.config.cards || []
   for (const card of cards) {
-    const type = card?.type || 'link'
     const div = document.createElement('div')
-    if (type === 'anniversary') div.className = 'card card-anniversary'
-    else if (type === 'hot') div.className = 'card card-hot'
-    else if (type === 'stock') div.className = 'card card-stock'
-    else if (type === 'metals') div.className = 'card card-metals'
-    else div.className = 'card'
+    renderCardBody(card, div)
     div.draggable = true
     div.dataset.cardId = card.id
-    if (type === 'anniversary') {
-      div.innerHTML = renderAnniversaryCardHtml(card)
-    } else if (type === 'hot') {
-      div.innerHTML = renderHotCardHtml(card)
-    } else if (type === 'stock') {
-      div.innerHTML = renderStockCardHtml(card)
-    } else if (type === 'metals') {
-      div.innerHTML = renderMetalsCardHtml(card)
-    } else {
-      div.innerHTML = `
-        <img class="card-icon" alt="" />
-        <div class="card-title"></div>
-      `
 
-      const icon = div.querySelector('.card-icon')
-      // 性能优化：避免阻塞布局/解码；并允许浏览器延迟加载离屏图像。
-      icon.decoding = 'async'
-      icon.loading = 'lazy'
-      if (card.icon) {
-        icon.src = card.icon
-      } else {
-        loadImageWithTimeout(icon, faviconCandidates(card.url), 5000)
-      }
-      div.querySelector('.card-title').textContent = card.title
-    }
-
-    div.addEventListener('click', async (evt) => {
-      if (state.isDraggingCard) return
-      if ((card?.type || 'link') === 'anniversary') {
-        openAnniversaryModal(card.id)
-        return
-      }
-      if ((card?.type || 'link') === 'hot') {
-        const actionEl = evt.target?.closest?.('[data-hot-action]')
-        if (actionEl?.dataset?.hotAction === 'refresh') {
-          evt.preventDefault()
-          evt.stopPropagation()
-          await refreshHotCard(card.id)
-          return
-        }
-
-        const itemEl = evt.target?.closest?.('[data-hot-link]')
-        if (itemEl) {
-          const url = itemEl.dataset.hotLink
-          if (url) await send({ type: 'openTabsInNewActive', urls: [url] })
-          return
-        }
-
-        openHotModal({ mode: 'edit', cardId: card.id })
-        return
-      }
-      if ((card?.type || 'link') === 'stock') {
-        const actionEl = evt.target?.closest?.('[data-stock-action]')
-        if (actionEl?.dataset?.stockAction === 'refresh') {
-          evt.preventDefault()
-          evt.stopPropagation()
-          await refreshStockCard(card.id)
-          return
-        }
-
-        const itemEl = evt.target?.closest?.('[data-stock-symbol]')
-        if (itemEl) {
-          const symbol = itemEl.dataset.stockSymbol
-          if (symbol) {
-            const url = `https://gu.qq.com/${encodeURIComponent(formatTencentSymbol(symbol))}`
-            await send({ type: 'openTabsInNewActive', urls: [url] })
-          }
-          return
-        }
-
-        openStockModal({ mode: 'edit', cardId: card.id })
-        return
-      }
-      if ((card?.type || 'link') === 'metals') {
-        const actionEl = evt.target?.closest?.('[data-metals-action]')
-        if (actionEl?.dataset?.metalsAction === 'refresh') {
-          evt.preventDefault()
-          evt.stopPropagation()
-          await refreshMetalsCard(card.id)
-          return
-        }
-
-        const itemEl = evt.target?.closest?.('[data-metals-symbol]')
-        if (itemEl) {
-          const symbol = itemEl.dataset.metalsSymbol
-          if (symbol) {
-            const url = `https://finance.yahoo.com/quote/${encodeURIComponent(symbol)}`
-            await send({ type: 'openTabsInNewActive', urls: [url] })
-          }
-          return
-        }
-        return
-      }
-      await send({ type: 'openTabsInNewActive', urls: [card.url] })
-    })
+    div.addEventListener('click', (evt) => void handleCardClick(card, evt))
 
     div.addEventListener('contextmenu', (evt) => {
       evt.preventDefault()
       openCardMenu({ x: evt.clientX, y: evt.clientY, cardId: card.id })
     })
 
-    div.addEventListener('dragstart', (evt) => {
-      state.isDraggingCard = true
-      div.classList.add('dragging')
-      evt.dataTransfer.effectAllowed = 'move'
-      evt.dataTransfer.setData('text/plain', card.id)
-    })
-
-    div.addEventListener('dragend', () => {
-      state.isDraggingCard = false
-      div.classList.remove('dragging')
-      for (const el of document.querySelectorAll('.card.drop-target')) {
-        el.classList.remove('drop-target')
-      }
-    })
-
-    div.addEventListener('dragover', (evt) => {
-      evt.preventDefault()
-      evt.dataTransfer.dropEffect = 'move'
-    })
-
-    div.addEventListener('dragenter', () => {
-      if (!div.classList.contains('dragging')) div.classList.add('drop-target')
-    })
-
-    div.addEventListener('dragleave', () => {
-      div.classList.remove('drop-target')
-    })
-
-    div.addEventListener('drop', async (evt) => {
-      evt.preventDefault()
-      div.classList.remove('drop-target')
-      const draggedId = evt.dataTransfer.getData('text/plain')
-      if (!draggedId || draggedId === card.id) return
-      await reorderCards(draggedId, card.id)
-    })
 
     root.appendChild(div)
-
-    if (type === 'hot') {
-      const renderToken = crypto.randomUUID()
-      div.dataset.hotRenderToken = renderToken
-      // 性能优化：热搜数据请求延迟到空闲时刻，避免与首屏渲染抢主线程/网络。
-      void runWhenIdle(() => ensureHotDataForCard(card, { cardEl: div, renderToken }), 800)
-    }
-
-    if (type === 'stock') {
-      const renderToken = crypto.randomUUID()
-      div.dataset.stockRenderToken = renderToken
-      void ensureStockDataForCard(card, { cardEl: div, renderToken, forceRefresh: true })
-      const timer = setInterval(() => {
-        const latestCard = getCardById(card.id)
-        if (!latestCard) return
-        void ensureStockDataForCard(latestCard, { cardEl: div, renderToken: div.dataset.stockRenderToken, forceRefresh: true })
-      }, STOCK_REFRESH_INTERVAL)
-      state.stockPollTimers.set(card.id, timer)
-    }
-
-    if (type === 'metals') {
-      const renderToken = crypto.randomUUID()
-      div.dataset.metalsRenderToken = renderToken
-      void ensureMetalsDataForCard(card, { cardEl: div, renderToken, forceRefresh: true })
-      const timer = setInterval(() => {
-        const latestCard = getCardById(card.id)
-        if (!latestCard) return
-        void ensureMetalsDataForCard(latestCard, { cardEl: div, renderToken: div.dataset.metalsRenderToken, forceRefresh: true })
-      }, STOCK_REFRESH_INTERVAL)
-      state.metalsPollTimers.set(card.id, timer)
-    }
-
+    initializeCardData(card, div)
   }
 
   const addCard = document.createElement('button')
@@ -820,23 +785,50 @@ const updateCard = async ({ id, title, url, icon }) => {
   scheduleAutoPush()
 }
 
-const reorderCards = async (draggedId, targetId) => {
-  const next = [...(state.config.cards || [])]
-  const fromIndex = next.findIndex((c) => c.id === draggedId)
-  const toIndex = next.findIndex((c) => c.id === targetId)
-  if (fromIndex === -1 || toIndex === -1) return
-  const [moved] = next.splice(fromIndex, 1)
-  next.splice(toIndex, 0, moved)
-  state.config.cards = next
+const persistCardOrder = async (orderedIds) => {
+  const cards = state.config.cards || []
+  const cardsById = new Map(cards.map((card) => [card.id, card]))
+  const orderedCards = orderedIds.map((id) => cardsById.get(id)).filter(Boolean)
+  const orderedIdSet = new Set(orderedIds)
+  const next = [...orderedCards, ...cards.filter((card) => !orderedIdSet.has(card.id))]
+  if (next.every((card, index) => card.id === cards[index]?.id)) return
   await saveConfig({ cards: next })
-  renderCards()
   scheduleAutoPush()
 }
 
+const initCardDrag = () => {
+  if (cardDragController) return
+  cardDragController = createCardDragController({
+    root: $('#cardsGrid'),
+    onCommit: persistCardOrder,
+    onDragStateChange: (isDragging) => { state.isDraggingCard = isDragging },
+    onError: (error) => {
+      console.error('[chrome-home] card reorder failed', error)
+      renderCards()
+    }
+  })
+}
+
+const cardCleanupHandlers = {
+  weather: async (card, remainingCards) => {
+    const city = getWeatherCity(card)
+    const stillUsed = remainingCards.some((item) => item?.type === 'weather' && getWeatherCity(item) === city)
+    if (city && !stillUsed) await weatherClient.invalidate(city)
+  }
+}
+
+const cleanupCardResources = async (card, remainingCards) => {
+  const cleanup = cardCleanupHandlers[card?.type || 'link']
+  if (cleanup) await cleanup(card, remainingCards)
+}
+
 const deleteCard = async (id) => {
-  const next = (state.config.cards || []).filter((c) => c.id !== id)
+  const cards = state.config.cards || []
+  const removedCard = cards.find((card) => card.id === id)
+  const next = cards.filter((card) => card.id !== id)
   state.config.cards = next
   await saveConfig({ cards: next })
+  if (removedCard) await cleanupCardResources(removedCard, next)
   renderCards()
   scheduleAutoPush()
 }
@@ -1101,6 +1093,19 @@ const getMetalsText = () => {
     cny: dict.metals_cny || '人民币',
     loading: dict.metals_loading || '加载中...',
     error: dict.metals_error || '加载失败，点击刷新重试'
+  }
+}
+
+const getWeatherText = () => {
+  const dict = I18N[getLang()] || I18N.zh
+  return {
+    title: dict.weather_title || '天气',
+    loading: dict.weather_loading || '正在获取天气...',
+    error: dict.weather_error || '天气加载失败，点击刷新重试',
+    empty: dict.weather_empty || '暂无天气数据',
+    humidity: dict.weather_humidity || '湿度',
+    updatedAt: dict.weather_updated_at || '更新于',
+    refresh: dict.weather_refresh || '刷新天气'
   }
 }
 
@@ -1599,25 +1604,6 @@ const refreshStockCard = async (cardId) => {
 }
 
 /**
- * 拉取 JSON 接口数据，并在超时时主动中止请求。
- *
- * @param {string} url 接口地址。
- * @param {number} timeoutMs 超时时间，单位毫秒。
- * @returns {Promise<any>} 解析后的 JSON 数据。
- */
-const fetchJsonWithTimeout = async (url, timeoutMs = 8000) => {
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), timeoutMs)
-  try {
-    const res = await fetch(url, { signal: controller.signal, cache: 'no-store' })
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    return await res.json()
-  } finally {
-    clearTimeout(timer)
-  }
-}
-
-/**
  * 获取文本并做超时控制（用于非 JSON 接口）。
  */
 const fetchTextWithTimeout = async (url, timeoutMs = 8000) => {
@@ -1634,33 +1620,6 @@ const fetchTextWithTimeout = async (url, timeoutMs = 8000) => {
   }
 }
 const getHotSourceTitle = (card) => String(card?.sourceTitle || card?.title || '知乎')
-
-/**
- * 热搜接口地址构造器。
- *
- * API 文档：
- * - 方法：`GET`
- * - 地址：`https://bot.znzme.com/dailyhot`
- * - 查询参数：`title`，热搜来源名称，例如“知乎”“微博热搜”
- * - 成功响应：JSON，对象中的 `data` 字段为数组；数组项包含 `title` 与 `link`
- * - 使用约束：前端会对同一来源做并发复用与 5 分钟缓存，避免重复请求造成误判失败
- *
- * @param {string} sourceTitle 热搜来源名称。
- * @returns {string} 完整接口地址。
- */
-const getHotApiUrl = (sourceTitle) =>
-  `https://bot.znzme.com/dailyhot?title=${encodeURIComponent(String(sourceTitle || '知乎'))}`
-
-const parseHotApiData = (raw) => {
-  const list = raw?.data
-  if (!Array.isArray(list)) return []
-  return list
-    .map((it) => ({
-      title: String(it?.title || '').trim(),
-      link: String(it?.link || '').trim()
-    }))
-    .filter((it) => it.title && it.link)
-}
 
 const renderHotCardHtml = (card) => {
   const sourceTitle = escapeHtml(getHotSourceTitle(card))
@@ -1713,56 +1672,17 @@ const updateHotCardDom = ({ cardEl, renderToken, items, errorText }) => {
 }
 
 /**
- * 获取指定热搜源的数据。
- * - 命中缓存时直接返回缓存结果
- * - 存在进行中的同源请求时复用同一个 Promise，避免重复请求被浏览器取消
- *
- * @param {string} sourceTitle 热搜来源名称。
- * @returns {Promise<Array<{title: string, link: string}>>} 热搜列表。
- */
-const getHotItems = async (sourceTitle) => {
-  const cached = state.hotCache.get(sourceTitle)
-  const now = Date.now()
-  if (cached && now - cached.ts < 5 * 60 * 1000 && Array.isArray(cached.items)) {
-    return cached.items
-  }
-
-  const pending = state.hotPendingRequests.get(sourceTitle)
-  if (pending) return pending
-
-  const request = fetchJsonWithTimeout(getHotApiUrl(sourceTitle), 9000)
-    .then((raw) => {
-      const items = parseHotApiData(raw)
-      state.hotCache.set(sourceTitle, { ts: Date.now(), items })
-      return items
-    })
-    .finally(() => {
-      state.hotPendingRequests.delete(sourceTitle)
-    })
-
-  state.hotPendingRequests.set(sourceTitle, request)
-  return request
-}
-
-/**
  * 为热搜卡片加载并渲染数据。
  *
  * @param {{ sourceTitle?: string, title?: string }} card 热搜卡片配置。
- * @param {{ cardEl: HTMLElement, renderToken: string }} options 渲染上下文。
+ * @param {{ cardEl: HTMLElement, renderToken: string, forceRefresh?: boolean }} options 渲染上下文。
  * @returns {Promise<void>}
  */
-const ensureHotDataForCard = async (card, { cardEl, renderToken }) => {
-  const sourceTitle = getHotSourceTitle(card)
+const ensureHotDataForCard = async (card, { cardEl, renderToken, forceRefresh = false }) => {
   try {
-    const items = await getHotItems(sourceTitle)
+    const items = await hotNewsClient.load(getHotSourceTitle(card), { forceRefresh })
     updateHotCardDom({ cardEl, renderToken, items })
   } catch {
-    // 重要逻辑：请求失败时优先回退到旧缓存，减少接口瞬时抖动对界面的影响。
-    const fallbackItems = state.hotCache.get(sourceTitle)?.items
-    if (Array.isArray(fallbackItems) && fallbackItems.length) {
-      updateHotCardDom({ cardEl, renderToken, items: fallbackItems })
-      return
-    }
     updateHotCardDom({ cardEl, renderToken, items: [], errorText: '加载失败，点击刷新重试' })
   }
 }
@@ -1770,15 +1690,91 @@ const ensureHotDataForCard = async (card, { cardEl, renderToken }) => {
 const refreshHotCard = async (cardId) => {
   const card = getCardById(cardId)
   if (!card || (card.type || 'link') !== 'hot') return
-  state.hotCache.delete(getHotSourceTitle(card))
-  state.hotPendingRequests.delete(getHotSourceTitle(card))
   const cardEl = document.querySelector(`.card[data-card-id="${card.id}"]`)
   const renderToken = cardEl?.dataset?.hotRenderToken
   if (!cardEl || !renderToken) {
     renderCards()
     return
   }
-  await ensureHotDataForCard(card, { cardEl, renderToken })
+  await ensureHotDataForCard(card, { cardEl, renderToken, forceRefresh: true })
+}
+
+const getWeatherCity = (card) => String(card?.city || '').trim()
+
+const ensureWeatherDataForCard = async (card, { cardEl, renderToken, forceRefresh = false }) => {
+  const text = getWeatherText()
+  try {
+    const data = await weatherClient.load(getWeatherCity(card), { forceRefresh })
+    updateWeatherCardDom({ cardEl, renderToken, data, text })
+  } catch {
+    updateWeatherCardDom({ cardEl, renderToken, errorText: text.error, text })
+  }
+}
+
+const refreshWeatherCard = async (cardId) => {
+  const card = getCardById(cardId)
+  if (!card || (card.type || 'link') !== 'weather') return
+  const cardEl = document.querySelector(`.card[data-card-id="${card.id}"]`)
+  const renderToken = cardEl?.dataset?.weatherRenderToken
+  if (!cardEl || !renderToken) {
+    renderCards()
+    return
+  }
+  await ensureWeatherDataForCard(card, { cardEl, renderToken, forceRefresh: true })
+}
+
+const closeWeatherModal = () => {
+  $('#weatherOverlay').hidden = true
+  state.editingWeatherCardId = null
+  state.weatherModalMode = 'create'
+}
+
+const openWeatherModal = ({ mode, cardId }) => {
+  const overlay = $('#weatherOverlay')
+  const titleEl = $('#weatherModalTitle')
+  const cityInput = $('#weatherCityInput')
+  const card = mode === 'edit' ? getCardById(cardId) : null
+  state.weatherModalMode = mode === 'edit' ? 'edit' : 'create'
+  state.editingWeatherCardId = mode === 'edit' ? cardId : null
+  titleEl.textContent = mode === 'edit'
+    ? (getLang() === 'en' ? 'Weather settings' : '天气设置')
+    : (getLang() === 'en' ? 'Add weather' : '新增天气')
+  cityInput.value = getWeatherCity(card)
+  overlay.hidden = false
+  closeComponentList()
+  closeCardMenu()
+  requestAnimationFrame(() => cityInput.focus())
+}
+
+const addWeatherComponent = async (city) => {
+  const next = [...(state.config.cards || [])]
+  next.push({
+    id: crypto.randomUUID(),
+    type: 'weather',
+    city,
+    title: getLang() === 'en' ? `${city} Weather` : `${city}天气`
+  })
+  state.config.cards = next
+  await saveConfig({ cards: next })
+  renderCards()
+  scheduleAutoPush()
+}
+
+const saveWeatherCardPatch = async (cardId, city) => {
+  const next = [...(state.config.cards || [])]
+  const index = next.findIndex((card) => card.id === cardId)
+  if (index === -1) return
+  const previousCard = next[index]
+  next[index] = {
+    ...next[index],
+    city,
+    title: getLang() === 'en' ? `${city} Weather` : `${city}天气`
+  }
+  state.config.cards = next
+  await saveConfig({ cards: next })
+  await cleanupCardResources(previousCard, next)
+  renderCards()
+  scheduleAutoPush()
 }
 
 const closeHotModal = () => {
@@ -2070,6 +2066,7 @@ const initCardUi = () => {
     if ((card?.type || 'link') === 'anniversary') openAnniversaryModal(card.id)
     else if ((card?.type || 'link') === 'hot') openHotModal({ mode: 'edit', cardId: card.id })
     else if ((card?.type || 'link') === 'stock') openStockModal({ mode: 'edit', cardId: card.id })
+    else if ((card?.type || 'link') === 'weather') openWeatherModal({ mode: 'edit', cardId: card.id })
     else if ((card?.type || 'link') === 'metals') closeCardMenu()
     else openCardModal({ mode: 'edit', card })
   })
@@ -2151,6 +2148,7 @@ const initCardUi = () => {
   const componentStockBtn = $('#componentStockBtn')
   const componentMetalsBtn = $('#componentMetalsBtn')
   const componentAnniversaryBtn = $('#componentAnniversaryBtn')
+  const componentWeatherBtn = $('#componentWeatherBtn')
   componentListOverlay.addEventListener('click', (evt) => {
     if (evt.target === componentListOverlay) closeComponentList()
   })
@@ -2165,6 +2163,7 @@ const initCardUi = () => {
     closeComponentList()
     await addAnniversaryComponent()
   })
+  componentWeatherBtn.addEventListener('click', () => openWeatherModal({ mode: 'create' }))
 
   const hotOverlay = $('#hotOverlay')
   const hotCloseBtn = $('#hotCloseBtn')
@@ -2182,12 +2181,39 @@ const initCardUi = () => {
     const safeTitle = HOT_SOURCES.includes(sourceTitle) ? sourceTitle : '知乎'
     if (state.hotModalMode === 'edit' && state.editingHotCardId) {
       const prev = getCardById(state.editingHotCardId)
-      if (prev) state.hotCache.delete(getHotSourceTitle(prev))
+      if (prev) await hotNewsClient.invalidate(getHotSourceTitle(prev))
       await saveHotCardPatch(state.editingHotCardId, { title: safeTitle, sourceTitle: safeTitle })
     } else {
       await addHotComponent(safeTitle)
     }
     closeHotModal()
+  })
+
+  const weatherOverlay = $('#weatherOverlay')
+  const weatherCloseBtn = $('#weatherCloseBtn')
+  const weatherCancelBtn = $('#weatherCancelBtn')
+  const weatherForm = $('#weatherForm')
+  const weatherCityInput = $('#weatherCityInput')
+  weatherOverlay.addEventListener('click', (evt) => {
+    if (evt.target === weatherOverlay) closeWeatherModal()
+  })
+  weatherCloseBtn.addEventListener('click', closeWeatherModal)
+  weatherCancelBtn.addEventListener('click', closeWeatherModal)
+  weatherCityInput.addEventListener('input', () => weatherCityInput.setCustomValidity(''))
+  weatherForm.addEventListener('submit', async (evt) => {
+    evt.preventDefault()
+    const city = weatherCityInput.value.trim()
+    if (!city) {
+      weatherCityInput.setCustomValidity(getLang() === 'en' ? 'Enter a city' : '请输入城市名称')
+      weatherCityInput.reportValidity()
+      return
+    }
+    if (state.weatherModalMode === 'edit' && state.editingWeatherCardId) {
+      await saveWeatherCardPatch(state.editingWeatherCardId, city)
+    } else {
+      await addWeatherComponent(city)
+    }
+    closeWeatherModal()
   })
 
   const stockOverlay = $('#stockOverlay')
@@ -2626,6 +2652,7 @@ const main = async () => {
   applyLanguage()
   renderEngines()
   renderHistory()
+  initCardDrag()
   renderCards()
   initSearchForm()
   initBlankClickFocus()

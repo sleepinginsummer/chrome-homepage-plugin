@@ -456,7 +456,7 @@ body {
   border-radius: 12px;
   border: none;
   background: transparent;
-  cursor: pointer;
+  cursor: grab;
   transition: all 0.2s ease;
   user-select: none;
   width: 100%;
@@ -482,26 +482,103 @@ body {
   cursor: grabbing;
 }
 
-.card.dragging {
-  opacity: 0.5;
-  transform: scale(0.98);
+.cards-grid.drag-active {
+  border-radius: 8px;
+  outline: 1px dashed rgba(0, 242, 255, 0.42);
+  outline-offset: 12px;
 }
 
-.card.drop-target {
-  outline: 2px solid rgba(0, 242, 255, 0.45);
-  outline-offset: 2px;
+.cards-grid.drag-active .card:not(.dragging) {
+  will-change: transform;
+}
+
+.card.dragging {
+  z-index: 4;
+  opacity: 0.24;
+  transform: scale(0.98);
+  cursor: grabbing;
+}
+
+.card-drag-ghost {
+  position: fixed;
+  left: -1000px;
+  top: -1000px;
+  z-index: 9999;
+  width: 220px;
+  height: 48px;
+  padding: 0 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(125, 207, 255, 0.55);
+  background: rgba(15, 30, 46, 0.96);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.42);
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 .card-icon {
+  position: relative;
   width: 56px;
   height: 56px;
   border-radius: 16px;
   flex-shrink: 0;
-  display: block;
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: linear-gradient(145deg, rgba(61, 174, 210, 0.82), rgba(41, 87, 139, 0.92));
+  border: 1px solid rgba(255, 255, 255, 0.22);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-icon-fallback {
+  color: rgba(255, 255, 255, 0.96);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: uppercase;
+  transition: opacity 0.12s ease;
+}
+
+.card-icon.has-image .card-icon-fallback {
+  opacity: 0;
+}
+
+.card-icon-image {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  border-radius: inherit;
+  background: transparent;
+  opacity: 0;
+  transform: translate(-50%, -50%);
+}
+
+.card-icon.is-medium-resolution .card-icon-image {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+}
+
+.card-icon.is-low-resolution .card-icon-image {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+}
+
+.card-icon.has-image .card-icon-image {
+  opacity: 1;
 }
 
 .card-title {
@@ -516,6 +593,7 @@ body {
 
 .card-add {
   width: 100%;
+  cursor: pointer;
 }
 
 .card-add .card-add-icon {

@@ -6,6 +6,7 @@
 	    <title>Home</title>
 	    <link rel="icon" href="icon.svg" type="image/svg+xml" />
 	    <link rel="stylesheet" href="newtab.css" />
+	    <link rel="stylesheet" href="weather-card.css" />
 	  </head>
   <body>
     <main class="multi-search-page">
@@ -242,6 +243,7 @@
               <button class="component-item" id="componentStockBtn" type="button" data-i18n="component_stock">股票</button>
               <button class="component-item" id="componentMetalsBtn" type="button" data-i18n="component_metals">黄金白银</button>
               <button class="component-item" id="componentAnniversaryBtn" type="button" data-i18n="component_anniversary">纪念日</button>
+              <button class="component-item" id="componentWeatherBtn" type="button" data-i18n="component_weather">天气</button>
             </div>
           </div>
         </div>
@@ -278,6 +280,25 @@
           </form>
         </div>
       </div>
+      <div class="modal-overlay" id="weatherOverlay" hidden>
+        <div class="modal modal-small" role="dialog" aria-modal="true" aria-labelledby="weatherModalTitle">
+          <div class="modal-header">
+            <div class="modal-title" id="weatherModalTitle">新增天气</div>
+            <button class="modal-close" id="weatherCloseBtn" type="button" aria-label="关闭">×</button>
+          </div>
+          <form class="modal-body" id="weatherForm">
+            <label class="modal-field">
+              <span class="label" data-i18n="weather_city_label">城市名称</span>
+              <input class="input" id="weatherCityInput" type="text" maxlength="30" autocomplete="off" required placeholder="例如：南京" data-i18n-placeholder="weather_city_ph" />
+            </label>
+            <div class="modal-actions">
+              <button class="primary-button" type="submit" id="weatherSaveBtn" data-i18n="common_save">保存</button>
+              <button class="ghost-button" type="button" id="weatherCancelBtn" data-i18n="common_cancel">取消</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
       <div class="modal-overlay" id="stockOverlay" hidden>
         <div class="modal modal-wide" role="dialog" aria-modal="true" aria-label="股票设置">
           <div class="modal-header">
