@@ -1,12 +1,3 @@
 .DS_Store
 node_modules
 dist/
-!tests/
-tests/*
-!tests/hot-news.test.js
-!tests/weather.test.js
-!tests/weather-card.test.js
-!tests/card-drag.test.js
-!tests/card-icon.test.js
-!tests/weather-card-style.test.js
-!tests/extension-api-local.test.js
