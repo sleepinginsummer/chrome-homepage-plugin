@@ -9,3 +9,4 @@ tests/*
 !tests/card-drag.test.js
 !tests/card-icon.test.js
 !tests/weather-card-style.test.js
+!tests/extension-api-local.test.js

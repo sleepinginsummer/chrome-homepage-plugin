@@ -175,6 +175,65 @@ const decodeBase64Json = (base64) => JSON.parse(base64DecodeUtf8(base64))
 
 const encodeConfigAsBase64 = (config) => base64EncodeUtf8(JSON.stringify(config, null, 2))
 
+const stableStringify = (value) => {
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`)
+      .join(',')}}`
+  }
+  return JSON.stringify(value)
+}
+
+const hashString = async (text) => {
+  const raw = String(text ?? '')
+  if (globalThis.crypto?.subtle && typeof TextEncoder === 'function') {
+    const bytes = new TextEncoder().encode(raw)
+    const digest = await globalThis.crypto.subtle.digest('SHA-256', bytes)
+    return Array.from(new Uint8Array(digest))
+      .map((byte) => byte.toString(16).padStart(2, '0'))
+      .join('')
+  }
+  if (typeof Buffer !== 'undefined') {
+    const { createHash } = await import('node:crypto')
+    return createHash('sha256').update(raw, 'utf8').digest('hex')
+  }
+  throw new Error('当前环境不支持配置 hash 计算')
+}
+
+/**
+ * 计算配置内容 hash。排序对象 key，避免 JSON 字段顺序变化导致误判。
+ */
+export const computeConfigHash = async (config) => hashString(stableStringify(config || {}))
+
+/**
+ * 推送前保护：远端自上次拉取/推送后发生变化时，阻止旧本地配置覆盖新远端。
+ */
+export const assertRemoteBaselineFresh = async ({ remoteConfig, lastRemoteHash }) => {
+  if (!lastRemoteHash) return
+  const currentRemoteHash = await computeConfigHash(remoteConfig)
+  if (currentRemoteHash === lastRemoteHash) return
+  throw new Error('远端配置已被其他设备更新，已阻止覆盖。请先从远端拉取确认后再推送。')
+}
+
+const getCardTitles = (config) => (Array.isArray(config?.cards) ? config.cards.map((card) => card?.title).filter(Boolean) : [])
+
+/**
+ * 推送后校验：重新读取远端，确认关键卡片数量和标题与本次推送一致。
+ */
+export const assertRemoteConfigMatches = ({ expectedConfig, actualConfig }) => {
+  const expectedTitles = getCardTitles(expectedConfig)
+  const actualTitles = getCardTitles(actualConfig)
+  const missingTitles = expectedTitles.filter((title) => !actualTitles.includes(title))
+  if (expectedTitles.length === actualTitles.length && missingTitles.length === 0) return
+
+  const preview = missingTitles.slice(0, 6).join(' / ')
+  throw new Error(
+    `远端写入校验失败：期望 ${expectedTitles.length} 个卡片，实际 ${actualTitles.length} 个。缺少：${preview}`
+  )
+}
+
 const githubCheckRepo = async ({ owner, repo, token }) => {
   const url = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`
   const res = await fetch(url, { headers: token ? { Authorization: `token ${token}` } : {} })
@@ -305,10 +364,11 @@ export const pushRemoteConfig = async (sync, config) => {
 /**
  * pushRemote 逻辑中“先拉取再推送”的合并策略（与原 background 实现一致）。
  */
-export const computeConfigBeforePush = async ({ sync, localConfig, deepMerge, defaultConfig }) => {
+export const computeConfigBeforePush = async ({ sync, localConfig, deepMerge, defaultConfig, lastRemoteHash = '' }) => {
   let nextConfig = localConfig
   try {
     const remote = await pullRemoteConfig(sync)
+    await assertRemoteBaselineFresh({ remoteConfig: remote, lastRemoteHash })
     const remoteWithDefaults = deepMerge(defaultConfig, remote)
     nextConfig = deepMerge(remoteWithDefaults, localConfig)
   } catch (err) {
@@ -318,3 +378,12 @@ export const computeConfigBeforePush = async ({ sync, localConfig, deepMerge, de
   return nextConfig
 }
 
+/**
+ * 推送配置并立即读回校验，避免接口返回成功但远端内容并非本次配置。
+ */
+export const pushRemoteConfigAndVerify = async (sync, config) => {
+  await pushRemoteConfig(sync, config)
+  const remote = await pullRemoteConfig(sync)
+  assertRemoteConfigMatches({ expectedConfig: config, actualConfig: remote })
+  return remote
+}
