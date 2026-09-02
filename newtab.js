@@ -7,6 +7,7 @@ import { createWeatherClient } from './weather.js'
 import { renderWeatherCardHtml, updateWeatherCardDom } from './weather-card.js'
 import { createCardDragController } from './card-drag.js'
 import { createCardIconCandidates, getCardInitial, loadCardIcon } from './card-icon.js'
+import { normalizeCardUrl } from './url-utils.js'
 
 const LAST_SYNC_AT_KEY = 'chromeHomeLastSyncAt'
 
@@ -347,12 +348,7 @@ const setError = (message) => {
   text.textContent = message
 }
 
-const normalizeUrl = (raw) => {
-  const trimmed = String(raw || '').trim()
-  if (!trimmed) return ''
-  if (/^https?:\/\//i.test(trimmed)) return trimmed
-  return `https://${trimmed}`
-}
+const normalizeUrl = normalizeCardUrl
 
 const normalizeIconUrl = (raw) => {
   const trimmed = String(raw || '').trim()

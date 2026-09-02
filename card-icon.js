@@ -2,7 +2,7 @@ const normalizeHttpUrl = (raw) => {
   const value = String(raw || '').trim()
   if (!value) return ''
   try {
-    const url = new URL(/^https?:\/\//i.test(value) ? value : `https://${value}`)
+    const url = new URL(/^[a-z][a-z\d+.-]*:\/\//i.test(value) ? value : `https://${value}`)
     return url.protocol === 'http:' || url.protocol === 'https:' ? url.toString() : ''
   } catch {
     return ''

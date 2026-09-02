@@ -37,6 +37,14 @@ describe('card icon', () => {
     expect(candidates.every((url) => !url.includes('google.com/s2'))).toBe(true)
   })
 
+  it('SMB 地址不生成 HTTP 网站图标候选', () => {
+    expect(createCardIconCandidates({
+      pageUrl: 'smb://10.0.0.3:445/share',
+      customIcon: '',
+      runtimeGetURL: (path) => `chrome-extension://extension-id${path}`
+    })).toEqual([])
+  })
+
   it('图片报错后尝试下一候选并在成功后显示', () => {
     const image = { naturalWidth: 64, naturalHeight: 64, removeAttribute: vi.fn() }
     const onLoaded = vi.fn()

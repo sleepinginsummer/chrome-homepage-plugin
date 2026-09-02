@@ -28,7 +28,7 @@ const runtimeEntries = [
   'newtab.html', 'newtab.css', 'newtab.js',
   'sync-startup.js', 'hot-news.js', 'request-cache.js',
   'weather.js', 'weather-card.js', 'weather-card.css',
-  'card-drag.js', 'card-icon.js',
+  'card-drag.js', 'card-icon.js', 'url-utils.js',
   'icon.svg', 'icons', 'assets', 'LICENSE'
 ]
 
