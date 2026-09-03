@@ -130,6 +130,12 @@ body {
   z-index: 20;
 }
 
+.settings-trigger-icon {
+  display: none;
+  width: 20px;
+  height: 20px;
+}
+
 @media (max-width: 720px) {
   .top-actions {
     top: 12px;
@@ -321,7 +327,20 @@ body {
 }
 
 .engine-checkbox input {
-  display: none;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.engine-checkbox:focus-within .checkbox-custom {
+  outline: 2px solid #00f2ff;
+  outline-offset: 2px;
 }
 
 .engine-checkbox:hover {
@@ -369,6 +388,11 @@ body {
   letter-spacing: 0.5px;
   color: #fff;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+}
+
+.sync-autopush-control {
+  justify-content: flex-start;
+  margin: 0;
 }
 
 .cards-section {
@@ -1455,6 +1479,12 @@ body {
   min-height: 220px;
 }
 
+.editor-empty {
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 13px;
+  padding: 10px 2px;
+}
+
 .anniversary-list-item {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -2101,12 +2131,184 @@ body {
   min-height: 200px;
 }
 
+.theme-picker {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.theme-picker-title {
+  margin-bottom: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.theme-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.theme-option {
+  position: relative;
+  min-width: 0;
+  min-height: 112px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.82);
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 10px;
+  transition: border-color 180ms cubic-bezier(0.25, 1, 0.5, 1), background 180ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.theme-option:hover {
+  border-color: rgba(255, 255, 255, 0.24);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.theme-option.active {
+  border-color: rgba(0, 242, 255, 0.55);
+  background: rgba(0, 242, 255, 0.08);
+}
+
+.theme-option:focus-within {
+  outline: 2px solid #00f2ff;
+  outline-offset: 2px;
+}
+
+.theme-option input {
+  width: 18px;
+  height: 18px;
+  margin: 0 0 1px;
+  accent-color: #00f2ff;
+}
+
+.theme-option strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.theme-preview {
+  grid-column: 1 / -1;
+  height: 54px;
+  border-radius: 8px;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 22px 1fr 34px;
+  align-items: center;
+  gap: 7px;
+  padding: 10px;
+}
+
+.theme-preview > span {
+  display: block;
+  height: 10px;
+  border-radius: 4px;
+}
+
+.theme-preview-cyber {
+  background: #020408;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.theme-preview-cyber > span {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.theme-preview-cyber > span:first-child {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #00f2ff;
+}
+
+.theme-preview-cyber > span:last-child {
+  background: #00f2ff;
+}
+
+.theme-preview-amber {
+  background: #cdd5cf;
+}
+
+.theme-preview-amber > span {
+  background: #45544a;
+  box-shadow: -2px -2px 4px #eef2ef, 2px 2px 4px #aab5ac;
+}
+
+.theme-preview-amber > span:first-child {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #ffc844;
+}
+
+.theme-preview-amber > span:last-child {
+  background: #ffc844;
+}
+
+.theme-preview-brutal {
+  background: #e4e7e3;
+  border: 2px solid #171717;
+  border-radius: 4px;
+}
+
+.theme-preview-brutal > span {
+  border: 2px solid #171717;
+  border-radius: 2px;
+  background: #171717;
+  box-shadow: 2px 2px 0 #171717;
+}
+
+.theme-preview-brutal > span:first-child {
+  width: 22px;
+  height: 22px;
+  background: #315efb;
+}
+
+.theme-preview-brutal > span:last-child {
+  background: #ff6b5e;
+}
+
+.settings-status[data-kind='error'] {
+  color: #ff4848;
+}
+
+.settings-status[data-kind='ok'] {
+  color: #00f2ff;
+}
+
 @media (max-width: 720px) {
   .settings-modal {
     grid-template-columns: 1fr;
   }
 
   .settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-sidebar {
+    flex-direction: row;
+    overflow-x: auto;
+    border-right: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .settings-item {
+    flex: 0 0 auto;
+    min-width: 88px;
+    text-align: center;
+  }
+
+  .theme-options {
     grid-template-columns: 1fr;
   }
 
@@ -2139,5 +2341,1968 @@ body {
 
   to {
     transform: rotate(360deg);
+  }
+}
+
+/* Amber neumorphic theme. Cyber dark remains the unscoped compatibility baseline. */
+html[data-theme='amber-neumorphic'] {
+  color: var(--neo-ink);
+  background: var(--neo-background);
+  color-scheme: light;
+}
+
+html[data-theme='amber-neumorphic'] *,
+html[data-theme='amber-neumorphic'] *::before,
+html[data-theme='amber-neumorphic'] *::after {
+  letter-spacing: 0 !important;
+}
+
+html[data-theme='amber-neumorphic'] body,
+html[data-theme='amber-neumorphic'] .multi-search-page {
+  min-width: 0;
+  background: var(--neo-background);
+  color: var(--neo-ink);
+}
+
+html[data-theme='amber-neumorphic'] .grid-bg {
+  background-color: var(--neo-background);
+  background-image: none;
+}
+
+html[data-theme='amber-neumorphic'] .grid-bg::before,
+html[data-theme='amber-neumorphic'] .grid-bg::after,
+html[data-theme='amber-neumorphic'] .glow-effect {
+  display: none;
+}
+
+html[data-theme='amber-neumorphic'] .content-container {
+  max-width: 1240px;
+  margin-right: 236px;
+  padding: 34px 24px 48px;
+}
+
+html[data-theme='amber-neumorphic'] .hero-block {
+  max-width: 760px;
+}
+
+html[data-theme='amber-neumorphic'] .brand {
+  margin-bottom: 16px;
+}
+
+html[data-theme='amber-neumorphic'] .logo-wrapper {
+  width: 72px;
+  height: 72px;
+  margin-bottom: 12px;
+  border-radius: 50%;
+  background: var(--neo-surface);
+  box-shadow: var(--neo-raised);
+}
+
+html[data-theme='amber-neumorphic'] .logo-inner {
+  color: var(--neo-ink);
+  text-shadow: none;
+}
+
+html[data-theme='amber-neumorphic'] .logo-ring {
+  inset: 8px;
+  border: 0;
+  box-shadow: var(--neo-recessed);
+  animation: none;
+}
+
+html[data-theme='amber-neumorphic'] .logo-ring::before {
+  display: none;
+}
+
+html[data-theme='amber-neumorphic'] .mini,
+html[data-theme='amber-neumorphic'] .hint {
+  font-family: inherit;
+  letter-spacing: 0;
+}
+
+html[data-theme='amber-neumorphic'] .mini {
+  color: var(--neo-ink);
+  font-weight: 800;
+  opacity: 1;
+}
+
+html[data-theme='amber-neumorphic'] .hint {
+  color: var(--neo-muted);
+  margin-bottom: 20px;
+}
+
+html[data-theme='amber-neumorphic'] .input-group {
+  gap: 16px;
+}
+
+html[data-theme='amber-neumorphic'] .input-wrapper {
+  min-width: 0;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--neo-surface);
+  box-shadow: var(--neo-recessed);
+  transition: box-shadow 180ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+html[data-theme='amber-neumorphic'] .input-wrapper:focus-within {
+  border-color: transparent;
+  background: var(--neo-surface);
+  box-shadow: var(--neo-recessed), 0 0 0 2px var(--neo-focus);
+}
+
+html[data-theme='amber-neumorphic'] .icon {
+  color: var(--neo-muted);
+}
+
+html[data-theme='amber-neumorphic'] .search-input {
+  min-width: 0;
+  color: var(--neo-ink);
+  caret-color: var(--neo-focus);
+}
+
+html[data-theme='amber-neumorphic'] .search-input::placeholder {
+  color: var(--neo-muted);
+  font-family: inherit;
+  letter-spacing: 0;
+  opacity: 1;
+}
+
+html[data-theme='amber-neumorphic'] .search-button,
+html[data-theme='amber-neumorphic'] .primary-button,
+html[data-theme='amber-neumorphic'] .tip-button {
+  min-height: 44px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--neo-primary);
+  color: var(--neo-on-primary);
+  box-shadow: var(--neo-primary-shadow);
+  letter-spacing: 0;
+  transition: transform 180ms cubic-bezier(0.25, 1, 0.5, 1), background 180ms cubic-bezier(0.25, 1, 0.5, 1), box-shadow 180ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+html[data-theme='amber-neumorphic'] .search-button:hover,
+html[data-theme='amber-neumorphic'] .primary-button:hover,
+html[data-theme='amber-neumorphic'] .tip-button:hover {
+  transform: translateY(-1px);
+  border-color: transparent;
+  background: var(--neo-primary-hover);
+  color: var(--neo-on-primary);
+  box-shadow: 0 6px 12px rgba(79, 85, 76, 0.3);
+}
+
+html[data-theme='amber-neumorphic'] .search-button:active,
+html[data-theme='amber-neumorphic'] .primary-button:active,
+html[data-theme='amber-neumorphic'] .tip-button:active {
+  transform: translateY(1px);
+  background: var(--neo-primary-active);
+  box-shadow: inset 2px 2px 4px rgba(113, 84, 0, 0.24);
+}
+
+html[data-theme='amber-neumorphic'] .ghost-button,
+html[data-theme='amber-neumorphic'] .component-item,
+html[data-theme='amber-neumorphic'] .modal-close,
+html[data-theme='amber-neumorphic'] .settings-close,
+html[data-theme='amber-neumorphic'] .clear-all-btn,
+html[data-theme='amber-neumorphic'] .stock-refresh,
+html[data-theme='amber-neumorphic'] .metals-refresh,
+html[data-theme='amber-neumorphic'] .hot-refresh {
+  border: 0;
+  background: var(--neo-surface);
+  color: var(--neo-ink);
+  box-shadow: var(--neo-raised);
+  opacity: 1;
+  letter-spacing: 0;
+  transition: transform 180ms cubic-bezier(0.25, 1, 0.5, 1), box-shadow 180ms cubic-bezier(0.25, 1, 0.5, 1), color 180ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+html[data-theme='amber-neumorphic'] .ghost-button,
+html[data-theme='amber-neumorphic'] .component-item,
+html[data-theme='amber-neumorphic'] .modal-close,
+html[data-theme='amber-neumorphic'] .settings-close {
+  min-height: 44px;
+}
+
+html[data-theme='amber-neumorphic'] .modal-close,
+html[data-theme='amber-neumorphic'] .settings-close {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+}
+
+html[data-theme='amber-neumorphic'] .ghost-button:hover,
+html[data-theme='amber-neumorphic'] .component-item:hover,
+html[data-theme='amber-neumorphic'] .modal-close:hover,
+html[data-theme='amber-neumorphic'] .settings-close:hover,
+html[data-theme='amber-neumorphic'] .clear-all-btn:hover,
+html[data-theme='amber-neumorphic'] .stock-refresh:hover,
+html[data-theme='amber-neumorphic'] .metals-refresh:hover,
+html[data-theme='amber-neumorphic'] .hot-refresh:hover {
+  border-color: transparent;
+  background: var(--neo-surface);
+  color: var(--neo-focus);
+  transform: translateY(-1px);
+  box-shadow: var(--neo-raised-hover);
+}
+
+html[data-theme='amber-neumorphic'] .ghost-button:active,
+html[data-theme='amber-neumorphic'] .component-item:active,
+html[data-theme='amber-neumorphic'] .modal-close:active,
+html[data-theme='amber-neumorphic'] .settings-close:active,
+html[data-theme='amber-neumorphic'] .clear-all-btn:active,
+html[data-theme='amber-neumorphic'] .stock-refresh:active,
+html[data-theme='amber-neumorphic'] .metals-refresh:active {
+  transform: translateY(0);
+  box-shadow: var(--neo-recessed);
+}
+
+html[data-theme='amber-neumorphic'] .hot-refresh:active {
+  transform: translateY(-50%) scale(0.96);
+  box-shadow: var(--neo-recessed);
+}
+
+html[data-theme='amber-neumorphic'] .hot-refresh:hover {
+  transform: translateY(calc(-50% - 1px));
+}
+
+html[data-theme='amber-neumorphic'] .settings-trigger {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+}
+
+html[data-theme='amber-neumorphic'] .settings-trigger-icon {
+  display: block;
+}
+
+html[data-theme='amber-neumorphic'] .settings-trigger-label {
+  display: none;
+}
+
+html[data-theme='amber-neumorphic'] .error-message {
+  border: 0;
+  border-radius: 10px;
+  background: var(--neo-error-surface);
+  color: var(--neo-error);
+  box-shadow: inset 0 0 0 1px var(--neo-error-line);
+}
+
+html[data-theme='amber-neumorphic'] .error-icon {
+  background: var(--neo-error);
+  color: var(--neo-on-error);
+}
+
+html[data-theme='amber-neumorphic'] .engine-selection {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(128px, max-content));
+  gap: 14px;
+}
+
+html[data-theme='amber-neumorphic'] .engine-checkbox {
+  min-width: 0;
+  min-height: 40px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  color: var(--neo-ink);
+  background: var(--neo-surface);
+  box-shadow: -3px -3px 7px var(--neo-highlight), 3px 3px 7px var(--neo-shadow);
+  opacity: 1;
+}
+
+html[data-theme='amber-neumorphic'] .engine-checkbox:hover {
+  opacity: 1;
+  color: var(--neo-focus);
+}
+
+html[data-theme='amber-neumorphic'] .engine-checkbox.active {
+  box-shadow: inset -3px -3px 7px var(--neo-highlight), inset 3px 3px 7px var(--neo-shadow);
+}
+
+html[data-theme='amber-neumorphic'] .checkbox-custom {
+  border: 0;
+  background: var(--neo-surface-muted);
+  color: var(--neo-on-primary);
+}
+
+html[data-theme='amber-neumorphic'] .engine-checkbox.active .checkbox-custom {
+  border-color: transparent;
+  background: var(--neo-primary);
+  box-shadow: none;
+}
+
+html[data-theme='amber-neumorphic'] .engine-checkbox:focus-within .checkbox-custom {
+  outline-color: var(--neo-focus);
+}
+
+html[data-theme='amber-neumorphic'] .engine-name {
+  min-width: 0;
+  color: var(--neo-ink);
+  font-family: inherit;
+  letter-spacing: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+html[data-theme='amber-neumorphic'] .cards-section {
+  margin-top: 30px;
+}
+
+html[data-theme='amber-neumorphic'] .cards-grid {
+  --card-gap-x: 28px;
+  --card-gap-y: 26px;
+}
+
+html[data-theme='amber-neumorphic'] .card-title {
+  color: var(--neo-ink);
+  font-weight: 650;
+}
+
+html[data-theme='amber-neumorphic'] .card:focus-visible {
+  outline-color: var(--neo-focus);
+}
+
+html[data-theme='amber-neumorphic'] .cards-grid.drag-active {
+  outline-color: var(--neo-focus);
+}
+
+html[data-theme='amber-neumorphic'] .card:hover .card-icon,
+html[data-theme='amber-neumorphic'] .card-add:hover .card-add-icon {
+  box-shadow: var(--neo-raised-hover);
+}
+
+html[data-theme='amber-neumorphic'] .card-icon,
+html[data-theme='amber-neumorphic'] .card-add .card-add-icon {
+  border: 0;
+  border-radius: 14px;
+  background: var(--neo-surface);
+  color: var(--neo-ink);
+  box-shadow: var(--neo-raised);
+}
+
+html[data-theme='amber-neumorphic'] .card-icon-fallback {
+  color: var(--neo-ink);
+}
+
+html[data-theme='amber-neumorphic'] .card-drag-ghost {
+  border: 0;
+  background: var(--neo-surface);
+  color: var(--neo-ink);
+  box-shadow: var(--neo-floating-shadow);
+}
+
+html[data-theme='amber-neumorphic'] .card.card-anniversary,
+html[data-theme='amber-neumorphic'] .card.card-hot,
+html[data-theme='amber-neumorphic'] .card.card-stock,
+html[data-theme='amber-neumorphic'] .card.card-metals {
+  border: 0;
+  border-radius: 16px;
+  background: var(--neo-surface);
+  box-shadow: var(--neo-raised-panel);
+  backdrop-filter: none;
+}
+
+html[data-theme='amber-neumorphic'] .card.card-anniversary:hover,
+html[data-theme='amber-neumorphic'] .card.card-hot:hover,
+html[data-theme='amber-neumorphic'] .card.card-stock:hover,
+html[data-theme='amber-neumorphic'] .card.card-metals:hover {
+  box-shadow: var(--neo-raised-panel-hover);
+}
+
+html[data-theme='amber-neumorphic'] .card-head-title,
+html[data-theme='amber-neumorphic'] .hot-title,
+html[data-theme='amber-neumorphic'] .metals-item-title,
+html[data-theme='amber-neumorphic'] .metals-price-value,
+html[data-theme='amber-neumorphic'] .stock-mini-name,
+html[data-theme='amber-neumorphic'] .stock-mini-price,
+html[data-theme='amber-neumorphic'] .anniversary-feature .title,
+html[data-theme='amber-neumorphic'] .anniversary-feature .days,
+html[data-theme='amber-neumorphic'] .anniversary-mini-item .mini-title,
+html[data-theme='amber-neumorphic'] .anniversary-mini-item .mini-days,
+html[data-theme='amber-neumorphic'] .hot-text {
+  color: var(--neo-ink);
+}
+
+html[data-theme='amber-neumorphic'] .card-head-time,
+html[data-theme='amber-neumorphic'] .metals-price-label,
+html[data-theme='amber-neumorphic'] .metals-empty,
+html[data-theme='amber-neumorphic'] .stock-feature .label,
+html[data-theme='amber-neumorphic'] .stock-mini-symbol,
+html[data-theme='amber-neumorphic'] .stock-mini-change,
+html[data-theme='amber-neumorphic'] .stock-empty,
+html[data-theme='amber-neumorphic'] .anniversary-feature .label,
+html[data-theme='amber-neumorphic'] .anniversary-feature .date,
+html[data-theme='amber-neumorphic'] .anniversary-feature .unit,
+html[data-theme='amber-neumorphic'] .anniversary-mini-item .mini-date,
+html[data-theme='amber-neumorphic'] .anniversary-mini-item .years,
+html[data-theme='amber-neumorphic'] .hot-empty,
+html[data-theme='amber-neumorphic'] .editor-empty {
+  color: var(--neo-muted);
+}
+
+html[data-theme='amber-neumorphic'] .metals-item,
+html[data-theme='amber-neumorphic'] .stock-feature,
+html[data-theme='amber-neumorphic'] .stock-mini-item,
+html[data-theme='amber-neumorphic'] .anniversary-feature,
+html[data-theme='amber-neumorphic'] .anniversary-mini-item {
+  border: 0;
+  background: var(--neo-row);
+  box-shadow: none;
+}
+
+html[data-theme='amber-neumorphic'] .metals-item:hover,
+html[data-theme='amber-neumorphic'] .stock-mini-item:hover {
+  border-color: transparent;
+  background: var(--neo-row-hover);
+}
+
+html[data-theme='amber-neumorphic'] .hot-list {
+  border: 0;
+  background: var(--neo-row);
+}
+
+html[data-theme='amber-neumorphic'] .hot-item {
+  border-bottom-color: var(--neo-divider);
+}
+
+html[data-theme='amber-neumorphic'] .hot-item:hover {
+  background: var(--neo-row-hover);
+}
+
+html[data-theme='amber-neumorphic'] .hot-rank {
+  color: var(--neo-muted);
+}
+
+html[data-theme='amber-neumorphic'] .hot-rank.hot-rank-1,
+html[data-theme='amber-neumorphic'] .metals-price-change,
+html[data-theme='amber-neumorphic'] .stock-mini-change.down {
+  color: var(--neo-error);
+}
+
+html[data-theme='amber-neumorphic'] .stock-mini-change.up {
+  color: var(--neo-success);
+}
+
+html[data-theme='amber-neumorphic'] .hot-rank.hot-rank-2 {
+  color: var(--neo-muted);
+}
+
+html[data-theme='amber-neumorphic'] .hot-rank.hot-rank-3 {
+  color: var(--neo-focus);
+}
+
+html[data-theme='amber-neumorphic'] .anniversary-mini-item .mini-days {
+  border: 0;
+  background: var(--neo-surface-muted);
+}
+
+html[data-theme='amber-neumorphic'] .metals-grid,
+html[data-theme='amber-neumorphic'] .stock-list-mini,
+html[data-theme='amber-neumorphic'] .anniversary-list-mini,
+html[data-theme='amber-neumorphic'] .hot-list {
+  scrollbar-color: var(--neo-scrollbar) transparent;
+}
+
+html[data-theme='amber-neumorphic'] .metals-grid::-webkit-scrollbar-thumb,
+html[data-theme='amber-neumorphic'] .stock-list-mini::-webkit-scrollbar-thumb,
+html[data-theme='amber-neumorphic'] .anniversary-list-mini::-webkit-scrollbar-thumb,
+html[data-theme='amber-neumorphic'] .hot-list::-webkit-scrollbar-thumb {
+  background: var(--neo-scrollbar);
+}
+
+html[data-theme='amber-neumorphic'] .history-sidebar {
+  right: 24px;
+  width: 212px;
+  height: min(460px, calc(100vh - 140px));
+  padding: 12px;
+  border-radius: 16px;
+  background: var(--neo-surface);
+  box-shadow: var(--neo-raised-panel);
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
+html[data-theme='amber-neumorphic'] .history-list {
+  height: auto;
+  min-height: 0;
+  gap: 6px;
+  mask-image: none;
+  -webkit-mask-image: none;
+}
+
+html[data-theme='amber-neumorphic'] .history-padding {
+  display: none;
+}
+
+html[data-theme='amber-neumorphic'] #historyItems {
+  gap: 6px;
+}
+
+html[data-theme='amber-neumorphic'] .history-item {
+  min-height: 40px;
+  height: auto;
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: var(--neo-ink);
+  font-family: inherit;
+  text-align: left;
+  justify-content: flex-start;
+  transform-origin: center;
+  transform: none !important;
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+html[data-theme='amber-neumorphic'] .history-item:hover {
+  color: var(--neo-focus);
+  text-shadow: none;
+  background: var(--neo-row-hover);
+}
+
+html[data-theme='amber-neumorphic'] .history-footer {
+  margin-top: 4px;
+  padding-top: 8px;
+}
+
+html[data-theme='amber-neumorphic'] .clear-all-btn {
+  min-height: 44px;
+  color: var(--neo-error);
+  font-family: inherit;
+}
+
+html[data-theme='amber-neumorphic'] .clear-all-btn:hover {
+  background: var(--neo-error-surface);
+  color: var(--neo-error);
+}
+
+html[data-theme='amber-neumorphic'] .card-menu,
+html[data-theme='amber-neumorphic'] .modal,
+html[data-theme='amber-neumorphic'] .popup-modal,
+html[data-theme='amber-neumorphic'] .settings-modal {
+  border: 0;
+  background: var(--neo-surface);
+  color: var(--neo-ink);
+  backdrop-filter: none;
+  box-shadow: var(--neo-floating-shadow);
+}
+
+html[data-theme='amber-neumorphic'] .card-menu {
+  border-radius: 10px;
+}
+
+html[data-theme='amber-neumorphic'] .card-menu-item {
+  min-height: 44px;
+  color: var(--neo-ink);
+  letter-spacing: 0;
+}
+
+html[data-theme='amber-neumorphic'] .card-menu-item:hover {
+  background: var(--neo-row-hover);
+}
+
+html[data-theme='amber-neumorphic'] .card-menu-item.danger {
+  color: var(--neo-error);
+}
+
+html[data-theme='amber-neumorphic'] .card-menu-item.danger:hover {
+  background: var(--neo-error-surface);
+}
+
+html[data-theme='amber-neumorphic'] .modal-overlay,
+html[data-theme='amber-neumorphic'] .popup-overlay,
+html[data-theme='amber-neumorphic'] .settings-overlay {
+  background: var(--neo-overlay);
+}
+
+html[data-theme='amber-neumorphic'] .modal,
+html[data-theme='amber-neumorphic'] .popup-modal,
+html[data-theme='amber-neumorphic'] .settings-modal {
+  border-radius: 16px;
+}
+
+html[data-theme='amber-neumorphic'] .modal-header {
+  border-bottom-color: var(--neo-divider);
+}
+
+html[data-theme='amber-neumorphic'] .modal-title,
+html[data-theme='amber-neumorphic'] .popup-modal h3,
+html[data-theme='amber-neumorphic'] .settings-title {
+  color: var(--neo-ink);
+  font-family: inherit;
+  font-weight: 750;
+  letter-spacing: 0;
+}
+
+html[data-theme='amber-neumorphic'] .popup-modal p,
+html[data-theme='amber-neumorphic'] .confirm-text,
+html[data-theme='amber-neumorphic'] .modal-field .label,
+html[data-theme='amber-neumorphic'] .settings-modal .label,
+html[data-theme='amber-neumorphic'] .settings-hint,
+html[data-theme='amber-neumorphic'] .settings-status,
+html[data-theme='amber-neumorphic'] .settings-status.settings-substatus,
+html[data-theme='amber-neumorphic'] .theme-picker-title {
+  color: var(--neo-muted);
+}
+
+html[data-theme='amber-neumorphic'] .settings-hint a {
+  color: var(--neo-focus);
+}
+
+html[data-theme='amber-neumorphic'] .modal-field .label {
+  font-family: inherit;
+  letter-spacing: 0;
+}
+
+html[data-theme='amber-neumorphic'] .modal-field .input,
+html[data-theme='amber-neumorphic'] .settings-modal .input {
+  border: 0;
+  border-radius: 10px;
+  background: var(--neo-surface);
+  color: var(--neo-ink);
+  box-shadow: var(--neo-recessed);
+}
+
+html[data-theme='amber-neumorphic'] .modal-field .input:focus,
+html[data-theme='amber-neumorphic'] .settings-modal .input:focus {
+  border-color: transparent;
+  box-shadow: var(--neo-recessed), 0 0 0 2px var(--neo-focus);
+}
+
+html[data-theme='amber-neumorphic'] .modal-field select.input,
+html[data-theme='amber-neumorphic'] .modal-field select.input option {
+  background-color: var(--neo-surface);
+  color: var(--neo-ink);
+}
+
+html[data-theme='amber-neumorphic'] .modal-field .input[type='date'] {
+  color-scheme: light;
+}
+
+html[data-theme='amber-neumorphic'] .modal-field .input[type='date']::-webkit-calendar-picker-indicator {
+  filter: none;
+}
+
+html[data-theme='amber-neumorphic'] .component-item {
+  min-height: 44px;
+  height: auto;
+}
+
+html[data-theme='amber-neumorphic'] .anniversary-list-item,
+html[data-theme='amber-neumorphic'] .stock-list-item,
+html[data-theme='amber-neumorphic'] .anniversary-form,
+html[data-theme='amber-neumorphic'] .stock-form {
+  border: 0;
+  background: var(--neo-row);
+}
+
+html[data-theme='amber-neumorphic'] .anniversary-list-item:hover,
+html[data-theme='amber-neumorphic'] .stock-list-item:hover {
+  border-color: transparent;
+  background: var(--neo-row-hover);
+}
+
+html[data-theme='amber-neumorphic'] .anniversary-list-item .name,
+html[data-theme='amber-neumorphic'] .stock-list-item .name,
+html[data-theme='amber-neumorphic'] .anniversary-list-item .badge,
+html[data-theme='amber-neumorphic'] .stock-list-item .badge {
+  color: var(--neo-ink);
+}
+
+html[data-theme='amber-neumorphic'] .anniversary-list-item .sub,
+html[data-theme='amber-neumorphic'] .stock-list-item .sub {
+  color: var(--neo-muted);
+}
+
+html[data-theme='amber-neumorphic'] .anniversary-list-item .badge,
+html[data-theme='amber-neumorphic'] .stock-list-item .badge {
+  border: 0;
+  background: var(--neo-surface-muted);
+}
+
+html[data-theme='amber-neumorphic'] .anniversary-list-item .danger-btn,
+html[data-theme='amber-neumorphic'] .stock-list-item .danger-btn {
+  position: relative;
+  min-height: 36px;
+  border-color: var(--neo-error-line);
+  background: var(--neo-error-surface);
+  color: var(--neo-error);
+}
+
+html[data-theme='amber-neumorphic'] .anniversary-list-item .danger-btn::before,
+html[data-theme='amber-neumorphic'] .stock-list-item .danger-btn::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+}
+
+html[data-theme='amber-neumorphic'] .stock-refresh::before,
+html[data-theme='amber-neumorphic'] .metals-refresh::before,
+html[data-theme='amber-neumorphic'] .hot-refresh::before {
+  content: '';
+  position: absolute;
+  inset: -11px;
+}
+
+html[data-theme='amber-neumorphic'] .settings-modal {
+  min-height: 420px;
+}
+
+html[data-theme='amber-neumorphic'] .settings-sidebar {
+  border-right-color: var(--neo-divider);
+  background: var(--neo-surface-muted);
+}
+
+html[data-theme='amber-neumorphic'] .settings-item {
+  min-height: 44px;
+  height: auto;
+  border: 0;
+  background: transparent;
+  color: var(--neo-muted);
+  letter-spacing: 0;
+}
+
+html[data-theme='amber-neumorphic'] .settings-item:hover {
+  background: var(--neo-row-hover);
+  color: var(--neo-ink);
+}
+
+html[data-theme='amber-neumorphic'] .settings-item.active {
+  border-color: transparent;
+  background: var(--neo-surface);
+  color: var(--neo-ink);
+  box-shadow: var(--neo-recessed);
+  font-weight: 750;
+}
+
+html[data-theme='amber-neumorphic'] .theme-option {
+  border: 0;
+  background: var(--neo-surface);
+  color: var(--neo-ink);
+  box-shadow: var(--neo-raised);
+}
+
+html[data-theme='amber-neumorphic'] .theme-option:hover {
+  border-color: transparent;
+  background: var(--neo-surface);
+  box-shadow: var(--neo-raised-hover);
+}
+
+html[data-theme='amber-neumorphic'] .theme-option.active {
+  border-color: transparent;
+  background: var(--neo-surface);
+  box-shadow: var(--neo-recessed);
+}
+
+html[data-theme='amber-neumorphic'] .theme-option:focus-within {
+  outline-color: var(--neo-focus);
+}
+
+html[data-theme='amber-neumorphic'] .theme-option input {
+  accent-color: var(--neo-primary);
+}
+
+html[data-theme='amber-neumorphic'] .settings-status[data-kind='error'] {
+  color: var(--neo-error);
+}
+
+html[data-theme='amber-neumorphic'] .settings-status[data-kind='ok'] {
+  color: var(--neo-success);
+}
+
+html[data-theme='amber-neumorphic'] :is(button, .card, .history-item, .card-menu-item):focus-visible {
+  outline: 2px solid var(--neo-focus);
+  outline-offset: 2px;
+}
+
+html[data-theme='amber-neumorphic'] button:disabled,
+html[data-theme='amber-neumorphic'] .component-item.disabled {
+  opacity: 1;
+  cursor: not-allowed;
+  transform: none;
+  background: var(--neo-surface-muted);
+  color: var(--neo-muted);
+  box-shadow: inset 0 0 0 1px var(--neo-divider);
+}
+
+@media (max-width: 1199px) {
+  html[data-theme='amber-neumorphic'] .content-container {
+    margin-right: 0;
+  }
+
+  html[data-theme='amber-neumorphic'] .history-sidebar {
+    display: none;
+  }
+}
+
+@media (min-width: 721px) and (max-width: 900px) {
+  html[data-theme='amber-neumorphic'] .cards-grid {
+    max-width: 452px;
+    margin-right: auto;
+    margin-left: auto;
+  }
+}
+
+@media (max-width: 720px) {
+  html[data-theme='amber-neumorphic'] .content-container {
+    padding: 64px 16px 32px;
+  }
+
+  html[data-theme='amber-neumorphic'] .hero-block {
+    max-width: 100%;
+  }
+
+  html[data-theme='amber-neumorphic'] .input-group {
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  html[data-theme='amber-neumorphic'] .search-button {
+    width: 100%;
+  }
+
+  html[data-theme='amber-neumorphic'] .engine-selection {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  html[data-theme='amber-neumorphic'] .cards-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-auto-rows: 92px;
+    gap: 16px 14px;
+  }
+
+  html[data-theme='amber-neumorphic'] .card:not(.card-anniversary, .card-hot, .card-stock, .card-metals, .card-weather) {
+    width: min(100%, 92px);
+    justify-self: center;
+  }
+
+  html[data-theme='amber-neumorphic'] .card.card-anniversary,
+  html[data-theme='amber-neumorphic'] .card.card-hot,
+  html[data-theme='amber-neumorphic'] .card.card-stock,
+  html[data-theme='amber-neumorphic'] .card.card-metals {
+    grid-column: 1 / -1;
+    grid-row: span 3;
+    width: 100%;
+  }
+
+  html[data-theme='amber-neumorphic'] .card.card-hot {
+    grid-row: span 2;
+  }
+
+  html[data-theme='amber-neumorphic'] .settings-overlay,
+  html[data-theme='amber-neumorphic'] .modal-overlay,
+  html[data-theme='amber-neumorphic'] .popup-overlay {
+    padding: 8px;
+  }
+
+  html[data-theme='amber-neumorphic'] .settings-modal,
+  html[data-theme='amber-neumorphic'] .modal {
+    max-height: calc(100vh - 16px);
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  html[data-theme='amber-neumorphic'] .settings-sidebar {
+    flex-direction: row;
+    overflow-x: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--neo-divider);
+    scrollbar-width: thin;
+  }
+
+  html[data-theme='amber-neumorphic'] .settings-item {
+    flex: 0 0 auto;
+    min-width: 92px;
+    text-align: center;
+  }
+}
+
+@media (max-width: 480px) {
+  html[data-theme='amber-neumorphic'] .logo-wrapper {
+    width: 64px;
+    height: 64px;
+  }
+
+  html[data-theme='amber-neumorphic'] .theme-option {
+    min-height: 96px;
+  }
+
+  html[data-theme='amber-neumorphic'] .settings-content,
+  html[data-theme='amber-neumorphic'] .modal-body {
+    padding: 12px;
+  }
+
+  html[data-theme='amber-neumorphic'] .settings-actions,
+  html[data-theme='amber-neumorphic'] .modal-actions,
+  html[data-theme='amber-neumorphic'] .add-chooser-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  html[data-theme='amber-neumorphic'] .settings-actions button,
+  html[data-theme='amber-neumorphic'] .modal-actions button,
+  html[data-theme='amber-neumorphic'] .add-chooser-actions button {
+    width: 100%;
+  }
+
+  html[data-theme='amber-neumorphic'] .anniversary-card {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  html[data-theme='amber-neumorphic'] .card.card-anniversary {
+    grid-row: span 4;
+  }
+
+  html[data-theme='amber-neumorphic'] .anniversary-feature .days {
+    font-size: 42px;
+  }
+}
+
+@media (max-width: 350px) {
+  html[data-theme='amber-neumorphic'] .content-container {
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme='amber-neumorphic'] *,
+  html[data-theme='amber-neumorphic'] *::before,
+  html[data-theme='amber-neumorphic'] *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Concrete blue-red neo-brutalism theme. */
+html[data-theme='neo-brutalism'] {
+  color: var(--brutal-ink);
+  background: var(--brutal-background);
+  color-scheme: light;
+}
+
+html[data-theme='neo-brutalism'] *,
+html[data-theme='neo-brutalism'] *::before,
+html[data-theme='neo-brutalism'] *::after {
+  letter-spacing: 0 !important;
+}
+
+html[data-theme='neo-brutalism'] body,
+html[data-theme='neo-brutalism'] .multi-search-page {
+  min-width: 0;
+  background: var(--brutal-background);
+  color: var(--brutal-ink);
+}
+
+html[data-theme='neo-brutalism'] .grid-bg {
+  background-color: var(--brutal-background);
+  background-image: none;
+}
+
+html[data-theme='neo-brutalism'] .grid-bg::before,
+html[data-theme='neo-brutalism'] .grid-bg::after,
+html[data-theme='neo-brutalism'] .glow-effect {
+  display: none;
+}
+
+html[data-theme='neo-brutalism'] .content-container {
+  /* Keep the primary canvas centered while reserving equal side lanes for history. */
+  max-width: min(1240px, calc(100% - 520px));
+  margin-right: 0;
+  padding: 32px 24px 52px;
+}
+
+html[data-theme='neo-brutalism'] .hero-block {
+  max-width: 800px;
+  padding: 22px;
+  border: 3px solid var(--brutal-ink);
+  border-radius: 8px;
+  background: var(--brutal-surface);
+  box-shadow: var(--brutal-shadow-panel);
+}
+
+html[data-theme='neo-brutalism'] .brand {
+  margin-bottom: 16px;
+}
+
+html[data-theme='neo-brutalism'] .logo-wrapper {
+  width: 72px;
+  height: 72px;
+  margin-bottom: 12px;
+  border: 3px solid var(--brutal-ink);
+  border-radius: 6px;
+  background: var(--brutal-primary);
+  box-shadow: var(--brutal-shadow-panel);
+}
+
+html[data-theme='neo-brutalism'] .logo-inner {
+  color: var(--brutal-on-primary);
+  text-shadow: none;
+}
+
+html[data-theme='neo-brutalism'] .logo-ring {
+  inset: 8px;
+  border: 3px solid var(--brutal-ink);
+  border-radius: 3px;
+  animation: none;
+}
+
+html[data-theme='neo-brutalism'] .logo-ring::before {
+  display: none;
+}
+
+html[data-theme='neo-brutalism'] .mini,
+html[data-theme='neo-brutalism'] .hint {
+  font-family: inherit;
+}
+
+html[data-theme='neo-brutalism'] .mini {
+  width: fit-content;
+  margin: 0 auto 10px;
+  padding: 4px 8px;
+  border: 2px solid var(--brutal-ink);
+  border-radius: 3px;
+  background: var(--brutal-accent);
+  color: var(--brutal-ink);
+  box-shadow: var(--brutal-shadow-control);
+  font-weight: 900;
+  opacity: 1;
+}
+
+html[data-theme='neo-brutalism'] .hint {
+  color: var(--brutal-muted);
+  margin-bottom: 20px;
+}
+
+html[data-theme='neo-brutalism'] .input-group {
+  gap: 14px;
+}
+
+html[data-theme='neo-brutalism'] .input-wrapper {
+  min-width: 0;
+  padding: 0 16px;
+  border: 3px solid var(--brutal-ink);
+  border-radius: 4px;
+  background: var(--brutal-surface);
+  box-shadow: var(--brutal-shadow-control);
+  transition: transform 180ms cubic-bezier(0.25, 1, 0.5, 1), box-shadow 180ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+html[data-theme='neo-brutalism'] .input-wrapper:focus-within {
+  border-color: var(--brutal-ink);
+  background: var(--brutal-surface-hover);
+  box-shadow: var(--brutal-shadow-control);
+  outline: 3px solid var(--brutal-ink);
+  outline-offset: 3px;
+}
+
+html[data-theme='neo-brutalism'] .icon {
+  color: var(--brutal-ink);
+}
+
+html[data-theme='neo-brutalism'] .search-input {
+  min-width: 0;
+  color: var(--brutal-ink);
+  caret-color: var(--brutal-primary);
+}
+
+html[data-theme='neo-brutalism'] .search-input::placeholder {
+  color: var(--brutal-muted);
+  font-family: inherit;
+  opacity: 1;
+}
+
+html[data-theme='neo-brutalism'] .search-button,
+html[data-theme='neo-brutalism'] .primary-button,
+html[data-theme='neo-brutalism'] .tip-button {
+  min-height: 44px;
+  border: 3px solid var(--brutal-ink);
+  border-radius: 4px;
+  background: var(--brutal-primary);
+  color: var(--brutal-on-primary);
+  box-shadow: var(--brutal-shadow-panel);
+  font-weight: 900;
+  transition: transform 180ms cubic-bezier(0.25, 1, 0.5, 1), background 180ms cubic-bezier(0.25, 1, 0.5, 1), box-shadow 180ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+html[data-theme='neo-brutalism'] .search-button:hover,
+html[data-theme='neo-brutalism'] .primary-button:hover,
+html[data-theme='neo-brutalism'] .tip-button:hover {
+  transform: translate(-2px, -2px);
+  border-color: var(--brutal-ink);
+  background: var(--brutal-primary-hover);
+  color: var(--brutal-on-primary);
+  box-shadow: var(--brutal-shadow-panel-hover);
+}
+
+html[data-theme='neo-brutalism'] .search-button:active,
+html[data-theme='neo-brutalism'] .primary-button:active,
+html[data-theme='neo-brutalism'] .tip-button:active {
+  transform: translate(3px, 3px);
+  background: var(--brutal-primary-active);
+  box-shadow: none;
+}
+
+html[data-theme='neo-brutalism'] .ghost-button,
+html[data-theme='neo-brutalism'] .component-item,
+html[data-theme='neo-brutalism'] .modal-close,
+html[data-theme='neo-brutalism'] .settings-close,
+html[data-theme='neo-brutalism'] .clear-all-btn,
+html[data-theme='neo-brutalism'] .stock-refresh,
+html[data-theme='neo-brutalism'] .metals-refresh,
+html[data-theme='neo-brutalism'] .hot-refresh {
+  border: 2px solid var(--brutal-ink);
+  border-radius: 4px;
+  background: var(--brutal-surface);
+  color: var(--brutal-ink);
+  box-shadow: var(--brutal-shadow-control);
+  opacity: 1;
+  font-weight: 800;
+  transition: transform 180ms cubic-bezier(0.25, 1, 0.5, 1), background 180ms cubic-bezier(0.25, 1, 0.5, 1), box-shadow 180ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+html[data-theme='neo-brutalism'] .ghost-button,
+html[data-theme='neo-brutalism'] .component-item,
+html[data-theme='neo-brutalism'] .modal-close,
+html[data-theme='neo-brutalism'] .settings-close,
+html[data-theme='neo-brutalism'] .clear-all-btn {
+  min-height: 44px;
+}
+
+html[data-theme='neo-brutalism'] .modal-close,
+html[data-theme='neo-brutalism'] .settings-close {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+}
+
+html[data-theme='neo-brutalism'] .ghost-button:hover,
+html[data-theme='neo-brutalism'] .component-item:hover,
+html[data-theme='neo-brutalism'] .modal-close:hover,
+html[data-theme='neo-brutalism'] .settings-close:hover,
+html[data-theme='neo-brutalism'] .clear-all-btn:hover,
+html[data-theme='neo-brutalism'] .stock-refresh:hover,
+html[data-theme='neo-brutalism'] .metals-refresh:hover,
+html[data-theme='neo-brutalism'] .hot-refresh:hover {
+  transform: translate(-1px, -1px);
+  border-color: var(--brutal-ink);
+  background: var(--brutal-surface-hover);
+  color: var(--brutal-ink);
+  box-shadow: var(--brutal-shadow-control-hover);
+}
+
+html[data-theme='neo-brutalism'] .ghost-button:active,
+html[data-theme='neo-brutalism'] .component-item:active,
+html[data-theme='neo-brutalism'] .modal-close:active,
+html[data-theme='neo-brutalism'] .settings-close:active,
+html[data-theme='neo-brutalism'] .clear-all-btn:active,
+html[data-theme='neo-brutalism'] .stock-refresh:active,
+html[data-theme='neo-brutalism'] .metals-refresh:active {
+  transform: translate(3px, 3px);
+  box-shadow: none;
+}
+
+html[data-theme='neo-brutalism'] .hot-refresh:hover {
+  transform: translate(-1px, calc(-50% - 1px));
+}
+
+html[data-theme='neo-brutalism'] .hot-refresh:active {
+  transform: translate(3px, calc(-50% + 3px));
+  box-shadow: none;
+}
+
+html[data-theme='neo-brutalism'] .settings-trigger {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+
+html[data-theme='neo-brutalism'] .settings-trigger-icon {
+  display: block;
+}
+
+html[data-theme='neo-brutalism'] .settings-trigger-label {
+  display: none;
+}
+
+html[data-theme='neo-brutalism'] .error-message {
+  border: 2px solid var(--brutal-ink);
+  border-radius: 4px;
+  background: var(--brutal-accent);
+  color: var(--brutal-ink);
+  box-shadow: var(--brutal-shadow-control);
+  font-weight: 700;
+}
+
+html[data-theme='neo-brutalism'] .error-icon {
+  border-radius: 2px;
+  background: var(--brutal-error);
+  color: var(--brutal-on-primary);
+}
+
+html[data-theme='neo-brutalism'] .engine-selection {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+}
+
+html[data-theme='neo-brutalism'] .engine-checkbox {
+  min-width: 0;
+  min-height: 42px;
+  padding: 7px 10px;
+  border: 2px solid var(--brutal-ink);
+  border-radius: 4px;
+  background: var(--brutal-surface);
+  color: var(--brutal-ink);
+  box-shadow: var(--brutal-shadow-control);
+  opacity: 1;
+}
+
+html[data-theme='neo-brutalism'] .engine-checkbox:hover {
+  transform: translate(-1px, -1px);
+  background: var(--brutal-surface-hover);
+  box-shadow: var(--brutal-shadow-control-hover);
+  opacity: 1;
+}
+
+html[data-theme='neo-brutalism'] .engine-checkbox.active {
+  transform: translate(2px, 2px);
+  background: var(--brutal-surface-muted);
+  box-shadow: 1px 1px 0 var(--brutal-ink);
+}
+
+html[data-theme='neo-brutalism'] .checkbox-custom {
+  border: 2px solid var(--brutal-ink);
+  border-radius: 2px;
+  background: var(--brutal-surface);
+}
+
+html[data-theme='neo-brutalism'] .engine-checkbox.active .checkbox-custom {
+  border-color: var(--brutal-ink);
+  background: var(--brutal-primary);
+  box-shadow: none;
+}
+
+html[data-theme='neo-brutalism'] .checkbox-custom svg {
+  color: var(--brutal-on-primary);
+}
+
+html[data-theme='neo-brutalism'] .engine-checkbox:focus-within {
+  outline: 3px solid var(--brutal-ink);
+  outline-offset: 3px;
+}
+
+html[data-theme='neo-brutalism'] .engine-checkbox:focus-within .checkbox-custom {
+  outline: 0;
+}
+
+html[data-theme='neo-brutalism'] .engine-name {
+  min-width: 0;
+  color: var(--brutal-ink);
+  font-family: inherit;
+  font-weight: 750;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+html[data-theme='neo-brutalism'] .cards-section {
+  margin-top: 34px;
+}
+
+html[data-theme='neo-brutalism'] .cards-grid {
+  --card-gap-x: 30px;
+  --card-gap-y: 28px;
+}
+
+html[data-theme='neo-brutalism'] .card-title {
+  color: var(--brutal-ink);
+  font-weight: 800;
+}
+
+html[data-theme='neo-brutalism'] .card-icon,
+html[data-theme='neo-brutalism'] .card-add .card-add-icon {
+  border: 2px solid var(--brutal-ink);
+  border-radius: 8px;
+  background: var(--brutal-surface);
+  color: var(--brutal-ink);
+  box-shadow: var(--brutal-shadow-control);
+}
+
+html[data-theme='neo-brutalism'] .card-icon-fallback {
+  color: var(--brutal-ink);
+}
+
+html[data-theme='neo-brutalism'] .card:hover .card-icon,
+html[data-theme='neo-brutalism'] .card-add:hover .card-add-icon {
+  transform: translate(-2px, -2px);
+  box-shadow: var(--brutal-shadow-control-hover);
+}
+
+html[data-theme='neo-brutalism'] .card:active .card-icon,
+html[data-theme='neo-brutalism'] .card-add:active .card-add-icon {
+  transform: translate(3px, 3px);
+  box-shadow: none;
+}
+
+html[data-theme='neo-brutalism'] .card-drag-ghost {
+  border: 3px solid var(--brutal-ink);
+  border-radius: 4px;
+  background: var(--brutal-accent);
+  color: var(--brutal-ink);
+  box-shadow: var(--brutal-shadow-panel);
+}
+
+html[data-theme='neo-brutalism'] .cards-grid.drag-active {
+  outline: 3px dashed var(--brutal-primary);
+  outline-offset: 12px;
+}
+
+html[data-theme='neo-brutalism'] .card.card-anniversary,
+html[data-theme='neo-brutalism'] .card.card-hot,
+html[data-theme='neo-brutalism'] .card.card-stock,
+html[data-theme='neo-brutalism'] .card.card-metals {
+  border: 3px solid var(--brutal-ink);
+  border-radius: 8px;
+  background: var(--brutal-surface);
+  box-shadow: var(--brutal-shadow-panel);
+  backdrop-filter: none;
+}
+
+html[data-theme='neo-brutalism'] .card.card-anniversary:hover,
+html[data-theme='neo-brutalism'] .card.card-hot:hover,
+html[data-theme='neo-brutalism'] .card.card-stock:hover,
+html[data-theme='neo-brutalism'] .card.card-metals:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: var(--brutal-shadow-panel-hover);
+}
+
+html[data-theme='neo-brutalism'] .card-head-row {
+  border-bottom: 2px solid var(--brutal-ink);
+}
+
+html[data-theme='neo-brutalism'] .card-head-title,
+html[data-theme='neo-brutalism'] .hot-title,
+html[data-theme='neo-brutalism'] .metals-item-title,
+html[data-theme='neo-brutalism'] .metals-price-value,
+html[data-theme='neo-brutalism'] .stock-mini-name,
+html[data-theme='neo-brutalism'] .stock-mini-price,
+html[data-theme='neo-brutalism'] .anniversary-feature .title,
+html[data-theme='neo-brutalism'] .anniversary-feature .days,
+html[data-theme='neo-brutalism'] .anniversary-mini-item .mini-title,
+html[data-theme='neo-brutalism'] .anniversary-mini-item .mini-days,
+html[data-theme='neo-brutalism'] .hot-text {
+  color: var(--brutal-ink);
+  font-weight: 800;
+}
+
+html[data-theme='neo-brutalism'] .card-head-time,
+html[data-theme='neo-brutalism'] .metals-price-label,
+html[data-theme='neo-brutalism'] .metals-empty,
+html[data-theme='neo-brutalism'] .stock-feature .label,
+html[data-theme='neo-brutalism'] .stock-mini-symbol,
+html[data-theme='neo-brutalism'] .stock-mini-change,
+html[data-theme='neo-brutalism'] .stock-empty,
+html[data-theme='neo-brutalism'] .anniversary-feature .label,
+html[data-theme='neo-brutalism'] .anniversary-feature .date,
+html[data-theme='neo-brutalism'] .anniversary-feature .unit,
+html[data-theme='neo-brutalism'] .anniversary-mini-item .mini-date,
+html[data-theme='neo-brutalism'] .anniversary-mini-item .years,
+html[data-theme='neo-brutalism'] .hot-empty,
+html[data-theme='neo-brutalism'] .editor-empty {
+  color: var(--brutal-muted);
+}
+
+html[data-theme='neo-brutalism'] .metals-item,
+html[data-theme='neo-brutalism'] .stock-feature,
+html[data-theme='neo-brutalism'] .stock-mini-item,
+html[data-theme='neo-brutalism'] .anniversary-feature,
+html[data-theme='neo-brutalism'] .anniversary-mini-item {
+  border: 2px solid var(--brutal-ink);
+  border-radius: 4px;
+  background: var(--brutal-surface-muted);
+  box-shadow: var(--brutal-shadow-control);
+}
+
+html[data-theme='neo-brutalism'] .metals-item:hover,
+html[data-theme='neo-brutalism'] .stock-mini-item:hover {
+  transform: translate(-1px, -1px);
+  border-color: var(--brutal-ink);
+  background: var(--brutal-surface-hover);
+  box-shadow: var(--brutal-shadow-control-hover);
+}
+
+html[data-theme='neo-brutalism'] .hot-list {
+  border: 2px solid var(--brutal-ink);
+  border-radius: 4px;
+  background: var(--brutal-surface-muted);
+  box-shadow: var(--brutal-shadow-control);
+}
+
+html[data-theme='neo-brutalism'] .hot-item {
+  border-bottom: 2px solid var(--brutal-ink);
+}
+
+html[data-theme='neo-brutalism'] .hot-item:hover {
+  background: var(--brutal-surface-hover);
+}
+
+html[data-theme='neo-brutalism'] .hot-rank {
+  color: var(--brutal-muted);
+}
+
+html[data-theme='neo-brutalism'] .hot-rank.hot-rank-1,
+html[data-theme='neo-brutalism'] .metals-price-change,
+html[data-theme='neo-brutalism'] .stock-mini-change.down {
+  color: var(--brutal-error);
+}
+
+html[data-theme='neo-brutalism'] .stock-mini-change.up {
+  color: var(--brutal-success);
+}
+
+html[data-theme='neo-brutalism'] .hot-rank.hot-rank-2 {
+  color: var(--brutal-primary);
+}
+
+html[data-theme='neo-brutalism'] .hot-rank.hot-rank-3,
+html[data-theme='neo-brutalism'] .anniversary-mini-item .mini-days {
+  color: var(--brutal-ink);
+  background: var(--brutal-accent);
+}
+
+html[data-theme='neo-brutalism'] .anniversary-mini-item .mini-days {
+  border: 2px solid var(--brutal-ink);
+  border-radius: 3px;
+}
+
+html[data-theme='neo-brutalism'] .metals-grid,
+html[data-theme='neo-brutalism'] .stock-list-mini,
+html[data-theme='neo-brutalism'] .anniversary-list-mini,
+html[data-theme='neo-brutalism'] .hot-list {
+  scrollbar-color: var(--brutal-ink) transparent;
+}
+
+html[data-theme='neo-brutalism'] .metals-grid::-webkit-scrollbar-thumb,
+html[data-theme='neo-brutalism'] .stock-list-mini::-webkit-scrollbar-thumb,
+html[data-theme='neo-brutalism'] .anniversary-list-mini::-webkit-scrollbar-thumb,
+html[data-theme='neo-brutalism'] .hot-list::-webkit-scrollbar-thumb {
+  background: var(--brutal-ink);
+}
+
+html[data-theme='neo-brutalism'] .history-sidebar {
+  right: 24px;
+  width: 212px;
+  height: min(460px, calc(100vh - 140px));
+  padding: 12px;
+  border: 3px solid var(--brutal-ink);
+  border-radius: 8px;
+  background: var(--brutal-surface);
+  box-shadow: var(--brutal-shadow-panel);
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
+html[data-theme='neo-brutalism'] .history-list {
+  height: auto;
+  min-height: 0;
+  gap: 8px;
+  mask-image: none;
+  -webkit-mask-image: none;
+}
+
+html[data-theme='neo-brutalism'] .history-padding {
+  display: none;
+}
+
+html[data-theme='neo-brutalism'] #historyItems {
+  gap: 8px;
+}
+
+html[data-theme='neo-brutalism'] .history-item {
+  min-height: 40px;
+  height: auto;
+  padding: 8px 10px;
+  border: 2px solid var(--brutal-ink);
+  border-radius: 4px;
+  background: var(--brutal-surface-muted);
+  color: var(--brutal-ink);
+  box-shadow: var(--brutal-shadow-control);
+  font-family: inherit;
+  font-weight: 750;
+  text-align: left;
+  justify-content: flex-start;
+  transform-origin: center;
+  transform: none !important;
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+html[data-theme='neo-brutalism'] .history-item:hover {
+  color: var(--brutal-ink);
+  text-shadow: none;
+  background: var(--brutal-surface-hover);
+  box-shadow: var(--brutal-shadow-control-hover);
+}
+
+html[data-theme='neo-brutalism'] .history-footer {
+  margin-top: 6px;
+  padding-top: 10px;
+  border-top: 2px solid var(--brutal-ink);
+}
+
+html[data-theme='neo-brutalism'] .clear-all-btn {
+  min-height: 40px;
+  color: var(--brutal-error);
+  font-family: inherit;
+}
+
+html[data-theme='neo-brutalism'] .clear-all-btn:hover {
+  background: var(--brutal-accent);
+  color: var(--brutal-ink);
+}
+
+html[data-theme='neo-brutalism'] .card-menu,
+html[data-theme='neo-brutalism'] .modal,
+html[data-theme='neo-brutalism'] .popup-modal,
+html[data-theme='neo-brutalism'] .settings-modal {
+  border: 3px solid var(--brutal-ink);
+  border-radius: 8px;
+  background: var(--brutal-surface);
+  color: var(--brutal-ink);
+  backdrop-filter: none;
+  box-shadow: var(--brutal-shadow-panel);
+}
+
+html[data-theme='neo-brutalism'] .card-menu {
+  border-radius: 4px;
+}
+
+html[data-theme='neo-brutalism'] .card-menu-item {
+  min-height: 40px;
+  border-radius: 2px;
+  color: var(--brutal-ink);
+  font-weight: 750;
+}
+
+html[data-theme='neo-brutalism'] .card-menu-item:hover {
+  background: var(--brutal-surface-muted);
+}
+
+html[data-theme='neo-brutalism'] .card-menu-item.danger {
+  color: var(--brutal-error);
+}
+
+html[data-theme='neo-brutalism'] .card-menu-item.danger:hover {
+  background: var(--brutal-accent);
+  color: var(--brutal-ink);
+}
+
+html[data-theme='neo-brutalism'] .modal-overlay,
+html[data-theme='neo-brutalism'] .popup-overlay,
+html[data-theme='neo-brutalism'] .settings-overlay {
+  background: var(--brutal-overlay);
+}
+
+html[data-theme='neo-brutalism'] .modal-header {
+  border-bottom: 3px solid var(--brutal-ink);
+  background: var(--brutal-accent);
+}
+
+html[data-theme='neo-brutalism'] .modal-title,
+html[data-theme='neo-brutalism'] .popup-modal h3,
+html[data-theme='neo-brutalism'] .settings-title {
+  color: var(--brutal-ink);
+  font-family: inherit;
+  font-weight: 900;
+}
+
+html[data-theme='neo-brutalism'] .popup-modal p,
+html[data-theme='neo-brutalism'] .confirm-text,
+html[data-theme='neo-brutalism'] .modal-field .label,
+html[data-theme='neo-brutalism'] .settings-modal .label,
+html[data-theme='neo-brutalism'] .settings-hint,
+html[data-theme='neo-brutalism'] .settings-status,
+html[data-theme='neo-brutalism'] .settings-status.settings-substatus,
+html[data-theme='neo-brutalism'] .theme-picker-title {
+  color: var(--brutal-muted);
+}
+
+html[data-theme='neo-brutalism'] .settings-hint a {
+  color: var(--brutal-primary-active);
+  font-weight: 750;
+}
+
+html[data-theme='neo-brutalism'] .modal-field .label {
+  font-family: inherit;
+}
+
+html[data-theme='neo-brutalism'] .modal-field .input,
+html[data-theme='neo-brutalism'] .settings-modal .input {
+  min-height: 44px;
+  border: 2px solid var(--brutal-ink);
+  border-radius: 4px;
+  background: var(--brutal-surface);
+  color: var(--brutal-ink);
+  box-shadow: var(--brutal-shadow-control);
+  caret-color: var(--brutal-primary);
+}
+
+html[data-theme='neo-brutalism'] .modal-field .input:focus,
+html[data-theme='neo-brutalism'] .settings-modal .input:focus {
+  border-color: var(--brutal-ink);
+  box-shadow: var(--brutal-shadow-control);
+  outline: 3px solid var(--brutal-ink);
+  outline-offset: 3px;
+}
+
+html[data-theme='neo-brutalism'] .modal-field select.input,
+html[data-theme='neo-brutalism'] .modal-field select.input option {
+  background-color: var(--brutal-surface);
+  color: var(--brutal-ink);
+}
+
+html[data-theme='neo-brutalism'] .modal-field .input[type='date'] {
+  color-scheme: light;
+}
+
+html[data-theme='neo-brutalism'] .modal-field .input[type='date']::-webkit-calendar-picker-indicator {
+  filter: none;
+}
+
+html[data-theme='neo-brutalism'] .component-item {
+  min-height: 44px;
+  height: auto;
+}
+
+html[data-theme='neo-brutalism'] .anniversary-list-item,
+html[data-theme='neo-brutalism'] .stock-list-item,
+html[data-theme='neo-brutalism'] .anniversary-form,
+html[data-theme='neo-brutalism'] .stock-form {
+  border: 2px solid var(--brutal-ink);
+  border-radius: 4px;
+  background: var(--brutal-surface-muted);
+  box-shadow: var(--brutal-shadow-control);
+}
+
+html[data-theme='neo-brutalism'] .anniversary-list-item:hover,
+html[data-theme='neo-brutalism'] .stock-list-item:hover {
+  transform: translate(-1px, -1px);
+  border-color: var(--brutal-ink);
+  background: var(--brutal-surface-hover);
+  box-shadow: var(--brutal-shadow-control-hover);
+}
+
+html[data-theme='neo-brutalism'] .anniversary-list-item .name,
+html[data-theme='neo-brutalism'] .stock-list-item .name,
+html[data-theme='neo-brutalism'] .anniversary-list-item .badge,
+html[data-theme='neo-brutalism'] .stock-list-item .badge {
+  color: var(--brutal-ink);
+}
+
+html[data-theme='neo-brutalism'] .anniversary-list-item .sub,
+html[data-theme='neo-brutalism'] .stock-list-item .sub {
+  color: var(--brutal-muted);
+}
+
+html[data-theme='neo-brutalism'] .anniversary-list-item .badge,
+html[data-theme='neo-brutalism'] .stock-list-item .badge {
+  border: 2px solid var(--brutal-ink);
+  border-radius: 3px;
+  background: var(--brutal-accent);
+}
+
+html[data-theme='neo-brutalism'] .anniversary-list-item .danger-btn,
+html[data-theme='neo-brutalism'] .stock-list-item .danger-btn {
+  position: relative;
+  min-height: 36px;
+  border: 2px solid var(--brutal-ink);
+  border-radius: 3px;
+  background: var(--brutal-accent);
+  color: var(--brutal-ink);
+  font-weight: 800;
+}
+
+html[data-theme='neo-brutalism'] .anniversary-list-item .danger-btn::before,
+html[data-theme='neo-brutalism'] .stock-list-item .danger-btn::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+}
+
+html[data-theme='neo-brutalism'] .stock-refresh::before,
+html[data-theme='neo-brutalism'] .metals-refresh::before,
+html[data-theme='neo-brutalism'] .hot-refresh::before {
+  content: '';
+  position: absolute;
+  inset: -11px;
+}
+
+html[data-theme='neo-brutalism'] .settings-modal {
+  min-height: 420px;
+}
+
+html[data-theme='neo-brutalism'] .settings-sidebar {
+  border-right: 3px solid var(--brutal-ink);
+  background: var(--brutal-surface-muted);
+}
+
+html[data-theme='neo-brutalism'] .settings-item {
+  min-height: 44px;
+  height: auto;
+  border: 2px solid var(--brutal-ink);
+  border-radius: 4px;
+  background: var(--brutal-surface);
+  color: var(--brutal-ink);
+  box-shadow: 2px 2px 0 var(--brutal-ink);
+  font-weight: 800;
+}
+
+html[data-theme='neo-brutalism'] .settings-item:hover {
+  transform: translate(-1px, -1px);
+  background: var(--brutal-surface-hover);
+  box-shadow: var(--brutal-shadow-control);
+}
+
+html[data-theme='neo-brutalism'] .settings-item.active {
+  transform: translate(2px, 2px);
+  border-color: var(--brutal-ink);
+  background: var(--brutal-primary);
+  color: var(--brutal-on-primary);
+  box-shadow: none;
+}
+
+html[data-theme='neo-brutalism'] .theme-option {
+  border: 2px solid var(--brutal-ink);
+  border-radius: 4px;
+  background: var(--brutal-surface);
+  color: var(--brutal-ink);
+  box-shadow: var(--brutal-shadow-control);
+}
+
+html[data-theme='neo-brutalism'] .theme-option:hover {
+  transform: translate(-1px, -1px);
+  border-color: var(--brutal-ink);
+  background: var(--brutal-surface-hover);
+  box-shadow: var(--brutal-shadow-control-hover);
+}
+
+html[data-theme='neo-brutalism'] .theme-option.active {
+  transform: translate(2px, 2px);
+  border-color: var(--brutal-ink);
+  background: var(--brutal-accent);
+  box-shadow: 1px 1px 0 var(--brutal-ink);
+}
+
+html[data-theme='neo-brutalism'] .theme-option:focus-within {
+  outline: 3px solid var(--brutal-ink);
+  outline-offset: 3px;
+}
+
+html[data-theme='neo-brutalism'] .theme-option input {
+  accent-color: var(--brutal-primary);
+}
+
+html[data-theme='neo-brutalism'] .settings-status[data-kind='error'] {
+  color: var(--brutal-error);
+  font-weight: 800;
+}
+
+html[data-theme='neo-brutalism'] .settings-status[data-kind='ok'] {
+  color: var(--brutal-success);
+  font-weight: 800;
+}
+
+html[data-theme='neo-brutalism'] :is(button, .card, .history-item, .card-menu-item):focus-visible {
+  outline: 3px solid var(--brutal-ink);
+  outline-offset: 3px;
+}
+
+html[data-theme='neo-brutalism'] button:disabled,
+html[data-theme='neo-brutalism'] .component-item.disabled {
+  opacity: 1;
+  cursor: not-allowed;
+  transform: none;
+  background: var(--brutal-disabled);
+  color: var(--brutal-muted);
+  box-shadow: none;
+}
+
+@media (max-width: 1319px) {
+  html[data-theme='neo-brutalism'] .content-container {
+    max-width: 1240px;
+    margin-right: 0;
+    padding-top: 76px;
+  }
+
+  html[data-theme='neo-brutalism'] .history-sidebar {
+    display: none;
+  }
+}
+
+@media (min-width: 721px) and (max-width: 900px) {
+  html[data-theme='neo-brutalism'] .cards-grid {
+    max-width: 452px;
+    margin-right: auto;
+    margin-left: auto;
+  }
+}
+
+@media (max-width: 720px) {
+  html[data-theme='neo-brutalism'] .content-container {
+    padding: 64px 16px 36px;
+  }
+
+  html[data-theme='neo-brutalism'] .hero-block {
+    max-width: 100%;
+    padding: 18px;
+  }
+
+  html[data-theme='neo-brutalism'] .input-group {
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  html[data-theme='neo-brutalism'] .search-button {
+    width: 100%;
+  }
+
+  html[data-theme='neo-brutalism'] .engine-selection {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  html[data-theme='neo-brutalism'] .cards-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-auto-rows: 92px;
+    gap: 18px 14px;
+  }
+
+  html[data-theme='neo-brutalism'] .card:not(.card-anniversary, .card-hot, .card-stock, .card-metals, .card-weather) {
+    width: min(100%, 92px);
+    justify-self: center;
+  }
+
+  html[data-theme='neo-brutalism'] .card.card-anniversary,
+  html[data-theme='neo-brutalism'] .card.card-hot,
+  html[data-theme='neo-brutalism'] .card.card-stock,
+  html[data-theme='neo-brutalism'] .card.card-metals {
+    grid-column: 1 / -1;
+    grid-row: span 3;
+    width: 100%;
+  }
+
+  html[data-theme='neo-brutalism'] .card.card-hot {
+    grid-row: span 2;
+  }
+
+  html[data-theme='neo-brutalism'] .settings-overlay,
+  html[data-theme='neo-brutalism'] .modal-overlay,
+  html[data-theme='neo-brutalism'] .popup-overlay {
+    padding: 8px;
+  }
+
+  html[data-theme='neo-brutalism'] .settings-modal,
+  html[data-theme='neo-brutalism'] .modal {
+    max-height: calc(100vh - 16px);
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  html[data-theme='neo-brutalism'] .settings-sidebar {
+    flex-direction: row;
+    overflow-x: auto;
+    border-right: 0;
+    border-bottom: 3px solid var(--brutal-ink);
+    scrollbar-width: thin;
+  }
+
+  html[data-theme='neo-brutalism'] .settings-item {
+    flex: 0 0 auto;
+    min-width: 92px;
+    text-align: center;
+  }
+}
+
+@media (max-width: 480px) {
+  html[data-theme='neo-brutalism'] .content-container {
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+
+  html[data-theme='neo-brutalism'] .hero-block {
+    padding: 14px;
+    box-shadow: 4px 4px 0 var(--brutal-ink);
+  }
+
+  html[data-theme='neo-brutalism'] .logo-wrapper {
+    width: 62px;
+    height: 62px;
+  }
+
+  html[data-theme='neo-brutalism'] .theme-option {
+    min-height: 96px;
+  }
+
+  html[data-theme='neo-brutalism'] .settings-content,
+  html[data-theme='neo-brutalism'] .modal-body {
+    padding: 12px;
+  }
+
+  html[data-theme='neo-brutalism'] .settings-actions,
+  html[data-theme='neo-brutalism'] .modal-actions,
+  html[data-theme='neo-brutalism'] .add-chooser-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  html[data-theme='neo-brutalism'] .settings-actions button,
+  html[data-theme='neo-brutalism'] .modal-actions button,
+  html[data-theme='neo-brutalism'] .add-chooser-actions button {
+    width: 100%;
+  }
+
+  html[data-theme='neo-brutalism'] .anniversary-card {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  html[data-theme='neo-brutalism'] .card.card-anniversary {
+    grid-row: span 4;
+  }
+
+  html[data-theme='neo-brutalism'] .anniversary-feature .days {
+    font-size: 42px;
+  }
+}
+
+@media (max-width: 350px) {
+  html[data-theme='neo-brutalism'] .content-container {
+    padding-right: 8px;
+    padding-left: 8px;
+  }
+
+  html[data-theme='neo-brutalism'] .hero-block {
+    padding: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme='neo-brutalism'] *,
+  html[data-theme='neo-brutalism'] *::before,
+  html[data-theme='neo-brutalism'] *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

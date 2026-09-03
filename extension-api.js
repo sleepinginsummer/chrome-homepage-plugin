@@ -164,8 +164,7 @@ export const handleMessageLocally = async (chromeApi, message) => {
 
   if (message?.type === 'setConfig') {
     const current = await readConfig(chromeApi)
-    const next = deepMerge(current, message.data || {})
-    await writeConfig(chromeApi, next)
+    const next = await writeConfig(chromeApi, deepMerge(current, message.data || {}))
     return { ok: true, data: next }
   }
 
@@ -182,8 +181,7 @@ export const handleMessageLocally = async (chromeApi, message) => {
   if (message?.type === 'pullRemote') {
     const config = await readConfig(chromeApi)
     const remote = await pullRemoteConfig(config.sync)
-    const merged = deepMerge(DEFAULT_CONFIG, remote)
-    await writeConfig(chromeApi, merged)
+    const merged = await writeConfig(chromeApi, deepMerge(DEFAULT_CONFIG, remote))
     await writeLastRemoteHash(chromeApi, await computeConfigHash(remote))
     const lastSyncAt = await writeLastSyncAt(chromeApi)
     return { ok: true, data: merged, lastSyncAt }

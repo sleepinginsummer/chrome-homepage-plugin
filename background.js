@@ -129,8 +129,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     }
     if (message?.type === 'setConfig') {
       const current = await readConfig(chrome)
-      const next = deepMerge(current, message.data || {})
-      await writeConfig(chrome, next)
+      const next = await writeConfig(chrome, deepMerge(current, message.data || {}))
       sendResponse({ ok: true, data: next })
       return
     }
@@ -159,8 +158,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type === 'pullRemote') {
       const config = await readConfig(chrome)
       const remote = await pullRemoteConfig(config.sync)
-      const merged = deepMerge(DEFAULT_CONFIG, remote)
-      await writeConfig(chrome, merged)
+      const merged = await writeConfig(chrome, deepMerge(DEFAULT_CONFIG, remote))
       await writeLastRemoteHash(chrome, await computeConfigHash(remote))
       const lastSyncAt = await writeLastSyncAt(chrome)
       sendResponse({ ok: true, data: merged, lastSyncAt })

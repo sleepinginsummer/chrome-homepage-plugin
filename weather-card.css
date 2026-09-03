@@ -256,3 +256,235 @@
   .weather-temperature { font-size: 30px; }
   .weather-metrics > div { min-width: 58px; }
 }
+
+html[data-theme='amber-neumorphic'] .card.card-weather {
+  border: 0;
+  border-radius: 16px;
+  background: var(--neo-weather-surface);
+  box-shadow: var(--neo-raised-panel);
+  backdrop-filter: none;
+}
+
+html[data-theme='amber-neumorphic'] .card.card-weather:hover {
+  box-shadow: var(--neo-raised-panel-hover);
+}
+
+html[data-theme='amber-neumorphic'] .card.card-weather::before {
+  opacity: 0.78;
+}
+
+html[data-theme='amber-neumorphic'] .card.card-weather::after {
+  background:
+    linear-gradient(90deg, rgba(24, 20, 14, 0.72), rgba(24, 20, 14, 0.46) 48%, rgba(24, 20, 14, 0.7)),
+    linear-gradient(180deg, rgba(24, 20, 14, 0.12), rgba(24, 20, 14, 0.52));
+}
+
+html[data-theme='amber-neumorphic'] .weather-refresh {
+  border: 0;
+  background: rgba(45, 55, 49, 0.88);
+  color: var(--neo-weather-text);
+  box-shadow: 0 4px 8px rgba(24, 20, 14, 0.34);
+}
+
+html[data-theme='amber-neumorphic'] .weather-refresh:hover {
+  border-color: transparent;
+  background: var(--neo-weather-surface);
+}
+
+html[data-theme='amber-neumorphic'] .weather-refresh:focus-visible {
+  outline: 2px solid var(--neo-primary);
+  outline-offset: 2px;
+  background: var(--neo-weather-surface);
+}
+
+html[data-theme='amber-neumorphic'] .weather-refresh::before {
+  content: '';
+  position: absolute;
+  inset: -10px;
+}
+
+html[data-theme='amber-neumorphic'] .weather-metrics > div,
+html[data-theme='amber-neumorphic'] .weather-forecast {
+  border-color: rgba(250, 239, 225, 0.16);
+  background: rgba(24, 20, 14, 0.3);
+}
+
+html[data-theme='amber-neumorphic'] .weather-day {
+  border-right-color: rgba(250, 239, 225, 0.14);
+}
+
+@media (max-width: 720px) {
+  html[data-theme='amber-neumorphic'] .card.card-weather {
+    grid-column: 1 / -1;
+    grid-row: span 3;
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  html[data-theme='amber-neumorphic'] .card.card-weather {
+    grid-row: span 4;
+  }
+
+  html[data-theme='amber-neumorphic'] .weather-content {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  html[data-theme='amber-neumorphic'] .weather-current {
+    display: grid;
+    grid-template-columns: 44px auto minmax(0, 1fr);
+    padding: 4px 4px 8px;
+  }
+
+  html[data-theme='amber-neumorphic'] .weather-current-icon,
+  html[data-theme='amber-neumorphic'] .weather-main-icon {
+    width: 44px;
+    height: 44px;
+  }
+
+  html[data-theme='amber-neumorphic'] .weather-current-icon {
+    flex-basis: 44px;
+  }
+
+  html[data-theme='amber-neumorphic'] .weather-metrics {
+    grid-column: 1 / -1;
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-left: 0;
+  }
+}
+
+html[data-theme='neo-brutalism'] .card.card-weather {
+  border: 3px solid var(--brutal-ink);
+  border-radius: 8px;
+  background: #26302a;
+  box-shadow: var(--brutal-shadow-panel);
+  backdrop-filter: none;
+}
+
+html[data-theme='neo-brutalism'] .card.card-weather:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: var(--brutal-shadow-panel-hover);
+}
+
+html[data-theme='neo-brutalism'] .card.card-weather::before {
+  opacity: 0.8;
+}
+
+html[data-theme='neo-brutalism'] .card.card-weather::after {
+  background: rgba(17, 21, 19, 0.62);
+}
+
+html[data-theme='neo-brutalism'] .weather-refresh {
+  border: 2px solid var(--brutal-ink);
+  border-radius: 4px;
+  background: var(--brutal-primary);
+  color: var(--brutal-on-primary);
+  box-shadow: var(--brutal-shadow-control);
+}
+
+html[data-theme='neo-brutalism'] .weather-refresh:hover {
+  transform: translate(-1px, -1px);
+  border-color: var(--brutal-ink);
+  background: var(--brutal-primary-hover);
+  box-shadow: var(--brutal-shadow-control-hover);
+}
+
+html[data-theme='neo-brutalism'] .weather-refresh:active {
+  transform: translate(3px, 3px);
+  background: var(--brutal-primary-active);
+  box-shadow: none;
+}
+
+html[data-theme='neo-brutalism'] .weather-refresh:focus-visible {
+  border-color: var(--brutal-ink);
+  background: var(--brutal-primary);
+  outline: 3px solid var(--brutal-accent);
+  outline-offset: 3px;
+}
+
+html[data-theme='neo-brutalism'] .weather-refresh::before {
+  content: '';
+  position: absolute;
+  inset: -10px;
+}
+
+html[data-theme='neo-brutalism'] .weather-temperature,
+html[data-theme='neo-brutalism'] .weather-condition,
+html[data-theme='neo-brutalism'] .weather-metrics strong,
+html[data-theme='neo-brutalism'] .weather-day-temp {
+  color: #ffffff;
+  font-weight: 800;
+}
+
+html[data-theme='neo-brutalism'] .card.card-weather .card-head-title {
+  color: #ffffff;
+}
+
+html[data-theme='neo-brutalism'] .card.card-weather .card-head-time {
+  color: #eef1ee;
+}
+
+html[data-theme='neo-brutalism'] .weather-temperature span,
+html[data-theme='neo-brutalism'] .weather-wind,
+html[data-theme='neo-brutalism'] .weather-metrics span,
+html[data-theme='neo-brutalism'] .weather-day-label,
+html[data-theme='neo-brutalism'] .weather-day-condition,
+html[data-theme='neo-brutalism'] .weather-empty {
+  color: #eef1ee;
+}
+
+html[data-theme='neo-brutalism'] .weather-metrics > div,
+html[data-theme='neo-brutalism'] .weather-forecast {
+  border: 2px solid #f5f6f3;
+  border-radius: 4px;
+  background: rgba(23, 23, 23, 0.76);
+  box-shadow: 3px 3px 0 #171717;
+}
+
+html[data-theme='neo-brutalism'] .weather-day {
+  border-right: 2px solid #f5f6f3;
+}
+
+@media (max-width: 720px) {
+  html[data-theme='neo-brutalism'] .card.card-weather {
+    grid-column: 1 / -1;
+    grid-row: span 3;
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  html[data-theme='neo-brutalism'] .card.card-weather {
+    grid-row: span 4;
+  }
+
+  html[data-theme='neo-brutalism'] .weather-content {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  html[data-theme='neo-brutalism'] .weather-current {
+    display: grid;
+    grid-template-columns: 44px auto minmax(0, 1fr);
+    padding: 4px 4px 8px;
+  }
+
+  html[data-theme='neo-brutalism'] .weather-current-icon,
+  html[data-theme='neo-brutalism'] .weather-main-icon {
+    width: 44px;
+    height: 44px;
+  }
+
+  html[data-theme='neo-brutalism'] .weather-current-icon {
+    flex-basis: 44px;
+  }
+
+  html[data-theme='neo-brutalism'] .weather-metrics {
+    grid-column: 1 / -1;
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-left: 0;
+  }
+}

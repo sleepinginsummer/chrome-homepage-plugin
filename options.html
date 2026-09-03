@@ -1,10 +1,12 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="cyber-dark">
 	  <head>
 	    <meta charset="UTF-8" />
-	    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 	    <title>同步设置</title>
 	    <link rel="icon" href="icon.svg" type="image/svg+xml" />
+	    <script src="theme-bootstrap.js"></script>
+	    <link rel="stylesheet" href="theme-tokens.css" />
 	    <link rel="stylesheet" href="options.css" />
 	  </head>
   <body>
@@ -13,6 +15,31 @@
         <h1>配置同步</h1>
         <p class="sub">支持 GitHub / Gitee：把当前配置（搜索、历史、卡片、同步信息）保存为仓库中的一个 JSON 文件。</p>
       </header>
+
+      <section class="card appearance-card" aria-labelledby="appearanceTitle">
+        <h2 id="appearanceTitle">外观</h2>
+        <fieldset class="theme-picker">
+          <legend>主题</legend>
+          <div class="theme-options">
+            <label class="theme-option" data-theme-option="cyber-dark">
+              <input type="radio" name="theme" value="cyber-dark" />
+              <span class="theme-preview theme-preview-cyber" aria-hidden="true"><span></span><span></span><span></span></span>
+              <strong>赛博深色</strong>
+            </label>
+            <label class="theme-option" data-theme-option="amber-neumorphic">
+              <input type="radio" name="theme" value="amber-neumorphic" />
+              <span class="theme-preview theme-preview-amber" aria-hidden="true"><span></span><span></span><span></span></span>
+              <strong>柔光新拟态</strong>
+            </label>
+            <label class="theme-option" data-theme-option="neo-brutalism">
+              <input type="radio" name="theme" value="neo-brutalism" />
+              <span class="theme-preview theme-preview-brutal" aria-hidden="true"><span></span><span></span><span></span></span>
+              <strong>新粗野 / <span lang="en">Neo-Brutalism</span></strong>
+            </label>
+          </div>
+        </fieldset>
+        <p id="themeStatus" class="status" role="status" aria-live="polite"></p>
+      </section>
 
       <section class="card">
         <div class="grid">
@@ -30,9 +57,9 @@
 
           <label class="field field-full">
             <span class="label">自动同步</span>
-            <label style="display: flex; align-items: center; gap: 10px">
+            <label class="toggle-row">
               <input id="autoPush" type="checkbox" />
-              <span class="hint" style="margin: 0">配置变更后自动推送到远端</span>
+              <span class="hint">配置变更后自动推送到远端</span>
             </label>
           </label>
         </div>
