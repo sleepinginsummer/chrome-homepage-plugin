@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { readFileSync } from 'node:fs'
-import { runInNewContext } from 'node:vm'
+import { createSearchController } from '../search-controller.js'
 import { handleMessageLocally } from '../extension-api.js'
 import { DEFAULT_CONFIG, STORAGE_KEY, deepMerge } from '../config-store.js'
 import { runStartupSync } from '../sync-startup.js'
@@ -134,31 +133,46 @@ describe.each(['background', 'local'])('search history via %s', (mode) => {
   })
 })
 
-// 执行真实页面的搜索函数，模拟持久化延迟/失败以及当前页即将卸载。
+// 直接构造搜索控制器：原先靠切 newtab.js 源码文本再 vm 执行，改动页面就会崩。
 const createSearchPage = ({ historySaved = Promise.resolve(), openResult = { ok: true }, keyword = '测试', selectedEngines = ['GOOGLE'] } = {}) => {
-  const source = readFileSync(new URL('../newtab.js', import.meta.url), 'utf8')
-  const state = { config: { selectedEngines, popupTipDismissed: false }, isSearching: false }
   const errors = []
+  const engines = [{ name: 'GOOGLE', baseUrl: 'https://example.com/search?q=' }]
+  let config = { engines, selectedEngines, searchHistory: [] }
   const send = vi.fn(async (message) => {
     if (message.type === 'addSearchHistory') {
       await historySaved
-      return { ok: true, data: state.config }
+      return { ok: true, data: config }
     }
     return openResult
   })
-  const context = {
-    state, send,
-    $: () => ({ value: keyword }),
+
+  const controller = createSearchController({
+    getConfig: () => config,
+    applyConfig: (next) => {
+      config = next
+    },
+    saveConfig: vi.fn(async () => {}),
+    send,
     setError: (message) => errors.push(message),
-    renderHistory: vi.fn(),
-    computeSearchUrls: (_keyword, selected) => selected.map(() => 'https://example.com/search')
-  }
-  const functions = source.slice(source.indexOf('const addToHistory ='), source.indexOf('\nconst renderHistory'))
-  runInNewContext(`${functions}\nglobalThis.trigger = triggerSearch`, context)
-  return { trigger: context.trigger, send, errors, state }
+    afterConfigChange: vi.fn(),
+    root: {
+      querySelector: (selector) => (selector === '#keywordInput' ? { value: keyword } : null),
+      querySelectorAll: () => []
+    }
+  })
+
+  return { trigger: (options) => controller.triggerSearch(options), send, errors, controller }
 }
 
 describe('newtab search lifecycle', () => {
+  beforeEach(() => {
+    vi.stubGlobal('requestAnimationFrame', vi.fn())
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
   it('waits for persistence before navigating, including first use', async () => {
     const saved = deferred()
     const page = createSearchPage({ historySaved: saved.promise })
@@ -169,7 +183,7 @@ describe('newtab search lifecycle', () => {
     saved.resolve()
     await search
     expect(page.send.mock.calls.map(([message]) => message.type)).toEqual(['addSearchHistory', 'openTabs'])
-    expect(page.state.isSearching).toBe(false)
+    expect(page.controller.isSearching()).toBe(false)
   })
 
   it('stays on the page and reports a persistence failure', async () => {
@@ -177,7 +191,7 @@ describe('newtab search lifecycle', () => {
     await page.trigger({ shouldAddToHistory: true })
     expect(page.errors.at(-1)).toBe('保存失败')
     expect(page.send).toHaveBeenCalledTimes(1)
-    expect(page.state.isSearching).toBe(false)
+    expect(page.controller.isSearching()).toBe(false)
   })
 
   it('reports actual tab API errors without asking for popup permission', async () => {

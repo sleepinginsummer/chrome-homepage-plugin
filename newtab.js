@@ -9,6 +9,7 @@ import { createWeatherCardController } from './weather-card-controller.js'
 import { createStockCardController } from './stock-card-controller.js'
 import { createMetalsCardController } from './metals-card-controller.js'
 import { createAnniversaryCardController } from './anniversary-card-controller.js'
+import { createSearchController } from './search-controller.js'
 import { createCardDragController } from './card-drag.js'
 import { createCardIconCandidates, getCardInitial, loadCardIcon } from './card-icon.js'
 import { normalizeCardUrl } from './url-utils.js'
@@ -19,8 +20,6 @@ const LAST_SYNC_AT_KEY = 'chromeHomeLastSyncAt'
 
 const state = {
   config: null,
-  isSearching: false,
-  scrollProgress: 0,
   editingCardId: null,
   stockPollTimers: new Map(),
   metalsPollTimers: new Map(),
@@ -168,154 +167,6 @@ const runWhenIdle = (task, timeoutMs = 1200) => {
   setTimeout(() => task?.(), Math.min(16, timeoutMs))
 }
 
-const renderEngines = () => {
-  const container = $('#engineSelection')
-  container.innerHTML = ''
-  for (const engine of state.config.engines) {
-    const label = document.createElement('label')
-    label.className = 'engine-checkbox'
-
-    const input = document.createElement('input')
-    input.type = 'checkbox'
-    input.value = engine.name
-    input.checked = state.config.selectedEngines.includes(engine.name)
-
-    const checkbox = document.createElement('div')
-    checkbox.className = 'checkbox-custom'
-    checkbox.innerHTML = `
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="20 6 9 17 4 12"></polyline>
-      </svg>
-    `
-
-    const name = document.createElement('span')
-    name.className = 'engine-name'
-    name.textContent = engine.name
-
-    label.append(input, checkbox, name)
-    container.appendChild(label)
-
-    const syncActive = () => {
-      label.classList.toggle('active', input.checked)
-    }
-    syncActive()
-
-    input.addEventListener('change', async () => {
-      const nextSelected = new Set(state.config.selectedEngines)
-      if (input.checked) nextSelected.add(engine.name)
-      else nextSelected.delete(engine.name)
-
-      state.config.selectedEngines = [...nextSelected]
-      syncActive()
-
-      await saveConfig({ selectedEngines: state.config.selectedEngines })
-      scheduleAutoPush()
-    })
-  }
-}
-
-const computeSearchUrls = (keyword, selectedEngines) => {
-  const encoded = encodeURIComponent(keyword)
-  const allowed = new Set(selectedEngines)
-  return state.config.engines.filter((e) => allowed.has(e.name)).map((e) => `${e.baseUrl}${encoded}`)
-}
-
-const addToHistory = async (term) => {
-  // 在存储层基于最新历史追加，避免多个新标签页拿旧数组互相覆盖。
-  const res = await send({ type: 'addSearchHistory', keyword: term })
-  if (!res?.ok) throw new Error(res?.error || '历史记录保存失败')
-  state.config = res.data
-  renderHistory()
-}
-
-const triggerSearch = async ({ shouldAddToHistory }) => {
-  if (state.isSearching) return
-  const keyword = $('#keywordInput').value.trim()
-  if (!keyword) {
-    setError('请输入关键词')
-    return
-  }
-  const urls = computeSearchUrls(keyword, state.config.selectedEngines || [])
-  if (!urls.length) {
-    setError('请至少选择一个搜索引擎')
-    return
-  }
-  setError('')
-
-  state.isSearching = true
-  try {
-    // openTabs 会导航并卸载当前页面，必须先确认历史已持久化。
-    if (shouldAddToHistory) await addToHistory(keyword)
-    const res = await send({ type: 'openTabs', urls })
-    if (!res?.ok) setError(res?.error || '打开标签页失败')
-  } catch (err) {
-    setError(err?.message || '搜索失败，请重试')
-  } finally {
-    state.isSearching = false
-  }
-}
-
-const renderHistory = () => {
-  const sidebar = $('#historySidebar')
-  const footer = $('#historyFooter')
-  const itemsRoot = $('#historyItems')
-  itemsRoot.innerHTML = ''
-
-  const history = state.config.searchHistory || []
-  sidebar.classList.toggle('has-items', history.length > 0)
-  footer.hidden = history.length === 0
-
-  history.forEach((term, index) => {
-    const div = document.createElement('div')
-    div.className = 'history-item'
-    div.dataset.index = String(index)
-    div.innerHTML = `<span class="history-text"></span>`
-    div.querySelector('.history-text').textContent = term
-    div.addEventListener('click', async () => {
-      $('#keywordInput').value = term
-      await triggerSearch({ shouldAddToHistory: false })
-      scrollHistoryToCenter(index)
-    })
-    itemsRoot.appendChild(div)
-  })
-
-  requestAnimationFrame(updateHistoryTransforms)
-}
-
-const scrollHistoryToCenter = (index) => {
-  const list = $('#historyList')
-  const itemHeight = 50
-  const padding = 150
-  const containerHeight = list.clientHeight
-  const itemCenter = padding + index * itemHeight + itemHeight / 2
-  const targetScrollTop = itemCenter - containerHeight / 2
-  list.scrollTo({ top: targetScrollTop, behavior: 'smooth' })
-}
-
-const updateHistoryTransforms = () => {
-  const list = $('#historyList')
-  const items = Array.from(document.querySelectorAll('.history-item'))
-  const itemHeight = 50
-  const padding = 150
-  const maxDistance = 200
-
-  const centerOffset = list.clientHeight / 2
-  state.scrollProgress = list.scrollTop + centerOffset
-
-  for (const div of items) {
-    const index = Number(div.dataset.index || 0)
-    const itemCenter = index * itemHeight + itemHeight / 2 + padding
-    const distance = Math.abs(state.scrollProgress - itemCenter)
-    const normalized = Math.min(distance, maxDistance) / maxDistance
-    const scale = 1 - normalized * 0.3
-    const opacity = 1 - normalized * 0.7
-    const blur = normalized * 2
-    div.style.transform = `scale(${scale})`
-    div.style.opacity = String(opacity)
-    div.style.filter = `blur(${blur}px)`
-  }
-}
-
 const renderCardBody = (card, div) => {
   const type = card?.type || 'link'
   const classNames = {
@@ -451,7 +302,6 @@ const renderCards = () => {
       evt.preventDefault()
       openCardMenu({ x: evt.clientX, y: evt.clientY, cardId: card.id })
     })
-
 
     root.appendChild(div)
     initializeCardData(card, div)
@@ -755,6 +605,18 @@ const anniversaryCard = createAnniversaryCardController({
   setError,
   closeOverlays: closeCardOverlays,
   cards: cardRepository
+})
+
+/** 搜索与历史控制器：引擎选择、发起搜索、历史侧栏都在 search-controller 内完成。 */
+const searchController = createSearchController({
+  getConfig: () => state.config,
+  applyConfig: (next) => {
+    state.config = next
+  },
+  saveConfig,
+  send,
+  setError,
+  afterConfigChange: scheduleAutoPush
 })
 
 const initCardUi = () => {
@@ -1077,8 +939,8 @@ const initSettingsModal = (themeController) => {
     await renderLastSyncAt(pulled?.lastSyncAt)
 
     applyLanguage()
-    renderEngines()
-    renderHistory()
+    searchController.renderEngines()
+    searchController.renderHistory()
     renderCards()
   })
 
@@ -1106,32 +968,6 @@ const initSettingsModal = (themeController) => {
     const saved = await send({ type: 'setConfig', data: { sync: getFormSync() } })
     if (saved?.ok) state.config = saved.data
     scheduleAutoPush()
-  })
-}
-
-const initHistory = () => {
-  $('#clearHistoryBtn').addEventListener('click', async () => {
-    try {
-      await saveConfig({ searchHistory: [] })
-      renderHistory()
-      setError('')
-    } catch (err) {
-      setError(err?.message || '清空历史失败')
-    }
-  })
-  $('#historyList').addEventListener('scroll', () => updateHistoryTransforms())
-}
-
-const initSearchForm = () => {
-  $('#searchForm').addEventListener('submit', async (evt) => {
-    evt.preventDefault()
-    await triggerSearch({ shouldAddToHistory: true })
-  })
-  $('#keywordInput').addEventListener('keydown', (evt) => {
-    if (evt.key === 'Escape') {
-      $('#keywordInput').value = ''
-      setError('')
-    }
   })
 }
 
@@ -1179,18 +1015,18 @@ const main = async () => {
         searchHistory: nextConfig.searchHistory || [],
         ui: { ...(nextConfig.ui || {}), theme }
       }
-      if (historyChanged) renderHistory()
+      if (historyChanged) searchController.renderHistory()
     },
     getSaveErrorText: () => getDict().theme_save_error
   })
   applyLanguage()
-  renderEngines()
-  renderHistory()
+  searchController.renderEngines()
+  searchController.renderHistory()
   initCardDrag()
   renderCards()
-  initSearchForm()
+  searchController.bindSearchForm()
   initBlankClickFocus()
-  initHistory()
+  searchController.bindHistoryUi()
   initCardUi()
   initSettingsModal(themeController)
   $('#keywordInput').focus()
