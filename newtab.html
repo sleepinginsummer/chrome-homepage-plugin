@@ -1,10 +1,12 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="cyber-dark">
 	  <head>
 	    <meta charset="UTF-8" />
-	    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 	    <title>Home</title>
 	    <link rel="icon" href="icon.svg" type="image/svg+xml" />
+	    <script src="theme-bootstrap.js"></script>
+	    <link rel="stylesheet" href="theme-tokens.css" />
 	    <link rel="stylesheet" href="newtab.css" />
 	    <link rel="stylesheet" href="weather-card.css" />
 	  </head>
@@ -12,7 +14,13 @@
     <main class="multi-search-page">
       <div class="content-container">
         <div class="top-actions">
-          <button class="ghost-button" id="openSettingsBtn" type="button" data-i18n="open_settings">设置</button>
+          <button class="ghost-button settings-trigger" id="openSettingsBtn" type="button" aria-label="设置" data-i18n-aria-label="open_settings" title="设置" data-i18n-title="open_settings">
+            <svg class="settings-trigger-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.12 2.12-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V20h-3v-.08a1.7 1.7 0 0 0-1.03-1.56 1.7 1.7 0 0 0-1.88.34l-.06.06-2.12-2.12.06-.06A1.7 1.7 0 0 0 7 14.7a1.7 1.7 0 0 0-1.56-1.03H5v-3h.44A1.7 1.7 0 0 0 7 9.64a1.7 1.7 0 0 0-.34-1.88L6.6 7.7l2.12-2.12.06.06A1.7 1.7 0 0 0 10.66 6a1.7 1.7 0 0 0 1.03-1.56V4h3v.44A1.7 1.7 0 0 0 15.72 6a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.12 2.12-.06.06a1.7 1.7 0 0 0-.34 1.88 1.7 1.7 0 0 0 1.56 1.03H21v3h-.08A1.7 1.7 0 0 0 19.4 15Z"></path>
+            </svg>
+            <span class="settings-trigger-label" data-i18n="open_settings">设置</span>
+          </button>
         </div>
 
         <div class="hero-block">
@@ -91,30 +99,44 @@
       <div class="grid-bg"></div>
       <div class="glow-effect"></div>
 
-      <div class="popup-overlay" id="popupOverlay" hidden>
-        <div class="popup-modal">
-          <h3 data-i18n="popup_title">请允许弹出窗口</h3>
-          <p data-i18n="popup_desc">首次使用多引擎搜索时，Chrome 可能会拦截多个标签页。建议在设置中允许来自扩展新标签页的弹窗。</p>
-          <div class="popup-actions">
-            <button class="tip-button confirm" id="popupConfirmBtn" type="button" data-i18n="common_ok">知道了</button>
-          </div>
-        </div>
-      </div>
-
       <div class="settings-overlay" id="settingsOverlay" hidden>
-        <div class="settings-modal" role="dialog" aria-modal="true" aria-label="设置">
-          <div class="settings-sidebar" role="navigation" aria-label="设置菜单">
-            <button class="settings-item active" data-tab="sync" type="button" data-i18n="settings_sync">同步设置</button>
-            <button class="settings-item" data-tab="language" type="button" data-i18n="settings_language">语言</button>
-            <button class="settings-item" data-tab="about" type="button" data-i18n="settings_about">关于</button>
+        <div class="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+          <div class="settings-sidebar" role="tablist" aria-label="设置菜单">
+            <button class="settings-item active" id="settingsTabAppearance" data-tab="appearance" type="button" role="tab" aria-controls="settingsPanelAppearance" aria-selected="true" data-i18n="settings_appearance">外观</button>
+            <button class="settings-item" id="settingsTabSync" data-tab="sync" type="button" role="tab" aria-controls="settingsPanelSync" aria-selected="false" tabindex="-1" data-i18n="settings_sync">同步设置</button>
+            <button class="settings-item" id="settingsTabLanguage" data-tab="language" type="button" role="tab" aria-controls="settingsPanelLanguage" aria-selected="false" tabindex="-1" data-i18n="settings_language">语言</button>
+            <button class="settings-item" id="settingsTabAbout" data-tab="about" type="button" role="tab" aria-controls="settingsPanelAbout" aria-selected="false" tabindex="-1" data-i18n="settings_about">关于</button>
           </div>
           <div class="settings-content">
             <div class="settings-header">
-              <div class="settings-title" id="settingsTitle">同步设置</div>
+              <div class="settings-title" id="settingsTitle">外观</div>
               <button class="settings-close" id="settingsCloseBtn" type="button" aria-label="关闭">×</button>
             </div>
 
-            <section class="settings-panel" id="settingsPanelSync">
+            <section class="settings-panel" id="settingsPanelAppearance" role="tabpanel" aria-labelledby="settingsTabAppearance">
+              <fieldset class="theme-picker">
+                <legend class="theme-picker-title" data-i18n="theme_label">主题</legend>
+                <div class="theme-options">
+                  <label class="theme-option" data-theme-option="cyber-dark">
+                    <input type="radio" name="theme" value="cyber-dark" />
+                    <span class="theme-preview theme-preview-cyber" aria-hidden="true">
+                      <span></span><span></span><span></span>
+                    </span>
+                    <strong data-i18n="theme_cyber_dark">赛博深色</strong>
+                  </label>
+                  <label class="theme-option" data-theme-option="neo-brutalism">
+                    <input type="radio" name="theme" value="neo-brutalism" />
+                    <span class="theme-preview theme-preview-brutal" aria-hidden="true">
+                      <span></span><span></span><span></span>
+                    </span>
+                    <strong data-i18n="theme_neo_brutalism">新粗野</strong>
+                  </label>
+                </div>
+              </fieldset>
+              <p class="settings-status theme-status" id="themeStatus" role="status" aria-live="polite"></p>
+            </section>
+
+            <section class="settings-panel" id="settingsPanelSync" role="tabpanel" aria-labelledby="settingsTabSync" hidden>
               <div class="settings-grid">
                 <label class="field field-full">
                   <span class="label" data-i18n="sync_giturl">Git 代码片段地址</span>
@@ -135,7 +157,7 @@
 
                 <label class="field field-full">
                   <span class="label" data-i18n="sync_autopush">自动同步</span>
-                  <label class="engine-checkbox" style="justify-content: flex-start; margin: 0">
+                  <label class="engine-checkbox sync-autopush-control">
                     <input type="checkbox" id="syncAutoPush" />
                     <div class="checkbox-custom" aria-hidden="true">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
@@ -158,7 +180,7 @@
               <p class="settings-status settings-substatus" id="syncLastSyncAt" aria-live="polite"></p>
             </section>
 
-            <section class="settings-panel" id="settingsPanelLanguage" hidden>
+            <section class="settings-panel" id="settingsPanelLanguage" role="tabpanel" aria-labelledby="settingsTabLanguage" hidden>
               <div class="settings-grid">
                 <label class="field field-full">
                   <span class="label" data-i18n="language_label">Language</span>
@@ -170,7 +192,7 @@
               </div>
             </section>
 
-            <section class="settings-panel" id="settingsPanelAbout" hidden>
+            <section class="settings-panel" id="settingsPanelAbout" role="tabpanel" aria-labelledby="settingsTabAbout" hidden>
               <div class="settings-grid">
                 <div class="settings-hint">
                   GitHub：

@@ -1,4 +1,4 @@
-import { DEFAULT_CONFIG, deepMerge, readConfig, readLastRemoteHash, writeConfig, writeLastRemoteHash, writeLastSyncAt } from './config-store.js'
+import { DEFAULT_CONFIG, addSearchHistory, applyRemoteConfig, deepMerge, readConfig, readLastRemoteHash, updateConfig, writeLastRemoteHash, writeLastSyncAt } from './config-store.js'
 import { openTabs, openTabsInNewActive } from './tabs-ops.js'
 import { computeConfigBeforePush, computeConfigHash, pullRemoteConfig, pushRemoteConfigAndVerify, testRemoteConfig } from './remote-sync.js'
 
@@ -115,8 +115,7 @@ const fetchMetalsQuote = async () => {
 
 chrome.runtime.onInstalled.addListener(async () => {
   console.log('[chrome-home] onInstalled:start')
-  const config = await readConfig(chrome)
-  await writeConfig(chrome, config)
+  await updateConfig(chrome, {})
   console.log('[chrome-home] onInstalled:done')
 })
 
@@ -128,10 +127,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       return
     }
     if (message?.type === 'setConfig') {
-      const current = await readConfig(chrome)
-      const next = deepMerge(current, message.data || {})
-      await writeConfig(chrome, next)
+      const next = await updateConfig(chrome, message.data)
       sendResponse({ ok: true, data: next })
+      return
+    }
+    if (message?.type === 'addSearchHistory') {
+      sendResponse({ ok: true, data: await addSearchHistory(chrome, message.keyword) })
       return
     }
     if (message?.type === 'openTabs') {
@@ -159,8 +160,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type === 'pullRemote') {
       const config = await readConfig(chrome)
       const remote = await pullRemoteConfig(config.sync)
-      const merged = deepMerge(DEFAULT_CONFIG, remote)
-      await writeConfig(chrome, merged)
+      const merged = await applyRemoteConfig(chrome, remote)
       await writeLastRemoteHash(chrome, await computeConfigHash(remote))
       const lastSyncAt = await writeLastSyncAt(chrome)
       sendResponse({ ok: true, data: merged, lastSyncAt })
@@ -175,7 +175,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         defaultConfig: DEFAULT_CONFIG,
         lastRemoteHash: await readLastRemoteHash(chrome)
       })
-      await writeConfig(chrome, nextConfig)
+      // 推送的是读取时的快照，不回写本地，避免覆盖网络等待期间新增的历史。
       const verifiedRemote = await pushRemoteConfigAndVerify(nextConfig.sync, nextConfig)
       await writeLastRemoteHash(chrome, await computeConfigHash(verifiedRemote))
       const lastSyncAt = await writeLastSyncAt(chrome)

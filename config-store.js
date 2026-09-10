@@ -16,6 +16,11 @@ export const STORAGE_KEY = 'chromeHomeConfig'
 export const LAST_SYNC_AT_KEY = 'chromeHomeLastSyncAt'
 export const LAST_REMOTE_HASH_KEY = 'chromeHomeLastRemoteHash'
 
+export const THEME_IDS = ['cyber-dark', 'neo-brutalism']
+export const DEFAULT_THEME = 'cyber-dark'
+
+export const normalizeThemeId = (value) => (THEME_IDS.includes(value) ? value : DEFAULT_THEME)
+
 export const DEFAULT_ENGINES = [
   { name: 'GOOGLE', baseUrl: 'https://www.google.com/search?q=' },
   { name: 'BING', baseUrl: 'https://www.bing.com/search?q=' },
@@ -28,11 +33,13 @@ export const DEFAULT_CONFIG = {
   engines: DEFAULT_ENGINES,
   selectedEngines: ['GOOGLE', 'BING', 'BAIDU'],
   rememberSelections: true,
+  // 兼容旧配置；搜索已不再依赖首次使用提示。
   popupTipDismissed: false,
   searchHistory: [],
   cards: [],
   ui: {
-    language: 'zh'
+    language: 'zh',
+    theme: DEFAULT_THEME
   },
   sync: {
     gitUrl: '',
@@ -70,6 +77,19 @@ export const deepMerge = (base, patch) => {
     }
   }
   return out
+}
+
+/**
+ * 规范化可由导入或远端同步写入的界面配置，避免未知主题污染运行时状态。
+ */
+export const normalizeConfig = (config) => {
+  const merged = deepMerge(DEFAULT_CONFIG, config || {})
+  merged.ui = {
+    ...(merged.ui || {}),
+    language: merged.ui?.language === 'en' ? 'en' : 'zh',
+    theme: normalizeThemeId(merged.ui?.theme)
+  }
+  return merged
 }
 
 /**
@@ -154,14 +174,14 @@ export const storageLocalGet = (chromeApi, keys) =>
 export const readConfig = async (chromeApi) => {
   const localResult = await storageLocalGet(chromeApi, STORAGE_KEY)
   const localRaw = localResult?.[STORAGE_KEY]
-  if (localRaw) return deepMerge(DEFAULT_CONFIG, localRaw)
+  if (localRaw) return normalizeConfig(localRaw)
 
   // 重要逻辑：从旧版 chrome.storage.sync 平滑迁移到本机 local，避免升级后配置丢失。
   const syncResult = await storageSyncGet(chromeApi, STORAGE_KEY)
   const syncRaw = syncResult?.[STORAGE_KEY]
   if (!syncRaw) return safeStructuredClone(DEFAULT_CONFIG)
 
-  const migrated = deepMerge(DEFAULT_CONFIG, syncRaw)
+  const migrated = normalizeConfig(syncRaw)
   await writeConfig(chromeApi, migrated)
   return migrated
 }
@@ -170,8 +190,39 @@ export const readConfig = async (chromeApi) => {
  * 写入完整配置对象到 storage.local，避免 Chrome 账号同步与 Gitee 同步互相覆盖。
  */
 export const writeConfig = async (chromeApi, nextConfig) => {
-  await storageLocalSet(chromeApi, { [STORAGE_KEY]: nextConfig })
+  const normalized = normalizeConfig(nextConfig)
+  await storageLocalSet(chromeApi, { [STORAGE_KEY]: normalized })
+  return normalized
 }
+
+/**
+ * 在扩展页面与 service worker 之间串行化读改写，避免并发更新覆盖历史。
+ * 网络请求应放在锁外，拿到结果后再基于最新本地配置更新。
+ */
+export const updateConfig = (chromeApi, patch) =>
+  navigator.locks.request('chrome-home-config', async () => {
+    const current = await readConfig(chromeApi)
+    const next = typeof patch === 'function' ? patch(current) : deepMerge(current, patch || {})
+    return writeConfig(chromeApi, next)
+  })
+
+export const addSearchHistory = (chromeApi, keyword) => {
+  const term = typeof keyword === 'string' ? keyword.trim() : ''
+  if (!term) throw new Error('请输入关键词')
+  return updateConfig(chromeApi, (current) => ({
+    ...current,
+    searchHistory: [term, ...(current.searchHistory || []).filter((item) => item !== term)].slice(0, 20)
+  }))
+}
+
+/**
+ * 远端配置覆盖可同步设置；历史属于本机，包含主动清空的空数组。
+ */
+export const applyRemoteConfig = (chromeApi, remote) =>
+  updateConfig(chromeApi, (current) => ({
+    ...normalizeConfig(remote),
+    searchHistory: current.searchHistory
+  }))
 
 /**
  * 写入最近一次成功拉取/推送确认后的远端配置 hash，用于防止旧本地配置覆盖新远端。
@@ -198,4 +249,3 @@ export const writeLastSyncAt = async (chromeApi, isoTime) => {
   await storageLocalSet(chromeApi, { [LAST_SYNC_AT_KEY]: value })
   return value
 }
-

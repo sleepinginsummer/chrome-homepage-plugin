@@ -1,0 +1,24 @@
+html[data-theme='neo-brutalism'] {
+  --brutal-background: #e4e7e3;
+  --brutal-surface: #f5f6f3;
+  --brutal-surface-muted: #cdd3ce;
+  --brutal-surface-hover: #ffffff;
+  --brutal-ink: #171717;
+  --brutal-muted: #3f4641;
+  --brutal-primary: #315efb;
+  --brutal-primary-hover: #2449cc;
+  --brutal-primary-active: #1939a6;
+  --brutal-on-primary: #ffffff;
+  --brutal-accent: #ff6b5e;
+  --brutal-success: #126a3a;
+  --brutal-error: #a9271e;
+  --brutal-disabled: #b7beb8;
+  --brutal-overlay: rgba(23, 23, 23, 0.58);
+  --brutal-shadow-panel: 6px 6px 0 var(--brutal-ink);
+  --brutal-shadow-panel-hover: 8px 8px 0 var(--brutal-ink);
+  --brutal-shadow-control: 3px 3px 0 var(--brutal-ink);
+  --brutal-shadow-control-hover: 5px 5px 0 var(--brutal-ink);
+  color: var(--brutal-ink);
+  background: var(--brutal-background);
+  color-scheme: light;
+}

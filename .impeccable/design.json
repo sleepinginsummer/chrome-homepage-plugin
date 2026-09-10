@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-03T09:55:00+08:00",
+  "title": "Design System: Smart Search",
+  "extensions": {
+    "colorMeta": {
+      "cyber-accent": {
+        "role": "primary",
+        "displayName": "Cyber Cyan",
+        "canonical": "#00F2FF",
+        "tonalRamp": ["oklch(22% 0.05 200)", "oklch(32% 0.08 200)", "oklch(43% 0.11 200)", "oklch(54% 0.14 200)", "oklch(66% 0.16 200)", "oklch(77% 0.14 200)", "oklch(88% 0.08 200)", "oklch(95% 0.03 200)"]
+      },
+      "brutal-background": {
+        "role": "neutral",
+        "displayName": "Concrete Background",
+        "canonical": "#E4E7E3",
+        "tonalRamp": ["#171717", "#3F4641", "#7A827C", "#CDD3CE", "#E4E7E3", "#F5F6F3", "#FFFFFF"]
+      },
+      "brutal-primary": {
+        "role": "primary",
+        "displayName": "Poster Cobalt",
+        "canonical": "#315EFB",
+        "tonalRamp": ["#10236F", "#1939A6", "#2449CC", "#315EFB", "#718CFF", "#B8C5FF"]
+      },
+      "brutal-accent": {
+        "role": "accent",
+        "displayName": "Signal Coral",
+        "canonical": "#FF6B5E",
+        "tonalRamp": ["#68140F", "#A9271E", "#D7473D", "#FF6B5E", "#FFAAA2", "#FFE1DE"]
+      }
+    },
+    "typographyMeta": {
+      "headline": { "displayName": "Product Headline", "purpose": "Brand mark and top-level headings only." },
+      "body": { "displayName": "Interface Body", "purpose": "Readable forms, messages, and content." },
+      "label": { "displayName": "Control Label", "purpose": "Compact buttons, tabs, and metadata." }
+    },
+    "shadows": [
+      { "name": "brutal-panel", "value": "6px 6px 0 #171717", "purpose": "Search poster, widgets, sidebars, and dialogs." },
+      { "name": "brutal-control", "value": "3px 3px 0 #171717", "purpose": "Buttons, inputs, theme choices, and compact data blocks." }
+    ],
+    "motion": [
+      { "name": "state-fast", "value": "150ms cubic-bezier(0.25, 1, 0.5, 1)", "purpose": "Press and selection feedback." },
+      { "name": "state-standard", "value": "200ms cubic-bezier(0.22, 1, 0.36, 1)", "purpose": "Hover, focus, and panel state changes." }
+    ],
+    "breakpoints": [
+      { "name": "compact", "value": "720px" },
+      { "name": "wide", "value": "1100px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Neo-Brutal Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Cobalt action with black structure and physical press feedback.",
+      "html": "<button class=\"ds-brutal-primary\" type=\"button\">Search</button>",
+      "css": ".ds-brutal-primary { min-height: 44px; padding: 0 20px; border: 3px solid #171717; border-radius: 4px; background: #315EFB; color: #FFFFFF; box-shadow: 6px 6px 0 #171717; font: 900 13px/1 system-ui, sans-serif; transition: transform 180ms cubic-bezier(0.25,1,0.5,1), background 180ms ease, box-shadow 180ms ease; } .ds-brutal-primary:hover { transform: translate(-2px,-2px); background: #2449CC; box-shadow: 8px 8px 0 #171717; } .ds-brutal-primary:active { transform: translate(3px,3px); background: #1939A6; box-shadow: none; } .ds-brutal-primary:focus-visible { outline: 3px solid #171717; outline-offset: 3px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Two Modes, One Command Surface",
+    "overview": "Smart Search keeps one information architecture across cyber-dark and neo-brutalism. The brutal theme uses concrete gray, heavy black structure, cobalt actions, compact coral emphasis, and no decorative patterns or blur.",
+    "keyCharacteristics": ["Search-first and immediately actionable", "Isolated theme vocabularies", "Cyan or cobalt reserved for primary actions", "Stable compact-and-wide bento grid", "Fast accessible state feedback"],
+    "rules": [
+      { "name": "The No-Leak Rule", "body": "Theme-specific accent colors never appear in the other theme unless they encode real external content.", "section": "colors" },
+      { "name": "The Earned Elevation Rule", "body": "Plain information rows stay flat; if everything casts a shadow, the hierarchy has failed.", "section": "elevation" }
+    ],
+    "dos": ["Preserve the default cyber-dark theme's current computed colors and layout.", "Keep theme-specific accents isolated.", "Use only zero-blur hard shadows in neo-brutalism.", "Maintain visible focus, 320px reflow, and reduced-motion behavior."],
+    "donts": ["Add dots, stripes, gradients, glass, or blurred shadows to neo-brutalism.", "Use oversized rounded containers above 16px."]
+  }
+}

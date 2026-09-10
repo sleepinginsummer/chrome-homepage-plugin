@@ -23,7 +23,7 @@ if (releaseTag && releaseTag !== `v${version}`) {
 // 扩展运行时文件清单只在这里维护，本地打包与 GitHub Release 共用。
 const runtimeEntries = [
   'manifest.json',
-  'background.js', 'config-store.js', 'tabs-ops.js', 'remote-sync.js', 'extension-api.js',
+  'background.js', 'config-store.js', 'theme.js', 'theme-bootstrap.js', 'theme-tokens.css', 'tabs-ops.js', 'remote-sync.js', 'extension-api.js',
   'options.html', 'options.css', 'options.js',
   'newtab.html', 'newtab.css', 'newtab.js',
   'sync-startup.js', 'hot-news.js', 'request-cache.js',

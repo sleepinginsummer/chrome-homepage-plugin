@@ -8,12 +8,13 @@ import { renderWeatherCardHtml, updateWeatherCardDom } from './weather-card.js'
 import { createCardDragController } from './card-drag.js'
 import { createCardIconCandidates, getCardInitial, loadCardIcon } from './card-icon.js'
 import { normalizeCardUrl } from './url-utils.js'
+import { applyTheme, bindThemeRadioNavigation, getConfigTheme, persistThemeSelection, subscribeToThemeChanges } from './theme.js'
 
 const LAST_SYNC_AT_KEY = 'chromeHomeLastSyncAt'
 
 const state = {
   config: null,
-  pendingSearch: null,
+  isSearching: false,
   scrollProgress: 0,
   editingCardId: null,
   editingAnniversaryCardId: null,
@@ -59,9 +60,7 @@ const setSyncStatus = (text, kind = 'info') => {
   const status = $('#syncStatus')
   if (!status) return
   status.textContent = text || ''
-  if (kind === 'error') status.style.color = '#ff4848'
-  else if (kind === 'ok') status.style.color = '#00f2ff'
-  else status.style.color = 'rgba(255,255,255,0.7)'
+  status.dataset.kind = kind
 }
 
 const I18N = {
@@ -72,13 +71,15 @@ const I18N = {
     search_placeholder: '输入关键词开始搜索...',
     search_btn: 'SEARCH',
     clear_history: '清空历史',
-    popup_title: '请允许弹出窗口',
-    popup_desc: '首次使用多引擎搜索时，Chrome 可能会拦截多个标签页。建议在设置中允许来自扩展新标签页的弹窗。',
-    common_ok: '知道了',
+    settings_appearance: '外观',
     settings_sync: '同步设置',
     settings_language: '语言',
     settings_about: '关于',
     language_label: '语言',
+    theme_label: '主题',
+    theme_cyber_dark: '赛博深色',
+    theme_neo_brutalism: '新粗野',
+    theme_save_error: '主题保存失败，已恢复原主题',
     sync_giturl: 'Git 代码片段地址',
     sync_giturl_ph: '例如：https://gitee.com/<用户名>/codes/<代码片段ID>',
     sync_giturl_hint: '仅支持 Gitee 代码片段地址（/codes/…）。',
@@ -149,14 +150,15 @@ const I18N = {
     search_placeholder: 'Enter keyword to search...',
     search_btn: 'SEARCH',
     clear_history: 'Clear History',
-    popup_title: 'Allow pop-ups',
-    popup_desc:
-      'When using multi-engine search for the first time, Chrome may block opening multiple tabs. Please allow pop-ups from this new tab page in settings.',
-    common_ok: 'Got it',
+    settings_appearance: 'Appearance',
     settings_sync: 'Sync',
     settings_language: 'Language',
     settings_about: 'About',
     language_label: 'Language',
+    theme_label: 'Theme',
+    theme_cyber_dark: 'Cyber Dark',
+    theme_neo_brutalism: 'Neo-Brutalism',
+    theme_save_error: 'Could not save the theme. The previous theme was restored.',
     sync_giturl: 'Gitee Codes URL',
     sync_giturl_ph: 'e.g. https://gitee.com/<user>/codes/<gistId>',
     sync_giturl_hint: 'Only Gitee codes URL (/codes/…) is supported.',
@@ -283,6 +285,18 @@ const applyLanguage = () => {
     if (!key) continue
     const value = dict[key]
     if (typeof value === 'string') el.setAttribute('placeholder', value)
+  }
+
+  for (const el of document.querySelectorAll('[data-i18n-aria-label]')) {
+    const key = el.getAttribute('data-i18n-aria-label')
+    const value = dict[key]
+    if (typeof value === 'string') el.setAttribute('aria-label', value)
+  }
+
+  for (const el of document.querySelectorAll('[data-i18n-title]')) {
+    const key = el.getAttribute('data-i18n-title')
+    const value = dict[key]
+    if (typeof value === 'string') el.setAttribute('title', value)
   }
 
   document.documentElement.lang = getLang() === 'en' ? 'en' : 'zh-CN'
@@ -428,42 +442,38 @@ const computeSearchUrls = (keyword, selectedEngines) => {
 }
 
 const addToHistory = async (term) => {
-  const history = [...(state.config.searchHistory || [])]
-  const existingIndex = history.indexOf(term)
-  if (existingIndex > -1) history.splice(existingIndex, 1)
-  history.unshift(term)
-  if (history.length > 20) history.pop()
-  state.config.searchHistory = history
-  await saveConfig({ searchHistory: history })
+  // 在存储层基于最新历史追加，避免多个新标签页拿旧数组互相覆盖。
+  const res = await send({ type: 'addSearchHistory', keyword: term })
+  if (!res?.ok) throw new Error(res?.error || '历史记录保存失败')
+  state.config = res.data
   renderHistory()
 }
 
 const triggerSearch = async ({ shouldAddToHistory }) => {
+  if (state.isSearching) return
   const keyword = $('#keywordInput').value.trim()
   if (!keyword) {
     setError('请输入关键词')
     return
   }
-  if (!state.config.selectedEngines?.length) {
+  const urls = computeSearchUrls(keyword, state.config.selectedEngines || [])
+  if (!urls.length) {
     setError('请至少选择一个搜索引擎')
     return
   }
   setError('')
 
-  const urls = computeSearchUrls(keyword, state.config.selectedEngines)
-
-  if (!state.config.popupTipDismissed) {
-    state.pendingSearch = { urls, keyword, shouldAddToHistory }
-    $('#popupOverlay').hidden = false
-    return
+  state.isSearching = true
+  try {
+    // openTabs 会导航并卸载当前页面，必须先确认历史已持久化。
+    if (shouldAddToHistory) await addToHistory(keyword)
+    const res = await send({ type: 'openTabs', urls })
+    if (!res?.ok) setError(res?.error || '打开标签页失败')
+  } catch (err) {
+    setError(err?.message || '搜索失败，请重试')
+  } finally {
+    state.isSearching = false
   }
-
-  const res = await send({ type: 'openTabs', urls })
-  if (!res?.ok) {
-    setError(res?.error || '打开标签页失败')
-    return
-  }
-  if (shouldAddToHistory) await addToHistory(keyword)
 }
 
 const renderHistory = () => {
@@ -738,7 +748,7 @@ const renderCards = () => {
   addCard.type = 'button'
   addCard.className = 'card card-add'
   addCard.innerHTML = `
-    <svg class="card-add-icon" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <svg class="card-add-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <line x1="12" y1="6" x2="12" y2="18"></line>
       <line x1="6" y1="12" x2="18" y2="12"></line>
     </svg>
@@ -1925,7 +1935,7 @@ const renderStockList = (card) => {
   if (!root) return
   const symbols = getStockSymbols(card)
   if (!symbols.length) {
-    root.innerHTML = `<div style="color: rgba(255,255,255,0.65); font-size: 13px; padding: 10px 2px;">暂无股票，右侧新增一个吧</div>`
+    root.innerHTML = '<div class="editor-empty">暂无股票，右侧新增一个吧</div>'
     return
   }
 
@@ -1968,7 +1978,7 @@ const renderAnniversaryList = (card) => {
   const root = $('#anniversaryList')
   const items = sortAnniversaryItems(Array.isArray(card.items) ? card.items : [])
   if (!items.length) {
-    root.innerHTML = `<div style="color: rgba(255,255,255,0.65); font-size: 13px; padding: 10px 2px;">暂无纪念日，右侧新增一个吧</div>`
+    root.innerHTML = '<div class="editor-empty">暂无纪念日，右侧新增一个吧</div>'
     return
   }
 
@@ -2405,25 +2415,6 @@ const initCardUi = () => {
   })
 }
 
-const initPopup = () => {
-  $('#popupConfirmBtn').addEventListener('click', async () => {
-    $('#popupOverlay').hidden = true
-    state.config.popupTipDismissed = true
-    await saveConfig({ popupTipDismissed: true })
-
-    const pending = state.pendingSearch
-    state.pendingSearch = null
-    if (!pending) return
-
-    const res = await send({ type: 'openTabs', urls: pending.urls })
-    if (!res?.ok) {
-      setError(res?.error || '打开标签页失败')
-      return
-    }
-    if (pending.shouldAddToHistory) await addToHistory(pending.keyword)
-  })
-}
-
 const initSettingsModal = () => {
   const overlay = $('#settingsOverlay')
   const openBtn = $('#openSettingsBtn')
@@ -2433,9 +2424,21 @@ const initSettingsModal = () => {
 
   const setStatus = (text, kind = 'info') => {
     status.textContent = text || ''
-    if (kind === 'error') status.style.color = '#ff4848'
-    else if (kind === 'ok') status.style.color = '#00f2ff'
-    else status.style.color = 'rgba(255,255,255,0.7)'
+    status.dataset.kind = kind
+  }
+
+  const setThemeStatus = (text, kind = 'info') => {
+    const themeStatus = $('#themeStatus')
+    if (!themeStatus) return
+    themeStatus.textContent = text || ''
+    themeStatus.dataset.kind = kind
+  }
+
+  const renderThemeSelection = (theme = getConfigTheme(state.config)) => {
+    for (const input of document.querySelectorAll('input[name="theme"]')) {
+      input.checked = input.value === theme
+      input.closest('.theme-option')?.classList.toggle('active', input.checked)
+    }
   }
 
   const getFormSync = () => ({
@@ -2477,23 +2480,38 @@ const initSettingsModal = () => {
     renderLastSyncAt()
     const lang = $('#languageSelect')
     if (lang) lang.value = getLang()
-    selectTab('sync')
+    renderThemeSelection()
+    setThemeStatus('')
+    selectTab('appearance')
+    requestAnimationFrame(() => $('#settingsTabAppearance')?.focus())
   }
 
   const close = () => {
+    const wasOpen = !overlay.hidden
     overlay.hidden = true
     setStatus('')
+    if (wasOpen) requestAnimationFrame(() => openBtn.focus())
   }
 
   const selectTab = (tab) => {
     for (const btn of document.querySelectorAll('.settings-item')) {
-      btn.classList.toggle('active', btn.dataset.tab === tab)
+      const active = btn.dataset.tab === tab
+      btn.classList.toggle('active', active)
+      btn.setAttribute('aria-selected', String(active))
+      btn.tabIndex = active ? 0 : -1
     }
+    $('#settingsPanelAppearance').hidden = tab !== 'appearance'
     $('#settingsPanelSync').hidden = tab !== 'sync'
     $('#settingsPanelLanguage').hidden = tab !== 'language'
     $('#settingsPanelAbout').hidden = tab !== 'about'
     const dict = I18N[getLang()] || I18N.zh
-    title.textContent = tab === 'sync' ? dict.settings_sync : tab === 'language' ? dict.settings_language : dict.settings_about
+    const titleByTab = {
+      appearance: dict.settings_appearance,
+      sync: dict.settings_sync,
+      language: dict.settings_language,
+      about: dict.settings_about
+    }
+    title.textContent = titleByTab[tab] || dict.settings_appearance
   }
 
   openBtn.addEventListener('click', open)
@@ -2509,7 +2527,47 @@ const initSettingsModal = () => {
 
   for (const btn of document.querySelectorAll('.settings-item')) {
     btn.addEventListener('click', () => selectTab(btn.dataset.tab))
+    btn.addEventListener('keydown', (evt) => {
+      if (!['ArrowDown', 'ArrowRight', 'ArrowUp', 'ArrowLeft', 'Home', 'End'].includes(evt.key)) return
+      const tabs = [...document.querySelectorAll('.settings-item')]
+      const currentIndex = tabs.indexOf(btn)
+      const direction = ['ArrowDown', 'ArrowRight'].includes(evt.key) ? 1 : -1
+      const nextIndex = evt.key === 'Home'
+        ? 0
+        : evt.key === 'End'
+          ? tabs.length - 1
+          : (currentIndex + direction + tabs.length) % tabs.length
+      evt.preventDefault()
+      selectTab(tabs[nextIndex].dataset.tab)
+      tabs[nextIndex].focus()
+    })
   }
+
+  for (const input of document.querySelectorAll('input[name="theme"]')) {
+    input.addEventListener('change', async () => {
+      if (!input.checked) return
+      const previousTheme = getConfigTheme(state.config)
+      setThemeStatus('')
+      const result = await persistThemeSelection({
+        currentTheme: previousTheme,
+        nextTheme: input.value,
+        saveTheme: async (theme) => {
+          const saved = await send({
+            type: 'setConfig',
+            data: { ui: { ...(state.config.ui || {}), theme } }
+          })
+          if (!saved?.ok) throw new Error(saved?.error || '保存主题失败')
+          state.config = saved.data
+        }
+      })
+      renderThemeSelection(result.theme)
+      if (!result.ok) {
+        const dict = I18N[getLang()] || I18N.zh
+        setThemeStatus(dict.theme_save_error, 'error')
+      }
+    })
+  }
+  bindThemeRadioNavigation()
 
   const languageSelect = $('#languageSelect')
   if (languageSelect) {
@@ -2560,6 +2618,8 @@ const initSettingsModal = () => {
       return
     }
     state.config = pulled.data
+    applyTheme(getConfigTheme(state.config))
+    renderThemeSelection()
     setFormSync(pulled.data.sync || {})
     setStatus('拉取成功，已写入本地配置', 'ok')
     await renderLastSyncAt(pulled?.lastSyncAt)
@@ -2599,9 +2659,13 @@ const initSettingsModal = () => {
 
 const initHistory = () => {
   $('#clearHistoryBtn').addEventListener('click', async () => {
-    state.config.searchHistory = []
-    await saveConfig({ searchHistory: [] })
-    renderHistory()
+    try {
+      await saveConfig({ searchHistory: [] })
+      renderHistory()
+      setError('')
+    } catch (err) {
+      setError(err?.message || '清空历史失败')
+    }
   })
   $('#historyList').addEventListener('scroll', () => updateHistoryTransforms())
 }
@@ -2628,13 +2692,10 @@ const initBlankClickFocus = () => {
     if (!(target instanceof Element)) return
     if (target.closest('.search-form')) return
     if (target.closest('input, textarea, select, button, a, label, [contenteditable="true"]')) return
-    if (target.closest('.cards-section, .history-sidebar, .card, .card-menu, .modal-overlay, .settings-overlay, .popup-overlay')) return
+    if (target.closest('.cards-section, .history-sidebar, .card, .card-menu, .modal-overlay, .settings-overlay')) return
 
     const settingsOverlay = $('#settingsOverlay')
     if (settingsOverlay && !settingsOverlay.hasAttribute('hidden') && target.closest('#settingsOverlay')) return
-
-    const popupOverlay = $('#popupOverlay')
-    if (popupOverlay && !popupOverlay.hasAttribute('hidden') && target.closest('#popupOverlay')) return
 
     // 点击空白区域时，主动聚焦搜索框
     $('#keywordInput')?.focus()
@@ -2645,6 +2706,7 @@ const main = async () => {
   const res = await send({ type: 'getConfig' })
   state.config = res?.data
 
+  applyTheme(getConfigTheme(state.config))
   applyLanguage()
   renderEngines()
   renderHistory()
@@ -2653,9 +2715,20 @@ const main = async () => {
   initSearchForm()
   initBlankClickFocus()
   initHistory()
-  initPopup()
   initCardUi()
   initSettingsModal()
+  subscribeToThemeChanges(chrome, (theme, nextConfig) => {
+    if (state.config) {
+      const historyChanged = JSON.stringify(state.config.searchHistory) !== JSON.stringify(nextConfig.searchHistory)
+      state.config = { ...state.config, searchHistory: nextConfig.searchHistory || [], ui: { ...(nextConfig.ui || {}), theme } }
+      if (historyChanged) renderHistory()
+    }
+    applyTheme(theme)
+    for (const input of document.querySelectorAll('input[name="theme"]')) {
+      input.checked = input.value === theme
+      input.closest('.theme-option')?.classList.toggle('active', input.checked)
+    }
+  })
   $('#keywordInput').focus()
 
   // 性能优化：启动同步属于非首屏关键路径任务，延迟到空闲时执行，避免“打开新标签页时卡顿”。
