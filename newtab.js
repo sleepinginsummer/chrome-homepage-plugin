@@ -14,7 +14,7 @@ const LAST_SYNC_AT_KEY = 'chromeHomeLastSyncAt'
 
 const state = {
   config: null,
-  pendingSearch: null,
+  isSearching: false,
   scrollProgress: 0,
   editingCardId: null,
   editingAnniversaryCardId: null,
@@ -71,9 +71,6 @@ const I18N = {
     search_placeholder: '输入关键词开始搜索...',
     search_btn: 'SEARCH',
     clear_history: '清空历史',
-    popup_title: '请允许弹出窗口',
-    popup_desc: '首次使用多引擎搜索时，Chrome 可能会拦截多个标签页。建议在设置中允许来自扩展新标签页的弹窗。',
-    common_ok: '知道了',
     settings_appearance: '外观',
     settings_sync: '同步设置',
     settings_language: '语言',
@@ -154,10 +151,6 @@ const I18N = {
     search_placeholder: 'Enter keyword to search...',
     search_btn: 'SEARCH',
     clear_history: 'Clear History',
-    popup_title: 'Allow pop-ups',
-    popup_desc:
-      'When using multi-engine search for the first time, Chrome may block opening multiple tabs. Please allow pop-ups from this new tab page in settings.',
-    common_ok: 'Got it',
     settings_appearance: 'Appearance',
     settings_sync: 'Sync',
     settings_language: 'Language',
@@ -451,42 +444,38 @@ const computeSearchUrls = (keyword, selectedEngines) => {
 }
 
 const addToHistory = async (term) => {
-  const history = [...(state.config.searchHistory || [])]
-  const existingIndex = history.indexOf(term)
-  if (existingIndex > -1) history.splice(existingIndex, 1)
-  history.unshift(term)
-  if (history.length > 20) history.pop()
-  state.config.searchHistory = history
-  await saveConfig({ searchHistory: history })
+  // 在存储层基于最新历史追加，避免多个新标签页拿旧数组互相覆盖。
+  const res = await send({ type: 'addSearchHistory', keyword: term })
+  if (!res?.ok) throw new Error(res?.error || '历史记录保存失败')
+  state.config = res.data
   renderHistory()
 }
 
 const triggerSearch = async ({ shouldAddToHistory }) => {
+  if (state.isSearching) return
   const keyword = $('#keywordInput').value.trim()
   if (!keyword) {
     setError('请输入关键词')
     return
   }
-  if (!state.config.selectedEngines?.length) {
+  const urls = computeSearchUrls(keyword, state.config.selectedEngines || [])
+  if (!urls.length) {
     setError('请至少选择一个搜索引擎')
     return
   }
   setError('')
 
-  const urls = computeSearchUrls(keyword, state.config.selectedEngines)
-
-  if (!state.config.popupTipDismissed) {
-    state.pendingSearch = { urls, keyword, shouldAddToHistory }
-    $('#popupOverlay').hidden = false
-    return
+  state.isSearching = true
+  try {
+    // openTabs 会导航并卸载当前页面，必须先确认历史已持久化。
+    if (shouldAddToHistory) await addToHistory(keyword)
+    const res = await send({ type: 'openTabs', urls })
+    if (!res?.ok) setError(res?.error || '打开标签页失败')
+  } catch (err) {
+    setError(err?.message || '搜索失败，请重试')
+  } finally {
+    state.isSearching = false
   }
-
-  const res = await send({ type: 'openTabs', urls })
-  if (!res?.ok) {
-    setError(res?.error || '打开标签页失败')
-    return
-  }
-  if (shouldAddToHistory) await addToHistory(keyword)
 }
 
 const renderHistory = () => {
@@ -2428,25 +2417,6 @@ const initCardUi = () => {
   })
 }
 
-const initPopup = () => {
-  $('#popupConfirmBtn').addEventListener('click', async () => {
-    $('#popupOverlay').hidden = true
-    state.config.popupTipDismissed = true
-    await saveConfig({ popupTipDismissed: true })
-
-    const pending = state.pendingSearch
-    state.pendingSearch = null
-    if (!pending) return
-
-    const res = await send({ type: 'openTabs', urls: pending.urls })
-    if (!res?.ok) {
-      setError(res?.error || '打开标签页失败')
-      return
-    }
-    if (pending.shouldAddToHistory) await addToHistory(pending.keyword)
-  })
-}
-
 const initSettingsModal = () => {
   const overlay = $('#settingsOverlay')
   const openBtn = $('#openSettingsBtn')
@@ -2691,9 +2661,13 @@ const initSettingsModal = () => {
 
 const initHistory = () => {
   $('#clearHistoryBtn').addEventListener('click', async () => {
-    state.config.searchHistory = []
-    await saveConfig({ searchHistory: [] })
-    renderHistory()
+    try {
+      await saveConfig({ searchHistory: [] })
+      renderHistory()
+      setError('')
+    } catch (err) {
+      setError(err?.message || '清空历史失败')
+    }
   })
   $('#historyList').addEventListener('scroll', () => updateHistoryTransforms())
 }
@@ -2720,13 +2694,10 @@ const initBlankClickFocus = () => {
     if (!(target instanceof Element)) return
     if (target.closest('.search-form')) return
     if (target.closest('input, textarea, select, button, a, label, [contenteditable="true"]')) return
-    if (target.closest('.cards-section, .history-sidebar, .card, .card-menu, .modal-overlay, .settings-overlay, .popup-overlay')) return
+    if (target.closest('.cards-section, .history-sidebar, .card, .card-menu, .modal-overlay, .settings-overlay')) return
 
     const settingsOverlay = $('#settingsOverlay')
     if (settingsOverlay && !settingsOverlay.hasAttribute('hidden') && target.closest('#settingsOverlay')) return
-
-    const popupOverlay = $('#popupOverlay')
-    if (popupOverlay && !popupOverlay.hasAttribute('hidden') && target.closest('#popupOverlay')) return
 
     // 点击空白区域时，主动聚焦搜索框
     $('#keywordInput')?.focus()
@@ -2746,11 +2717,14 @@ const main = async () => {
   initSearchForm()
   initBlankClickFocus()
   initHistory()
-  initPopup()
   initCardUi()
   initSettingsModal()
   subscribeToThemeChanges(chrome, (theme, nextConfig) => {
-    if (state.config) state.config = { ...state.config, ui: { ...(nextConfig.ui || {}), theme } }
+    if (state.config) {
+      const historyChanged = JSON.stringify(state.config.searchHistory) !== JSON.stringify(nextConfig.searchHistory)
+      state.config = { ...state.config, searchHistory: nextConfig.searchHistory || [], ui: { ...(nextConfig.ui || {}), theme } }
+      if (historyChanged) renderHistory()
+    }
     applyTheme(theme)
     for (const input of document.querySelectorAll('input[name="theme"]')) {
       input.checked = input.value === theme

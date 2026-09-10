@@ -33,6 +33,7 @@ export const DEFAULT_CONFIG = {
   engines: DEFAULT_ENGINES,
   selectedEngines: ['GOOGLE', 'BING', 'BAIDU'],
   rememberSelections: true,
+  // 兼容旧配置；搜索已不再依赖首次使用提示。
   popupTipDismissed: false,
   searchHistory: [],
   cards: [],
@@ -193,6 +194,35 @@ export const writeConfig = async (chromeApi, nextConfig) => {
   await storageLocalSet(chromeApi, { [STORAGE_KEY]: normalized })
   return normalized
 }
+
+/**
+ * 在扩展页面与 service worker 之间串行化读改写，避免并发更新覆盖历史。
+ * 网络请求应放在锁外，拿到结果后再基于最新本地配置更新。
+ */
+export const updateConfig = (chromeApi, patch) =>
+  navigator.locks.request('chrome-home-config', async () => {
+    const current = await readConfig(chromeApi)
+    const next = typeof patch === 'function' ? patch(current) : deepMerge(current, patch || {})
+    return writeConfig(chromeApi, next)
+  })
+
+export const addSearchHistory = (chromeApi, keyword) => {
+  const term = typeof keyword === 'string' ? keyword.trim() : ''
+  if (!term) throw new Error('请输入关键词')
+  return updateConfig(chromeApi, (current) => ({
+    ...current,
+    searchHistory: [term, ...(current.searchHistory || []).filter((item) => item !== term)].slice(0, 20)
+  }))
+}
+
+/**
+ * 远端配置覆盖可同步设置；历史属于本机，包含主动清空的空数组。
+ */
+export const applyRemoteConfig = (chromeApi, remote) =>
+  updateConfig(chromeApi, (current) => ({
+    ...normalizeConfig(remote),
+    searchHistory: current.searchHistory
+  }))
 
 /**
  * 写入最近一次成功拉取/推送确认后的远端配置 hash，用于防止旧本地配置覆盖新远端。

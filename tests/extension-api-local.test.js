@@ -1,65 +1,14 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { handleMessageLocally } from '../extension-api.js'
 import { DEFAULT_THEME, STORAGE_KEY } from '../config-store.js'
 
-/**
- * 构造最小可用的 chrome API stub（仅覆盖本地兜底需要的 storage/tabs/runtime）。
- */
-const createChromeStub = () => {
-  const syncStore = new Map()
-  const localStore = new Map()
-  const calls = {
-    tabsQuery: 0,
-    tabsUpdate: [],
-    tabsCreate: []
-  }
-
-  const chromeApi = {
-    runtime: {
-      lastError: null
-    },
-    storage: {
-      sync: {
-        get: (keys, cb) => {
-          const key = Array.isArray(keys) ? keys[0] : keys
-          cb({ [key]: syncStore.get(key) })
-        },
-        set: (data, cb) => {
-          for (const [k, v] of Object.entries(data || {})) syncStore.set(k, v)
-          cb?.()
-        }
-      },
-      local: {
-        get: (keys, cb) => {
-          const key = Array.isArray(keys) ? keys[0] : keys
-          cb({ [key]: localStore.get(key) })
-        },
-        set: (data, cb) => {
-          for (const [k, v] of Object.entries(data || {})) localStore.set(k, v)
-          cb?.()
-        }
-      }
-    },
-    tabs: {
-      query: async () => {
-        calls.tabsQuery += 1
-        return [{ id: 123 }]
-      },
-      update: async (tabId, updateProperties) => {
-        calls.tabsUpdate.push({ tabId, updateProperties })
-      },
-      create: async (createProperties) => {
-        calls.tabsCreate.push(createProperties)
-      }
-    },
-    __stores: { syncStore, localStore },
-    __calls: calls
-  }
-
-  return chromeApi
-}
+import { createChromeStub, createLockManager } from './helpers/chrome-stub.js'
 
 describe('extension api local fallback', () => {
+  beforeEach(() => {
+    vi.stubGlobal('navigator', { locks: createLockManager() })
+  })
+
   afterEach(() => {
     vi.unstubAllGlobals()
   })

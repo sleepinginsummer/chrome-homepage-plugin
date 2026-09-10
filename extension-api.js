@@ -17,6 +17,7 @@
  * ### Request（发送到 background 的 message）
  * - `{ type: 'getConfig' }`
  * - `{ type: 'setConfig', data: Partial<Config> }`
+ * - `{ type: 'addSearchHistory', keyword: string }`
  * - `{ type: 'openTabs', urls: string[] }`
  * - `{ type: 'openTabsInNewActive', urls: string[] }`
  * - `{ type: 'pullRemote' }`
@@ -33,7 +34,7 @@
  * - 本地兜底的行为应尽量与 background.js 的 onMessage 分支一致。
  */
 
-import { DEFAULT_CONFIG, deepMerge, readConfig, readLastRemoteHash, writeConfig, writeLastRemoteHash, writeLastSyncAt } from './config-store.js'
+import { DEFAULT_CONFIG, addSearchHistory, applyRemoteConfig, deepMerge, readConfig, readLastRemoteHash, updateConfig, writeLastRemoteHash, writeLastSyncAt } from './config-store.js'
 import { openTabs, openTabsInNewActive } from './tabs-ops.js'
 import { computeConfigBeforePush, computeConfigHash, pullRemoteConfig, pushRemoteConfigAndVerify, testRemoteConfig } from './remote-sync.js'
 
@@ -163,9 +164,12 @@ export const handleMessageLocally = async (chromeApi, message) => {
   }
 
   if (message?.type === 'setConfig') {
-    const current = await readConfig(chromeApi)
-    const next = await writeConfig(chromeApi, deepMerge(current, message.data || {}))
+    const next = await updateConfig(chromeApi, message.data)
     return { ok: true, data: next }
+  }
+
+  if (message?.type === 'addSearchHistory') {
+    return { ok: true, data: await addSearchHistory(chromeApi, message.keyword) }
   }
 
   if (message?.type === 'openTabs') {
@@ -181,7 +185,7 @@ export const handleMessageLocally = async (chromeApi, message) => {
   if (message?.type === 'pullRemote') {
     const config = await readConfig(chromeApi)
     const remote = await pullRemoteConfig(config.sync)
-    const merged = await writeConfig(chromeApi, deepMerge(DEFAULT_CONFIG, remote))
+    const merged = await applyRemoteConfig(chromeApi, remote)
     await writeLastRemoteHash(chromeApi, await computeConfigHash(remote))
     const lastSyncAt = await writeLastSyncAt(chromeApi)
     return { ok: true, data: merged, lastSyncAt }
@@ -196,7 +200,7 @@ export const handleMessageLocally = async (chromeApi, message) => {
       defaultConfig: DEFAULT_CONFIG,
       lastRemoteHash: await readLastRemoteHash(chromeApi)
     })
-    await writeConfig(chromeApi, nextConfig)
+    // 推送快照不回写本地，保留网络等待期间的本机变更。
     const verifiedRemote = await pushRemoteConfigAndVerify(nextConfig.sync, nextConfig)
     await writeLastRemoteHash(chromeApi, await computeConfigHash(verifiedRemote))
     const lastSyncAt = await writeLastSyncAt(chromeApi)
