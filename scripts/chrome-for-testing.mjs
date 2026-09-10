@@ -29,7 +29,8 @@ export const cacheDir = join(cacheRoot, 'chrome-for-testing')
  */
 export const detectPlatform = () => {
   if (process.platform === 'darwin') return process.arch === 'arm64' ? 'mac-arm64' : 'mac-x64'
-  if (process.platform === 'linux') return 'linux64'
+  // linux-arm64 也要区分：Apple Silicon 容器与 ARM runner 上跑 linux64 会直接报 loader 缺失。
+  if (process.platform === 'linux') return process.arch === 'arm64' ? 'linux-arm64' : 'linux64'
   return null
 }
 

@@ -18,7 +18,8 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # 冒烟脚本用 Node 自带的 WebSocket 走 CDP，需要 22+
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
@@ -26,6 +27,12 @@ jobs:
 
       - name: Run tests
         run: npm test -- --run
+
+      - name: Install Chrome for Testing
+        run: npm run smoke:install
+
+      - name: Smoke test in a real browser
+        run: npm run smoke
 
       - name: Build extension ZIP
         env:
