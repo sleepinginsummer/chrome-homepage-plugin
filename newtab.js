@@ -1,6 +1,7 @@
 const $ = (selector) => document.querySelector(selector)
 
 import { runStartupSync } from './sync-startup.js'
+import { DEFAULT_SYNC_PATH, normalizeSyncDraft, tryParseGitRemote } from './remote-sync.js'
 import { createExtensionApiClient } from './extension-api.js'
 import { createHotCardController } from './hot-card-controller.js'
 import { createWeatherCardController } from './weather-card-controller.js'
@@ -215,32 +216,6 @@ const I18N = {
   }
 }
 
-const DEFAULT_SYNC_PATH = 'chrome-home-plugin/config.json'
-
-const parseGitRemote = (gitUrl) => {
-  const raw = String(gitUrl || '').trim()
-  if (!raw) return null
-
-  const giteeCodes = raw.match(/^https?:\/\/gitee\.com\/[^/]+\/codes\/([^/?#]+)(?:[/?#]|$)/i)
-  if (giteeCodes) return { provider: 'gitee_gist', gistId: giteeCodes[1] }
-  return null
-}
-
-const normalizeSync = (sync) => {
-  const raw = sync || {}
-  const parsed = parseGitRemote(raw.gitUrl)
-  return {
-    gitUrl: raw.gitUrl || '',
-    token: raw.token || '',
-    autoPush: Boolean(raw.autoPush),
-    provider: 'gitee_gist',
-    owner: '',
-    repo: '',
-    gistId: raw.gistId || parsed?.gistId || '',
-    path: raw.path || DEFAULT_SYNC_PATH
-  }
-}
-
 const getLang = () => (state.config?.ui?.language === 'en' ? 'en' : 'zh')
 
 const formatSyncTime = (isoTime) => {
@@ -296,7 +271,7 @@ const applyLanguage = () => {
 
 const canAutoPush = (sync) => {
   if (!sync?.autoPush) return false
-  const normalized = normalizeSync(sync)
+  const normalized = normalizeSyncDraft(sync)
   const required = ['gitUrl', 'token']
   return required.every((key) => Boolean(normalized[key]))
 }
@@ -1415,7 +1390,7 @@ const initSettingsModal = (themeController) => {
   const getFormSync = () => ({
     ...(() => {
       const gitUrl = $('#syncGitUrl').value.trim()
-      const parsed = parseGitRemote(gitUrl)
+      const parsed = tryParseGitRemote(gitUrl)
       return {
         gitUrl,
         ...(parsed?.provider === 'gitee_gist'
@@ -1429,7 +1404,7 @@ const initSettingsModal = (themeController) => {
   })
 
   const setFormSync = (sync) => {
-    const normalized = normalizeSync(sync)
+    const normalized = normalizeSyncDraft(sync)
     $('#syncGitUrl').value = normalized.gitUrl || ''
     $('#syncToken').value = normalized.token || ''
     const autoPush = $('#syncAutoPush')
@@ -1691,7 +1666,7 @@ const main = async () => {
   runWhenIdle(async () => {
     // 启动时若开启自动同步，执行一次拉取 + 推送。
     await runStartupSync({
-      sync: normalizeSync(state.config?.sync),
+      sync: normalizeSyncDraft(state.config?.sync),
       send,
       setStatus: setSyncStatus,
       renderLastSyncAt
