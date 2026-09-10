@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "test": "vitest",
-    "package": "node scripts/package.mjs"
+    "package": "node scripts/package.mjs",
+    "smoke:install": "node scripts/install-chrome-for-testing.mjs",
+    "smoke": "node scripts/smoke.mjs"
   },
   "devDependencies": {
     "vitest": "^1.6.0"

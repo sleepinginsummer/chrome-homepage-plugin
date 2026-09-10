@@ -32,9 +32,35 @@
 
 > 注意：这是扩展页面发起的网络请求，需要在扩展的 `host_permissions` 中允许对应域名（本项目已包含 `api.github.com` 与 `gitee.com`）。
 
+### 本地冒烟测试（真机）
+
+用 Chrome for Testing 真实加载未打包扩展，跑一遍主链路：页面启动、六类卡片渲染、四类行情卡片数据链路、搜索历史落盘、主题与语言切换、service worker 无异常。
+
+```bash
+npm run smoke:install   # 首次：下载 Chrome for Testing 到用户缓存目录（约 190MB，可随时删除）
+npm run smoke           # 一轮约 30 秒
+```
+
+- 为什么不用本机 Chrome：stable 版已禁止命令行 `--load-extension`，只有 Chrome for Testing / Chromium 能这样加载未打包扩展；也可以直接用 `CHROME_BIN` 指定已装好的这类浏览器。
+- 冒烟用独立临时 profile，不碰你本机 Chrome 的数据；结束时会把冒烟写入的卡片与历史清掉。
+- 网络不可用时行情卡片只校验「链路跑通（离开加载中）」，不会误报失败。
+
 ## English
 
 A Chrome New Tab extension: multi-engine search + search history + site cards + config sync (recommended: Gitee codes). The UI language can be switched between Chinese and English (default: Chinese).
+
+### Local smoke test (real browser)
+
+Loads the unpacked extension in Chrome for Testing and exercises the main paths: page boot, all six card types rendering, the four quote-card data paths, search-history persistence, theme and language switching, and a clean service worker.
+
+```bash
+npm run smoke:install   # first run: downloads Chrome for Testing into the user cache dir (~190MB, safe to delete)
+npm run smoke           # ~30 seconds per run
+```
+
+- Why not your own Chrome: stable builds reject `--load-extension` on the command line; only Chrome for Testing / Chromium builds can load unpacked extensions this way. You can also point `CHROME_BIN` at one you already have.
+- The smoke run uses a throwaway profile and cleans up the cards/history it wrote.
+- Quote cards only need to leave the loading state to pass, so a missing network never fails the run.
 
 ### Features
 
