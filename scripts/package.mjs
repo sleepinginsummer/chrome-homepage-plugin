@@ -29,7 +29,7 @@ const runtimeEntries = [
   'metals.js', 'metals-card.js', 'metals-card-controller.js',
   'anniversary.js', 'anniversary-card.js', 'anniversary-card-controller.js',
   'i18n.js', 'search-controller.js', 'card-grid.js', 'link-card-controller.js',
-  'auto-push.js', 'settings-modal.js',
+  'auto-push.js', 'settings-modal.js', 'card-ui.js',
   'options.html', 'options.css', 'options.js',
   'newtab.html', 'newtab.css', 'newtab.js',
   'sync-startup.js', 'hot-news.js', 'request-cache.js',

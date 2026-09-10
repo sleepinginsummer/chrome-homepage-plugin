@@ -2,7 +2,7 @@ const $ = (selector) => document.querySelector(selector)
 
 import { runStartupSync } from './sync-startup.js'
 import { DEFAULT_SYNC_PATH, normalizeSyncDraft, tryParseGitRemote } from './remote-sync.js'
-import { getDict, applyTranslations } from './i18n.js'
+import { getDict, applyTranslations, getMetalsText, getStockText, getWeatherText } from './i18n.js'
 import { createExtensionApiClient } from './extension-api.js'
 import { createHotCardController } from './hot-card-controller.js'
 import { createWeatherCardController } from './weather-card-controller.js'
@@ -12,6 +12,7 @@ import { createAnniversaryCardController } from './anniversary-card-controller.j
 import { createSearchController } from './search-controller.js'
 import { createAutoPush } from './auto-push.js'
 import { createSettingsModal } from './settings-modal.js'
+import { createCardUi } from './card-ui.js'
 import { createCardGrid } from './card-grid.js'
 import { createLinkCardController } from './link-card-controller.js'
 import { applyTheme, getConfigTheme } from './theme.js'
@@ -106,108 +107,6 @@ const saveConfig = async (patch) => {
   return res.data
 }
 
-const clamp = (value, min, max) => Math.min(Math.max(value, min), max)
-
-const closeCardMenu = () => {
-  const menu = $('#cardMenu')
-  menu.hidden = true
-  state.contextCardId = null
-}
-
-const openCardMenu = ({ x, y, cardId }) => {
-  const menu = $('#cardMenu')
-  state.contextCardId = cardId
-  menu.hidden = false
-
-  menu.style.left = `${x}px`
-  menu.style.top = `${y}px`
-
-  requestAnimationFrame(() => {
-    const rect = menu.getBoundingClientRect()
-    const maxLeft = window.innerWidth - rect.width - 8
-    const maxTop = window.innerHeight - rect.height - 8
-    menu.style.left = `${clamp(x, 8, maxLeft)}px`
-    menu.style.top = `${clamp(y, 8, maxTop)}px`
-  })
-}
-
-const openConfirm = ({ title, text, onConfirm }) => {
-  const overlay = $('#confirmOverlay')
-  $('#confirmTitle').textContent = title
-  $('#confirmText').textContent = text
-  state.confirmAction = onConfirm
-  overlay.hidden = false
-  closeCardMenu()
-}
-
-const closeConfirm = () => {
-  $('#confirmOverlay').hidden = true
-  state.confirmAction = null
-}
-
-const openAddChooser = () => {
-  setError('')
-  $('#addChooserOverlay').hidden = false
-}
-
-const closeAddChooser = () => {
-  $('#addChooserOverlay').hidden = true
-}
-
-const openComponentList = () => {
-  closeAddChooser()
-  $('#componentListOverlay').hidden = false
-}
-
-const closeComponentList = () => {
-  $('#componentListOverlay').hidden = true
-}
-
-/**
- * 获取股票相关文案（随语言切换）。
- */
-const getStockText = () => {
-  const dict = getDict()
-  return {
-    liveLabel: dict.stock_live_label || '实时行情',
-    updatedAt: dict.stock_updated_at || '更新于',
-    loading: dict.stock_loading || '加载中...',
-    empty: dict.stock_no_data || '暂无数据',
-    error: dict.stock_error || '加载失败，点击刷新重试'
-  }
-}
-
-/**
- * 获取黄金白银卡片相关文案。
- *
- * @returns {{title: string, gold: string, silver: string, usd: string, cny: string, loading: string, error: string}}
- */
-const getMetalsText = () => {
-  const dict = getDict()
-  return {
-    title: dict.metals_title || '黄金白银',
-    gold: dict.metals_gold || '国际金价',
-    silver: dict.metals_silver || '国际银价',
-    usd: dict.metals_usd || '美元',
-    cny: dict.metals_cny || '人民币',
-    loading: dict.metals_loading || '加载中...',
-    error: dict.metals_error || '加载失败，点击刷新重试'
-  }
-}
-
-const getWeatherText = () => {
-  const dict = getDict()
-  return {
-    title: dict.weather_title || '天气',
-    loading: dict.weather_loading || '正在获取天气...',
-    error: dict.weather_error || '天气加载失败，点击刷新重试',
-    empty: dict.weather_empty || '暂无天气数据',
-    humidity: dict.weather_humidity || '湿度',
-    updatedAt: dict.weather_updated_at || '更新于',
-    refresh: dict.weather_refresh || '刷新天气'
-  }
-}
-
 const getCardById = (id) => (state.config.cards || []).find((c) => c.id === id) || null
 
 /**
@@ -230,8 +129,8 @@ const cardRepository = {
 
 /** 打开卡片弹窗前统一收起其它浮层（组件列表 + 卡片菜单）。 */
 const closeCardOverlays = () => {
-  closeComponentList()
-  closeCardMenu()
+  cardUi.closeComponentList()
+  cardUi.closeMenu()
 }
 
 /**
@@ -293,8 +192,8 @@ const cardGrid = createCardGrid({
   cards: cardRepository,
   registry: cardRegistry,
   openUrl: (url) => send({ type: 'openTabsInNewActive', urls: [url] }),
-  onContextMenu: ({ x, y, cardId }) => openCardMenu({ x, y, cardId }),
-  onAddCard: () => openAddChooser(),
+  onContextMenu: ({ x, y, cardId }) => cardUi.openMenu({ x, y, cardId }),
+  onAddCard: () => cardUi.openAddChooser(),
   onDragError: (error) => console.error('[chrome-home] card reorder failed', error)
 })
 
@@ -309,7 +208,7 @@ const linkCard = createLinkCardController({
 const weatherCard = createWeatherCardController({
   storage: chrome.storage.local,
   getLang,
-  getText: getWeatherText,
+  getText: () => getWeatherText(getLang()),
   runWhenIdle,
   closeOverlays: closeCardOverlays,
   cards: cardRepository
@@ -330,9 +229,9 @@ const hotCard = createHotCardController({
  */
 const stockCard = createStockCardController({
   getLang,
-  getText: getStockText,
+  getText: () => getStockText(getLang()),
   openUrl: (url) => send({ type: 'openTabsInNewActive', urls: [url] }),
-  confirm: openConfirm,
+  confirm: (options) => cardUi.openConfirm(options),
   setError,
   closeOverlays: closeCardOverlays,
   cards: cardRepository
@@ -344,7 +243,7 @@ const stockCard = createStockCardController({
  */
 const metalsCard = createMetalsCardController({
   getLang,
-  getText: getMetalsText,
+  getText: () => getMetalsText(getLang()),
   openUrl: (url) => send({ type: 'openTabsInNewActive', urls: [url] }),
   send,
   cards: cardRepository
@@ -352,13 +251,21 @@ const metalsCard = createMetalsCardController({
 
 /** 纪念日卡片控制器：日期计算与卡片/弹窗渲染都在 anniversary 系列模块内完成。 */
 const anniversaryCard = createAnniversaryCardController({
-  confirm: openConfirm,
+  confirm: (options) => cardUi.openConfirm(options),
   setError,
   closeOverlays: closeCardOverlays,
   cards: cardRepository
 })
 
 /** 搜索与历史控制器：引擎选择、发起搜索、历史侧栏都在 search-controller 内完成。 */
+/** 卡片浮层：菜单、确认、新增选择器与组件列表（放在各域控制器之后创建：domains 需要真实的控制器实例）。 */
+const cardUi = createCardUi({
+  getCardById,
+  onDeleteCard: (id) => cardGrid.deleteCard(id),
+  setError,
+  domains: { link: linkCard, weather: weatherCard, hot: hotCard, stock: stockCard, metals: metalsCard, anniversary: anniversaryCard }
+})
+
 const searchController = createSearchController({
   getConfig: () => state.config,
   applyConfig: (next) => {
@@ -378,125 +285,6 @@ const autoPushScheduler = createAutoPush({
   setStatus: setSyncStatus,
   afterPush: (lastSyncAt) => renderLastSyncAt(lastSyncAt)
 })
-
-const initCardUi = () => {
-  const menu = $('#cardMenu')
-  const editBtn = $('#cardMenuEditBtn')
-  const deleteBtn = $('#cardMenuDeleteBtn')
-
-  const overlay = $('#cardModalOverlay')
-  const form = $('#cardModalForm')
-  const closeBtn = $('#cardModalCloseBtn')
-  const cancelBtn = $('#cardModalCancelBtn')
-  const titleInput = $('#cardModalTitleInput')
-  const urlInput = $('#cardModalUrlInput')
-  const iconInput = $('#cardModalIconInput')
-
-  const confirmOverlay = $('#confirmOverlay')
-  const confirmClose = $('#confirmCloseBtn')
-  const confirmOk = $('#confirmOkBtn')
-  const confirmCancel = $('#confirmCancelBtn')
-
-  document.addEventListener('click', (evt) => {
-    if (menu.hidden) return
-    if (menu.contains(evt.target)) return
-    closeCardMenu()
-  })
-
-  document.addEventListener('keydown', (evt) => {
-    if (evt.key === 'Escape') {
-      if (!menu.hidden) closeCardMenu()
-      else if (!confirmOverlay.hidden) closeConfirm()
-      else if (!$('#cardModalOverlay').hidden) linkCard.closeModal()
-      else if (!$('#anniversaryOverlay').hidden) anniversaryCard.closeModal()
-      else if (!$('#hotOverlay').hidden) hotCard.closeModal()
-      else if (!$('#stockOverlay').hidden) stockCard.closeModal()
-      else if (!$('#componentListOverlay').hidden) closeComponentList()
-      else if (!$('#addChooserOverlay').hidden) closeAddChooser()
-    }
-  })
-
-  editBtn.addEventListener('click', () => {
-    const card = getCardById(state.contextCardId)
-    if (!card) return closeCardMenu()
-    if ((card?.type || 'link') === 'anniversary') anniversaryCard.openModal(card.id)
-    else if ((card?.type || 'link') === 'hot') hotCard.openModal({ mode: 'edit', cardId: card.id })
-    else if ((card?.type || 'link') === 'stock') stockCard.openModal({ mode: 'edit', cardId: card.id })
-    else if ((card?.type || 'link') === 'weather') weatherCard.openModal({ mode: 'edit', cardId: card.id })
-    else if ((card?.type || 'link') === 'metals') closeCardMenu()
-    else linkCard.openModal({ mode: 'edit', card })
-  })
-
-  deleteBtn.addEventListener('click', () => {
-    const card = getCardById(state.contextCardId)
-    if (!card) return closeCardMenu()
-    openConfirm({
-      title: '确认删除',
-      text: `确认删除卡片「${card.title}」吗？`,
-      onConfirm: async () => {
-        await cardGrid.deleteCard(card.id)
-      }
-    })
-  })
-
-  linkCard.bindModalUi()
-
-  confirmOverlay.addEventListener('click', (evt) => {
-    if (evt.target === confirmOverlay) closeConfirm()
-  })
-  confirmClose.addEventListener('click', closeConfirm)
-  confirmCancel.addEventListener('click', closeConfirm)
-  confirmOk.addEventListener('click', async () => {
-    const action = state.confirmAction
-    closeConfirm()
-    if (action) await action()
-  })
-
-  const addChooserOverlay = $('#addChooserOverlay')
-  const addChooserClose = $('#addChooserCloseBtn')
-  const addChooserCard = $('#addChooserCardBtn')
-  const addChooserComponent = $('#addChooserComponentBtn')
-  addChooserOverlay.addEventListener('click', (evt) => {
-    if (evt.target === addChooserOverlay) closeAddChooser()
-  })
-  addChooserClose.addEventListener('click', closeAddChooser)
-  addChooserCard.addEventListener('click', () => {
-    closeAddChooser()
-    linkCard.openModal({ mode: 'create' })
-  })
-  addChooserComponent.addEventListener('click', openComponentList)
-
-  const componentListOverlay = $('#componentListOverlay')
-  const componentListClose = $('#componentListCloseBtn')
-  const componentHotBtn = $('#componentHotBtn')
-  const componentStockBtn = $('#componentStockBtn')
-  const componentMetalsBtn = $('#componentMetalsBtn')
-  const componentAnniversaryBtn = $('#componentAnniversaryBtn')
-  const componentWeatherBtn = $('#componentWeatherBtn')
-  componentListOverlay.addEventListener('click', (evt) => {
-    if (evt.target === componentListOverlay) closeComponentList()
-  })
-  componentListClose.addEventListener('click', closeComponentList)
-  componentHotBtn.addEventListener('click', () => hotCard.openModal({ mode: 'create' }))
-  componentStockBtn.addEventListener('click', () => stockCard.openModal({ mode: 'create' }))
-  componentMetalsBtn.addEventListener('click', async () => {
-    closeComponentList()
-    await metalsCard.addComponent()
-  })
-  componentAnniversaryBtn.addEventListener('click', async () => {
-    closeComponentList()
-    await anniversaryCard.addComponent()
-  })
-  componentWeatherBtn.addEventListener('click', () => weatherCard.openModal({ mode: 'create' }))
-
-  hotCard.bindModalUi()
-
-  weatherCard.bindModalUi()
-
-  stockCard.bindModalUi()
-
-  anniversaryCard.bindModalUi()
-}
 
 /**
  * 点击空白区域时将焦点移动到搜索输入框。
@@ -554,7 +342,7 @@ const main = async () => {
   searchController.bindSearchForm()
   initBlankClickFocus()
   searchController.bindHistoryUi()
-  initCardUi()
+  cardUi.init()
 
   // 设置面板要用到主题控制器与各域刷新，放在 main 里创建。
   const settingsModal = createSettingsModal({

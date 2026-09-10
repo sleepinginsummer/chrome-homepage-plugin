@@ -199,3 +199,49 @@ export const applyTranslations = ({ root = typeof document === 'undefined' ? nul
   writeAll('[data-i18n-title]', 'title')
   return dict
 }
+
+/**
+ * 天气卡片文案。
+ */
+export const getWeatherText = (lang) => {
+  const dict = getDict(lang)
+  return {
+    title: dict.weather_title || '天气',
+    loading: dict.weather_loading || '正在获取天气...',
+    error: dict.weather_error || '天气加载失败，点击刷新重试',
+    empty: dict.weather_empty || '暂无天气数据',
+    humidity: dict.weather_humidity || '湿度',
+    updatedAt: dict.weather_updated_at || '更新于',
+    refresh: dict.weather_refresh || '刷新天气'
+  }
+}
+
+/**
+ * 股票卡片文案。
+ */
+export const getStockText = (lang) => {
+  const dict = getDict(lang)
+  return {
+    liveLabel: dict.stock_live_label || '实时行情',
+    updatedAt: dict.stock_updated_at || '更新于',
+    loading: dict.stock_loading || '加载中...',
+    empty: dict.stock_no_data || '暂无数据',
+    error: dict.stock_error || '加载失败，点击刷新重试'
+  }
+}
+
+/**
+ * 黄金白银卡片文案。
+ */
+export const getMetalsText = (lang) => {
+  const dict = getDict(lang)
+  return {
+    title: dict.metals_title || '黄金白银',
+    gold: dict.metals_gold || '国际金价',
+    silver: dict.metals_silver || '国际银价',
+    usd: dict.metals_usd || '美元',
+    cny: dict.metals_cny || '人民币',
+    loading: dict.metals_loading || '加载中...',
+    error: dict.metals_error || '加载失败，点击刷新重试'
+  }
+}
