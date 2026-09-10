@@ -39,12 +39,15 @@ export const tryParseGitRemote = (gitUrl) => {
 
 /**
  * 按 sync 字段表生成规范化对象（解析结果由调用方决定是否校验）。
+ *
+ * 注意：gistId 以地址推导为准。存量配置里可能同时留着旧 gistId 和新改的 gitUrl，
+ * 若让存量值优先，校验与请求会继续打到旧代码片段；只有没有可用地址时才回退存量值。
  */
 const buildSyncConfig = (raw, parsed) => ({
   provider: 'gitee_gist',
   owner: '',
   repo: '',
-  gistId: raw.gistId || parsed?.gistId || '',
+  gistId: parsed?.gistId || raw.gistId || '',
   branch: raw.branch || DEFAULT_SYNC_BRANCH,
   path: raw.path || DEFAULT_SYNC_PATH,
   token: raw.token || '',
