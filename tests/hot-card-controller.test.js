@@ -295,6 +295,28 @@ describe('hot card controller', () => {
     expect(deps.dom.overlay.hidden).toBe(true)
   })
 
+  it('fills the source select from the whitelist', () => {
+    const { controller, deps } = createHarness()
+
+    controller.bindModalUi()
+
+    const options = deps.dom.select.innerHTML.match(/<option /g) || []
+    expect(options).toHaveLength(12)
+    expect(deps.dom.select.innerHTML).toContain('<option value="知乎">知乎</option>')
+    expect(deps.dom.select.innerHTML).toContain('<option value="腾讯新闻">腾讯新闻</option>')
+    expect(deps.dom.select.value).toBe('知乎')
+  })
+
+  it('keeps source options out of newtab.html', () => {
+    // 选项只由控制器生成，HTML 里再写一份就会出现「UI 可选但提交被打回」。
+    const html = readFileSync(new URL('../newtab.html', import.meta.url), 'utf8')
+    const selectStart = html.indexOf('id="hotSourceSelect"')
+    const selectHtml = html.slice(selectStart, html.indexOf('</select>', selectStart))
+
+    expect(selectStart).toBeGreaterThan(-1)
+    expect(selectHtml).not.toContain('<option')
+  })
+
   it('queries only modal elements that exist in newtab.html', () => {
     // 控制器按 id 取元素，页面改 id 时必须同步改控制器，避免弹窗静默失效。
     const source = readFileSync(new URL('../hot-card-controller.js', import.meta.url), 'utf8')
