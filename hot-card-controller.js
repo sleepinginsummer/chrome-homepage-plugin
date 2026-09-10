@@ -239,6 +239,18 @@ export const createHotCardController = ({
   }
 
   /**
+   * 按白名单生成下拉选项：HTML 只保留空容器，避免来源列表出现第二份真源。
+   */
+  const fillSourceOptions = () => {
+    const select = $('#hotSourceSelect')
+    if (!select) return
+    select.innerHTML = HOT_SOURCES.map(
+      (source) => `<option value="${escapeHtml(source)}">${escapeHtml(source)}</option>`
+    ).join('')
+    select.value = normalizeSource(select.value)
+  }
+
+  /**
    * 绑定热搜弹窗自身的元素；新增按钮由页面的组件列表统一处理。
    */
   const bindModalUi = () => {
@@ -246,6 +258,8 @@ export const createHotCardController = ({
     const closeBtn = $('#hotCloseBtn')
     const cancelBtn = $('#hotCancelBtn')
     const form = $('#hotForm')
+
+    fillSourceOptions()
 
     overlay?.addEventListener('click', (evt) => {
       if (evt.target === overlay) closeModal()
