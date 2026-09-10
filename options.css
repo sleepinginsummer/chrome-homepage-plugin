@@ -302,12 +302,6 @@ body {
   }
 }
 
-html[data-theme='neo-brutalism'] {
-  color: var(--brutal-ink);
-  background: var(--brutal-background);
-  color-scheme: light;
-}
-
 html[data-theme='neo-brutalism'] *,
 html[data-theme='neo-brutalism'] *::before,
 html[data-theme='neo-brutalism'] *::after {

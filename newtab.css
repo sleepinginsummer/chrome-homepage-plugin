@@ -1895,54 +1895,6 @@ body {
   opacity: 1;
 }
 
-.popup-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 50;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.55);
-  padding: 20px;
-}
-
-.popup-modal {
-  width: 100%;
-  max-width: 520px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(0, 0, 0, 0.7);
-  padding: 18px 18px 16px;
-}
-
-.popup-modal h3 {
-  margin: 0 0 8px;
-  font-size: 16px;
-  color: rgba(255, 255, 255, 0.92);
-}
-
-.popup-modal p {
-  margin: 0 0 12px;
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.6);
-  line-height: 1.5;
-}
-
-.popup-actions {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.tip-button {
-  height: 34px;
-  padding: 0 14px;
-  border-radius: 8px;
-  border: 1px solid rgba(0, 242, 255, 0.35);
-  background: rgba(0, 242, 255, 0.12);
-  color: #00f2ff;
-  cursor: pointer;
-}
-
 @media (max-width: 640px) {
   .input-group {
     flex-direction: column;
@@ -2325,12 +2277,6 @@ body {
 }
 
 /* Concrete blue-red neo-brutalism theme. */
-html[data-theme='neo-brutalism'] {
-  color: var(--brutal-ink);
-  background: var(--brutal-background);
-  color-scheme: light;
-}
-
 html[data-theme='neo-brutalism'] *,
 html[data-theme='neo-brutalism'] *::before,
 html[data-theme='neo-brutalism'] *::after {
@@ -2463,8 +2409,7 @@ html[data-theme='neo-brutalism'] .search-input::placeholder {
 }
 
 html[data-theme='neo-brutalism'] .search-button,
-html[data-theme='neo-brutalism'] .primary-button,
-html[data-theme='neo-brutalism'] .tip-button {
+html[data-theme='neo-brutalism'] .primary-button {
   min-height: 44px;
   border: 3px solid var(--brutal-ink);
   border-radius: 4px;
@@ -2476,8 +2421,7 @@ html[data-theme='neo-brutalism'] .tip-button {
 }
 
 html[data-theme='neo-brutalism'] .search-button:hover,
-html[data-theme='neo-brutalism'] .primary-button:hover,
-html[data-theme='neo-brutalism'] .tip-button:hover {
+html[data-theme='neo-brutalism'] .primary-button:hover {
   transform: translate(-2px, -2px);
   border-color: var(--brutal-ink);
   background: var(--brutal-primary-hover);
@@ -2486,8 +2430,7 @@ html[data-theme='neo-brutalism'] .tip-button:hover {
 }
 
 html[data-theme='neo-brutalism'] .search-button:active,
-html[data-theme='neo-brutalism'] .primary-button:active,
-html[data-theme='neo-brutalism'] .tip-button:active {
+html[data-theme='neo-brutalism'] .primary-button:active {
   transform: translate(3px, 3px);
   background: var(--brutal-primary-active);
   box-shadow: none;
@@ -2916,7 +2859,6 @@ html[data-theme='neo-brutalism'] .clear-all-btn:hover {
 
 html[data-theme='neo-brutalism'] .card-menu,
 html[data-theme='neo-brutalism'] .modal,
-html[data-theme='neo-brutalism'] .popup-modal,
 html[data-theme='neo-brutalism'] .settings-modal {
   border: 3px solid var(--brutal-ink);
   border-radius: 8px;
@@ -2951,7 +2893,6 @@ html[data-theme='neo-brutalism'] .card-menu-item.danger:hover {
 }
 
 html[data-theme='neo-brutalism'] .modal-overlay,
-html[data-theme='neo-brutalism'] .popup-overlay,
 html[data-theme='neo-brutalism'] .settings-overlay {
   background: var(--brutal-overlay);
 }
@@ -2962,14 +2903,12 @@ html[data-theme='neo-brutalism'] .modal-header {
 }
 
 html[data-theme='neo-brutalism'] .modal-title,
-html[data-theme='neo-brutalism'] .popup-modal h3,
 html[data-theme='neo-brutalism'] .settings-title {
   color: var(--brutal-ink);
   font-family: inherit;
   font-weight: 900;
 }
 
-html[data-theme='neo-brutalism'] .popup-modal p,
 html[data-theme='neo-brutalism'] .confirm-text,
 html[data-theme='neo-brutalism'] .modal-field .label,
 html[data-theme='neo-brutalism'] .settings-modal .label,
@@ -3248,8 +3187,7 @@ html[data-theme='neo-brutalism'] .component-item.disabled {
   }
 
   html[data-theme='neo-brutalism'] .settings-overlay,
-  html[data-theme='neo-brutalism'] .modal-overlay,
-  html[data-theme='neo-brutalism'] .popup-overlay {
+  html[data-theme='neo-brutalism'] .modal-overlay {
     padding: 8px;
   }
 
