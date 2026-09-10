@@ -4,6 +4,7 @@ import { runStartupSync } from './sync-startup.js'
 import { createExtensionApiClient } from './extension-api.js'
 import { createHotCardController } from './hot-card-controller.js'
 import { createWeatherCardController } from './weather-card-controller.js'
+import { createStockCardController } from './stock-card-controller.js'
 import { createCardDragController } from './card-drag.js'
 import { createCardIconCandidates, getCardInitial, loadCardIcon } from './card-icon.js'
 import { normalizeCardUrl } from './url-utils.js'
@@ -19,14 +20,10 @@ const state = {
   editingCardId: null,
   editingAnniversaryCardId: null,
   editingAnniversaryItemId: null,
-  stockCache: new Map(),
   stockPollTimers: new Map(),
   metalsCache: new Map(),
   metalsPollTimers: new Map(),
   iconLoadCleanups: new Set(),
-  stockModalMode: 'create',
-  editingStockCardId: null,
-  editingStockSymbol: null,
   isDraggingCard: false,
   contextCardId: null,
   confirmAction: null
@@ -544,7 +541,7 @@ const renderCardBody = (card, div) => {
 
   if (type === 'anniversary') div.innerHTML = renderAnniversaryCardHtml(card)
   else if (type === 'hot') div.innerHTML = hotCard.renderHtml(card)
-  else if (type === 'stock') div.innerHTML = renderStockCardHtml(card)
+  else if (type === 'stock') div.innerHTML = stockCard.renderHtml(card)
   else if (type === 'metals') div.innerHTML = renderMetalsCardHtml(card)
   else if (type === 'weather') div.innerHTML = weatherCard.renderHtml(card)
   else {
@@ -610,7 +607,7 @@ const initializeCardData = (card, div) => {
   if (type === 'stock') {
     initializePollingCard(card, div, {
       tokenDatasetKey: 'stockRenderToken',
-      ensureData: ensureStockDataForCard,
+      ensureData: stockCard.loadData,
       timers: state.stockPollTimers
     })
     return
@@ -623,25 +620,6 @@ const initializeCardData = (card, div) => {
       timers: state.metalsPollTimers
     })
   }
-}
-
-const handleStockCardClick = async (card, evt) => {
-  const actionEl = evt.target?.closest?.('[data-stock-action]')
-  if (actionEl?.dataset?.stockAction === 'refresh') {
-    evt.preventDefault()
-    evt.stopPropagation()
-    await refreshStockCard(card.id)
-    return
-  }
-  const itemEl = evt.target?.closest?.('[data-stock-symbol]')
-  if (!itemEl) {
-    openStockModal({ mode: 'edit', cardId: card.id })
-    return
-  }
-  const symbol = itemEl.dataset.stockSymbol
-  if (!symbol) return
-  const url = `https://gu.qq.com/${encodeURIComponent(formatTencentSymbol(symbol))}`
-  await send({ type: 'openTabsInNewActive', urls: [url] })
 }
 
 const handleMetalsCardClick = async (card, evt) => {
@@ -662,7 +640,7 @@ const handleMetalsCardClick = async (card, evt) => {
 const cardClickHandlers = {
   anniversary: (card) => openAnniversaryModal(card.id),
   hot: (card, evt) => hotCard.handleClick(card, evt),
-  stock: handleStockCardClick,
+  stock: (card, evt) => stockCard.handleClick(card, evt),
   weather: (card, evt) => weatherCard.handleClick(card, evt),
   metals: handleMetalsCardClick
 }
@@ -1010,7 +988,7 @@ const addAnniversaryComponent = async () => {
   scheduleAutoPush()
 }
 
-const STOCK_CACHE_TTL = 60 * 1000
+const QUOTE_CACHE_TTL = 60 * 1000
 const STOCK_REFRESH_INTERVAL = 60 * 1000
 
 /**
@@ -1059,175 +1037,6 @@ const getWeatherText = () => {
 }
 
 /**
- * 规范化股票代码输入：去空格、转大写、去重并限制数量。
- */
-const normalizeStockSymbolsInput = (raw) => {
-  const text = Array.isArray(raw) ? raw.join(',') : String(raw || '')
-  const parts = text.split(/[\s,，;；]+/).map((it) => it.trim()).filter(Boolean)
-  const seen = new Set()
-  const result = []
-  for (const item of parts) {
-    const symbol = item.toUpperCase()
-    if (!symbol || seen.has(symbol)) continue
-    seen.add(symbol)
-    result.push(symbol)
-    if (result.length >= 20) break
-  }
-  return result
-}
-
-/**
- * 从卡片配置中提取股票代码列表。
- */
-const getStockSymbols = (card) => normalizeStockSymbolsInput(card?.symbols || [])
-
-/**
- * 获取股票卡片标题，缺省时回退到本地化默认标题。
- *
- * @param {any} card 股票卡片配置。
- * @returns {string} 可展示的股票卡片标题。
- */
-const getStockCardTitle = (card) => String(card?.title || (getLang() === 'en' ? 'Stocks' : '股票')).trim()
-
-/**
- * 构建股票行情接口地址。
- */
-/**
- * 将用户输入的股票代码转为腾讯接口格式。
- */
-const formatTencentSymbol = (symbol) => {
-  const raw = String(symbol || '').trim()
-  if (!raw) return ''
-  const upper = raw.toUpperCase()
-  const pref = upper.match(/^(SH|SZ|BJ|HK|US)(.+)$/)
-  if (pref) return `${pref[1].toLowerCase()}${pref[2]}`
-
-  if (/^\d{6}$/.test(upper)) {
-    if (upper.startsWith('6')) return `sh${upper}`
-    if (upper.startsWith('0') || upper.startsWith('3')) return `sz${upper}`
-    if (upper.startsWith('8') || upper.startsWith('4') || upper.startsWith('9')) return `bj${upper}`
-  }
-
-  if (/^[A-Z]{1,6}$/.test(upper)) return `us${upper}`
-
-  return raw
-}
-
-/**
- * 构建股票行情接口地址（腾讯接口）。
- */
-const getStockApiUrl = (symbols) =>
-  `https://qt.gtimg.cn/q=${symbols.map(formatTencentSymbol).filter(Boolean).join(',')}`
-
-/**
- * 解析股票接口返回的数据并按输入顺序对齐。
- */
-/**
- * 解析腾讯股票接口返回的数据并按输入顺序对齐。
- */
-const parseStockApiData = (rawText, symbols) => {
-  const list = String(rawText || '').split(';').map((it) => it.trim()).filter(Boolean)
-  const map = new Map()
-
-  for (const line of list) {
-    const match = line.match(/^v_([^=]+)="([\s\S]*)"$/)
-    if (!match) continue
-    const rawCode = match[1]
-    const fields = String(match[2] || '').split('~')
-    const code = String(fields[2] || '').toUpperCase()
-    const name = String(fields[1] || code || rawCode || '').trim()
-    const price = toNumber(fields[3])
-    const prevClose = toNumber(fields[4])
-    const change = price !== null && prevClose !== null ? price - prevClose : null
-    const changePercent = change !== null && prevClose ? (change / prevClose) * 100 : null
-    const timeText = String(fields[30] || '').trim()
-    const marketTime = parseTencentTime(timeText)
-    const currency = String(rawCode || '').toLowerCase().startsWith('us') ? 'USD' : 'CNY'
-
-    if (!code) continue
-    map.set(code, {
-      symbol: code,
-      name: name || code,
-      price,
-      change,
-      changePercent,
-      currency,
-      marketTime
-    })
-  }
-
-  return symbols.map((symbol) => {
-    const key = String(symbol || '').toUpperCase()
-    return map.get(key) || { symbol: key, name: key, price: null, change: null, changePercent: null, currency: '', marketTime: null }
-  })
-}
-
-/**
- * 安全转换数字。
- */
-const toNumber = (value) => {
-  const num = Number(value)
-  return Number.isFinite(num) ? num : null
-}
-
-/**
- * 解析腾讯行情时间字段。
- */
-const parseTencentTime = (timeText) => {
-  if (!timeText) return null
-  const compactMatch = String(timeText).match(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/)
-  if (compactMatch) {
-    const [, year, month, day, hour, minute, second] = compactMatch
-    const date = new Date(
-      Number(year),
-      Number(month) - 1,
-      Number(day),
-      Number(hour),
-      Number(minute),
-      Number(second)
-    )
-    if (!Number.isNaN(date.getTime())) return Math.floor(date.getTime() / 1000)
-  }
-  const date = new Date(timeText)
-  if (Number.isNaN(date.getTime())) return null
-  return Math.floor(date.getTime() / 1000)
-}
-
-/**
- * 格式化股票价格展示。
- */
-const formatStockPrice = (price, currency) => {
-  if (typeof price !== 'number' || Number.isNaN(price)) return '--'
-  if (String(currency || '').toUpperCase() === 'CNY') return price.toFixed(2)
-  if (currency) {
-    try {
-      return new Intl.NumberFormat('en-US', { style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(price)
-    } catch {
-      return price.toFixed(2)
-    }
-  }
-  return price.toFixed(2)
-}
-
-/**
- * 生成涨跌幅文本。
- */
-const formatStockChange = (change, changePercent) => {
-  if (typeof change !== 'number' || Number.isNaN(change)) return '--'
-  const sign = change > 0 ? '+' : ''
-  const percent = typeof changePercent === 'number' && !Number.isNaN(changePercent) ? ` (${sign}${changePercent.toFixed(2)}%)` : ''
-  return `${sign}${change.toFixed(2)}${percent}`
-}
-
-/**
- * 获取涨跌样式类名。
- */
-const getStockChangeClass = (change) => {
-  if (typeof change !== 'number' || Number.isNaN(change) || change === 0) return 'flat'
-  return change > 0 ? 'up' : 'down'
-}
-
-/**
  * 格式化行情更新时间。
  */
 const formatStockTime = (unixSeconds) => {
@@ -1273,31 +1082,6 @@ const formatPlainPrice = (value, digits = 2) => {
 }
 
 /**
- * 生成股票卡片 HTML。
- */
-const renderStockCardHtml = (card) => {
-  return `
-    <div class="stock-card">
-      <button class="stock-refresh" type="button" aria-label="刷新" data-stock-action="refresh">
-        <svg class="stock-refresh-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M21 12a9 9 0 0 1-15.3 6.4"></path>
-          <path d="M3 12a9 9 0 0 1 15.3-6.4"></path>
-          <polyline points="3 16 5.7 18.4 6.6 15"></polyline>
-          <polyline points="21 8 18.3 5.6 17.4 9"></polyline>
-        </svg>
-      </button>
-      <div class="card-head-row">
-        <div class="card-head-title">${escapeHtml(getStockCardTitle(card))}</div>
-        <div class="card-head-time" data-stock-updated-at></div>
-      </div>
-      <div class="stock-list-mini" data-stock-list>
-        <div class="stock-empty">${escapeHtml(getStockText().loading)}</div>
-      </div>
-    </div>
-  `
-}
-
-/**
  * 生成黄金白银卡片 HTML。
  *
  * @param {any} card 卡片配置。
@@ -1325,54 +1109,6 @@ const renderMetalsCardHtml = (card) => {
       </div>
     </div>
   `
-}
-
-/**
- * 更新股票卡片 DOM 展示。
- */
-const updateStockCardDom = ({ cardEl, renderToken, items, errorText }) => {
-  if (!cardEl || cardEl.dataset.stockRenderToken !== renderToken) return
-  const text = getStockText()
-  const listEl = cardEl.querySelector('[data-stock-list]')
-  const updatedAtEl = cardEl.querySelector('[data-stock-updated-at]')
-  if (!listEl) return
-
-  if (errorText) {
-    if (updatedAtEl) updatedAtEl.textContent = ''
-    listEl.innerHTML = `<div class="stock-empty">${escapeHtml(errorText)}</div>`
-    return
-  }
-
-  if (!items?.length) {
-    if (updatedAtEl) updatedAtEl.textContent = ''
-    listEl.innerHTML = `<div class="stock-empty">暂无数据</div>`
-    return
-  }
-
-  const latestMarketTime = items.map((it) => it?.marketTime).find((it) => typeof it === 'number')
-  if (updatedAtEl) updatedAtEl.textContent = formatCardUpdateTime(latestMarketTime)
-
-  const mini = items.map((it) => {
-    const name = escapeHtml(it?.name || it?.symbol || '--')
-    const symbol = escapeHtml(it?.symbol || '--')
-    const price = escapeHtml(formatStockPrice(it?.price, it?.currency))
-    const change = escapeHtml(formatStockChange(it?.change, it?.changePercent))
-    const changeClass = getStockChangeClass(it?.change)
-    return `
-      <div class="stock-mini-item" data-stock-symbol="${symbol}">
-        <div class="left">
-          <div class="stock-mini-name">${name}</div>
-          <div class="stock-mini-symbol">${symbol}</div>
-        </div>
-        <div class="right">
-          <div class="stock-mini-price">${price}</div>
-          <div class="stock-mini-change ${changeClass}">${change}</div>
-        </div>
-      </div>
-    `
-  })
-
-  listEl.innerHTML = mini.length ? mini.join('') : `<div class="stock-empty">${escapeHtml(text.empty)}</div>`
 }
 
 /**
@@ -1474,7 +1210,7 @@ const ensureMetalsDataForCard = async (card, { cardEl, renderToken, forceRefresh
   const text = getMetalsText()
   const cached = state.metalsCache.get(card.id)
   const now = Date.now()
-  if (!forceRefresh && cached && now - cached.ts < STOCK_CACHE_TTL && Array.isArray(cached.items)) {
+  if (!forceRefresh && cached && now - cached.ts < QUOTE_CACHE_TTL && Array.isArray(cached.items)) {
     updateMetalsCardDom({ cardEl, renderToken, items: cached.items })
     return
   }
@@ -1508,126 +1244,6 @@ const refreshMetalsCard = async (cardId) => {
 }
 
 /**
- * 拉取股票行情并更新卡片（带缓存）。
- */
-const ensureStockDataForCard = async (card, { cardEl, renderToken, forceRefresh = false }) => {
-  const symbols = getStockSymbols(card)
-  const text = getStockText()
-  if (!symbols.length) {
-    updateStockCardDom({ cardEl, renderToken, items: [], errorText: text.empty })
-    return
-  }
-
-  const cached = state.stockCache.get(card.id)
-  const now = Date.now()
-  // 重要逻辑：短时缓存，降低频繁刷新带来的请求压力。
-  if (!forceRefresh && cached && now - cached.ts < STOCK_CACHE_TTL && Array.isArray(cached.items)) {
-    updateStockCardDom({ cardEl, renderToken, items: cached.items })
-    return
-  }
-
-  try {
-    const rawText = await fetchTextWithTimeout(getStockApiUrl(symbols), 9000)
-    const items = parseStockApiData(rawText, symbols)
-    state.stockCache.set(card.id, { ts: Date.now(), items })
-    updateStockCardDom({ cardEl, renderToken, items })
-  } catch {
-    updateStockCardDom({ cardEl, renderToken, items: [], errorText: text.error })
-  }
-}
-
-/**
- * 主动刷新股票卡片。
- */
-const refreshStockCard = async (cardId) => {
-  const card = getCardById(cardId)
-  if (!card || (card.type || 'link') !== 'stock') return
-  state.stockCache.delete(card.id)
-  const cardEl = document.querySelector(`.card[data-card-id="${card.id}"]`)
-  const renderToken = cardEl?.dataset?.stockRenderToken
-  if (!cardEl || !renderToken) {
-    renderCards()
-    return
-  }
-  await ensureStockDataForCard(card, { cardEl, renderToken, forceRefresh: true })
-}
-
-/**
- * 获取文本并做超时控制（用于非 JSON 接口）。
- */
-const fetchTextWithTimeout = async (url, timeoutMs = 8000) => {
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), timeoutMs)
-  try {
-    const res = await fetch(url, { signal: controller.signal, cache: 'no-store' })
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    const buffer = await res.arrayBuffer()
-    const decoder = new TextDecoder('gbk')
-    return decoder.decode(buffer)
-  } finally {
-    clearTimeout(timer)
-  }
-}
-
-/**
- * 关闭股票设置弹窗。
- */
-const closeStockModal = () => {
-  $('#stockOverlay').hidden = true
-  state.editingStockCardId = null
-  state.editingStockSymbol = null
-  state.stockModalMode = 'create'
-  $('#stockTitleInput').value = ''
-  $('#stockSymbolInput').value = ''
-}
-
-/**
- * 打开股票设置弹窗。
- */
-const openStockModal = ({ mode, cardId }) => {
-  const overlay = $('#stockOverlay')
-  const titleEl = $('#stockModalTitle')
-  const titleInput = $('#stockTitleInput')
-  const symbolInput = $('#stockSymbolInput')
-
-  state.stockModalMode = mode === 'edit' ? 'edit' : 'create'
-  state.editingStockCardId = mode === 'edit' ? cardId : null
-  state.editingStockSymbol = null
-
-  const defaultTitle = getLang() === 'en' ? 'Stocks' : '股票'
-  if (mode === 'edit') titleEl.textContent = getLang() === 'en' ? 'Stock settings' : '股票设置'
-  else titleEl.textContent = getLang() === 'en' ? 'Add stocks' : '新增股票'
-
-  const card = mode === 'edit' ? getCardById(cardId) : null
-  titleInput.value = getStockCardTitle(card) || defaultTitle
-  symbolInput.value = ''
-  renderStockList(card || { symbols: [] })
-
-  overlay.hidden = false
-  closeComponentList()
-  closeCardMenu()
-  requestAnimationFrame(() => symbolInput.focus())
-}
-
-/**
- * 新增股票组件。
- */
-const addStockComponent = async ({ title, symbols }) => {
-  const next = [...(state.config.cards || [])]
-  const safeTitle = title || (getLang() === 'en' ? 'Stocks' : '股票')
-  next.push({
-    id: crypto.randomUUID(),
-    type: 'stock',
-    title: safeTitle,
-    symbols
-  })
-  state.config.cards = next
-  await saveConfig({ cards: next })
-  renderCards()
-  scheduleAutoPush()
-}
-
-/**
  * 新增黄金白银组件。
  */
 const addMetalsComponent = async () => {
@@ -1641,60 +1257,6 @@ const addMetalsComponent = async () => {
   await saveConfig({ cards: next })
   renderCards()
   scheduleAutoPush()
-}
-
-/**
- * 保存股票卡片修改。
- */
-const saveStockCardPatch = async (cardId, patch) => {
-  const next = [...(state.config.cards || [])]
-  const index = next.findIndex((c) => c.id === cardId)
-  if (index === -1) return
-  next[index] = { ...next[index], ...patch }
-  state.config.cards = next
-  await saveConfig({ cards: next })
-  state.stockCache.delete(cardId)
-  renderCards()
-  scheduleAutoPush()
-}
-
-/**
- * 渲染股票编辑列表，支持在同一卡片中维护多个股票代码。
- *
- * @param {any} card 股票卡片配置。
- */
-const renderStockList = (card) => {
-  const root = $('#stockList')
-  if (!root) return
-  const symbols = getStockSymbols(card)
-  if (!symbols.length) {
-    root.innerHTML = '<div class="editor-empty">暂无股票，右侧新增一个吧</div>'
-    return
-  }
-
-  const cachedItems = state.stockCache.get(card.id)?.items || []
-  const cachedMap = new Map(cachedItems.map((it) => [String(it?.symbol || '').toUpperCase(), it]))
-  root.innerHTML = symbols
-    .map((symbol) => {
-      const quote = cachedMap.get(String(symbol).toUpperCase())
-      const name = escapeHtml(String(quote?.name || symbol))
-      const summary = quote
-        ? `${escapeHtml(formatStockPrice(quote.price, quote.currency))} · ${escapeHtml(formatStockChange(quote.change, quote.changePercent))}`
-        : escapeHtml(symbol)
-      return `
-        <div class="stock-list-item" data-symbol="${escapeHtml(symbol)}">
-          <div class="meta">
-            <div class="name">${name}</div>
-            <div class="sub">${summary}</div>
-          </div>
-          <div class="actions">
-            <div class="badge">${escapeHtml(symbol)}</div>
-            <button class="danger-btn" type="button" data-action="delete" data-symbol="${escapeHtml(symbol)}">删除</button>
-          </div>
-        </div>
-      `
-    })
-    .join('')
 }
 
 const closeAnniversaryModal = () => {
@@ -1806,6 +1368,20 @@ const hotCard = createHotCardController({
   cards: cardRepository
 })
 
+/**
+ * 股票卡片控制器：行情缓存、刷新与增删改弹窗都在 stock-card-controller 内完成。
+ * 定时轮询仍由页面的 initializePollingCard 统一调度（与贵金属共用）。
+ */
+const stockCard = createStockCardController({
+  getLang,
+  getText: getStockText,
+  openUrl: (url) => send({ type: 'openTabsInNewActive', urls: [url] }),
+  confirm: openConfirm,
+  setError,
+  closeOverlays: closeCardOverlays,
+  cards: cardRepository
+})
+
 const initCardUi = () => {
   const menu = $('#cardMenu')
   const editBtn = $('#cardMenuEditBtn')
@@ -1837,7 +1413,7 @@ const initCardUi = () => {
       else if (!overlay.hidden) closeCardModal()
       else if (!$('#anniversaryOverlay').hidden) closeAnniversaryModal()
       else if (!$('#hotOverlay').hidden) hotCard.closeModal()
-      else if (!$('#stockOverlay').hidden) closeStockModal()
+      else if (!$('#stockOverlay').hidden) stockCard.closeModal()
       else if (!$('#componentListOverlay').hidden) closeComponentList()
       else if (!$('#addChooserOverlay').hidden) closeAddChooser()
     }
@@ -1848,7 +1424,7 @@ const initCardUi = () => {
     if (!card) return closeCardMenu()
     if ((card?.type || 'link') === 'anniversary') openAnniversaryModal(card.id)
     else if ((card?.type || 'link') === 'hot') hotCard.openModal({ mode: 'edit', cardId: card.id })
-    else if ((card?.type || 'link') === 'stock') openStockModal({ mode: 'edit', cardId: card.id })
+    else if ((card?.type || 'link') === 'stock') stockCard.openModal({ mode: 'edit', cardId: card.id })
     else if ((card?.type || 'link') === 'weather') weatherCard.openModal({ mode: 'edit', cardId: card.id })
     else if ((card?.type || 'link') === 'metals') closeCardMenu()
     else openCardModal({ mode: 'edit', card })
@@ -1937,7 +1513,7 @@ const initCardUi = () => {
   })
   componentListClose.addEventListener('click', closeComponentList)
   componentHotBtn.addEventListener('click', () => hotCard.openModal({ mode: 'create' }))
-  componentStockBtn.addEventListener('click', () => openStockModal({ mode: 'create' }))
+  componentStockBtn.addEventListener('click', () => stockCard.openModal({ mode: 'create' }))
   componentMetalsBtn.addEventListener('click', async () => {
     closeComponentList()
     await addMetalsComponent()
@@ -1952,101 +1528,7 @@ const initCardUi = () => {
 
   weatherCard.bindModalUi()
 
-  const stockOverlay = $('#stockOverlay')
-  const stockCloseBtn = $('#stockCloseBtn')
-  const stockCancelBtn = $('#stockCancelBtn')
-  const stockForm = $('#stockForm')
-  const stockTitleInput = $('#stockTitleInput')
-  const stockSymbolInput = $('#stockSymbolInput')
-  stockOverlay.addEventListener('click', (evt) => {
-    if (evt.target === stockOverlay) closeStockModal()
-  })
-  stockCloseBtn.addEventListener('click', closeStockModal)
-  stockCancelBtn.addEventListener('click', closeStockModal)
-  $('#stockList').addEventListener('click', async (evt) => {
-    const target = evt.target
-    const cardId = state.editingStockCardId
-    if (!cardId) return
-    const card = getCardById(cardId)
-    if (!card) return
-
-    const delBtn = target?.closest?.('button[data-action="delete"]')
-    if (delBtn) {
-      const symbol = delBtn.getAttribute('data-symbol')
-      if (!symbol) return
-      openConfirm({
-        title: '确认删除',
-        text: `确认删除股票「${symbol}」吗？`,
-        onConfirm: async () => {
-          const nextSymbols = getStockSymbols(card).filter((it) => it !== symbol)
-          await saveStockCardPatch(cardId, { title: getStockCardTitle(card), symbols: nextSymbols })
-          const nextCard = getCardById(cardId)
-          if (nextCard) renderStockList(nextCard)
-          if (state.editingStockSymbol === symbol) {
-            state.editingStockSymbol = null
-            stockSymbolInput.value = ''
-          }
-        }
-      })
-      return
-    }
-
-    const itemEl = target?.closest?.('.stock-list-item')
-    if (!itemEl) return
-    const symbol = itemEl.getAttribute('data-symbol')
-    if (!symbol) return
-    state.editingStockSymbol = symbol
-    stockSymbolInput.value = symbol
-    stockTitleInput.value = getStockCardTitle(card)
-  })
-  stockForm.addEventListener('submit', async (evt) => {
-    evt.preventDefault()
-    const title = stockTitleInput.value.trim() || (getLang() === 'en' ? 'Stocks' : '股票')
-    const inputSymbols = normalizeStockSymbolsInput(stockSymbolInput.value)
-    if (state.stockModalMode === 'edit' && state.editingStockCardId) {
-      const card = getCardById(state.editingStockCardId)
-      if (!card) return
-      const symbols = getStockSymbols(card)
-      const symbol = inputSymbols[0]
-      if (!symbol && !state.editingStockSymbol) {
-        await saveStockCardPatch(state.editingStockCardId, { title, symbols })
-        const nextCard = getCardById(state.editingStockCardId)
-        if (nextCard) renderStockList(nextCard)
-        state.editingStockSymbol = null
-        stockSymbolInput.value = ''
-        setError('')
-        closeStockModal()
-        return
-      }
-      if (!symbol) {
-        setError(getLang() === 'en' ? 'Please input symbols' : '请输入股票代码')
-        return
-      }
-      setError('')
-      const nextSymbols = [...symbols]
-      if (state.editingStockSymbol) {
-        const index = nextSymbols.findIndex((it) => it === state.editingStockSymbol)
-        if (index !== -1) nextSymbols[index] = symbol
-      } else if (!nextSymbols.includes(symbol)) {
-        nextSymbols.unshift(symbol)
-      }
-      // 重要逻辑：再次规范化，避免重复代码与替换后残留脏数据。
-      await saveStockCardPatch(state.editingStockCardId, { title, symbols: normalizeStockSymbolsInput(nextSymbols) })
-      const nextCard = getCardById(state.editingStockCardId)
-      if (nextCard) renderStockList(nextCard)
-    } else {
-      const symbol = inputSymbols[0]
-      if (!symbol) {
-        setError(getLang() === 'en' ? 'Please input symbols' : '请输入股票代码')
-        return
-      }
-      setError('')
-      await addStockComponent({ title, symbols: [symbol] })
-    }
-    state.editingStockSymbol = null
-    stockSymbolInput.value = ''
-    closeStockModal()
-  })
+  stockCard.bindModalUi()
 
   const anniversaryOverlay = $('#anniversaryOverlay')
   const anniversaryCloseBtn = $('#anniversaryCloseBtn')
