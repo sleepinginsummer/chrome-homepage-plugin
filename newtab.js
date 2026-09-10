@@ -10,9 +10,8 @@ import { createStockCardController } from './stock-card-controller.js'
 import { createMetalsCardController } from './metals-card-controller.js'
 import { createAnniversaryCardController } from './anniversary-card-controller.js'
 import { createSearchController } from './search-controller.js'
-import { createCardDragController } from './card-drag.js'
-import { createCardIconCandidates, getCardInitial, loadCardIcon } from './card-icon.js'
-import { normalizeCardUrl } from './url-utils.js'
+import { createCardGrid } from './card-grid.js'
+import { createLinkCardController } from './link-card-controller.js'
 import { applyTheme, getConfigTheme } from './theme.js'
 import { initThemeController } from './theme-controller.js'
 
@@ -20,16 +19,9 @@ const LAST_SYNC_AT_KEY = 'chromeHomeLastSyncAt'
 
 const state = {
   config: null,
-  editingCardId: null,
-  stockPollTimers: new Map(),
-  metalsPollTimers: new Map(),
-  iconLoadCleanups: new Set(),
-  isDraggingCard: false,
   contextCardId: null,
   confirmAction: null
 }
-let cardDragController = null
-
 /**
  * 扩展内部消息发送封装：
  * - 优先走 background/service worker
@@ -140,20 +132,6 @@ const setError = (message) => {
   text.textContent = message
 }
 
-const normalizeUrl = normalizeCardUrl
-
-const normalizeIconUrl = (raw) => {
-  const trimmed = String(raw || '').trim()
-  if (!trimmed) return ''
-  try {
-    const url = new URL(trimmed)
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') return ''
-    return url.toString()
-  } catch {
-    return ''
-  }
-}
-
 /**
  * 在浏览器空闲时执行任务；不支持 requestIdleCallback 时用 setTimeout 兜底。
  * 适用场景：启动同步/热搜拉取等非首屏关键路径任务。
@@ -166,236 +144,11 @@ const runWhenIdle = (task, timeoutMs = 1200) => {
   // 重要逻辑：兜底路径尽量短，避免影响首屏。
   setTimeout(() => task?.(), Math.min(16, timeoutMs))
 }
-
-const renderCardBody = (card, div) => {
-  const type = card?.type || 'link'
-  const classNames = {
-    anniversary: 'card card-anniversary',
-    hot: 'card card-hot',
-    stock: 'card card-stock',
-    metals: 'card card-metals',
-    weather: 'card card-weather'
-  }
-  div.className = classNames[type] || 'card'
-
-  if (type === 'anniversary') div.innerHTML = anniversaryCard.renderHtml(card)
-  else if (type === 'hot') div.innerHTML = hotCard.renderHtml(card)
-  else if (type === 'stock') div.innerHTML = stockCard.renderHtml(card)
-  else if (type === 'metals') div.innerHTML = metalsCard.renderHtml(card)
-  else if (type === 'weather') div.innerHTML = weatherCard.renderHtml(card)
-  else {
-    div.innerHTML = `
-      <div class="card-icon" aria-hidden="true">
-        <span class="card-icon-fallback"></span>
-        <img class="card-icon-image" alt="" />
-      </div>
-      <div class="card-title"></div>
-    `
-    const icon = div.querySelector('.card-icon')
-    const image = div.querySelector('.card-icon-image')
-    icon.querySelector('.card-icon-fallback').textContent = getCardInitial(card.title)
-    image.decoding = 'async'
-    image.loading = 'lazy'
-    const candidates = createCardIconCandidates({
-      pageUrl: card.url,
-      customIcon: card.icon,
-      runtimeGetURL: chrome.runtime?.getURL?.bind(chrome.runtime)
-    })
-    const cancelIconLoad = loadCardIcon(image, candidates, {
-      timeoutMs: 5000,
-      onLoaded: (_source, dimensions) => {
-        const sourceSize = Math.min(dimensions.width, dimensions.height)
-        icon.classList.toggle('is-low-resolution', sourceSize < 24)
-        icon.classList.toggle('is-medium-resolution', sourceSize >= 24 && sourceSize < 48)
-        icon.classList.add('has-image')
-      }
-    })
-    state.iconLoadCleanups.add(cancelIconLoad)
-    div.querySelector('.card-title').textContent = card.title
-  }
-}
-
-const initializePollingCard = (card, div, { tokenDatasetKey, ensureData, timers }) => {
-  const renderToken = crypto.randomUUID()
-  div.dataset[tokenDatasetKey] = renderToken
-  void ensureData(card, { cardEl: div, renderToken, forceRefresh: true })
-  const timer = setInterval(() => {
-    const latestCard = getCardById(card.id)
-    if (!latestCard) return
-    void ensureData(latestCard, {
-      cardEl: div,
-      renderToken: div.dataset[tokenDatasetKey],
-      forceRefresh: true
-    })
-  }, STOCK_REFRESH_INTERVAL)
-  timers.set(card.id, timer)
-}
-
-const initializeCardData = (card, div) => {
-  const type = card?.type || 'link'
-  if (type === 'hot') {
-    hotCard.initialize(card, div)
-    return
-  }
-
-  if (type === 'weather') {
-    weatherCard.initialize(card, div)
-    return
-  }
-
-  if (type === 'stock') {
-    initializePollingCard(card, div, {
-      tokenDatasetKey: 'stockRenderToken',
-      ensureData: stockCard.loadData,
-      timers: state.stockPollTimers
-    })
-    return
-  }
-
-  if (type === 'metals') {
-    initializePollingCard(card, div, {
-      tokenDatasetKey: 'metalsRenderToken',
-      ensureData: metalsCard.loadData,
-      timers: state.metalsPollTimers
-    })
-  }
-}
-
-const cardClickHandlers = {
-  anniversary: (card) => anniversaryCard.openModal(card.id),
-  hot: (card, evt) => hotCard.handleClick(card, evt),
-  stock: (card, evt) => stockCard.handleClick(card, evt),
-  weather: (card, evt) => weatherCard.handleClick(card, evt),
-  metals: (card, evt) => metalsCard.handleClick(card, evt)
-}
-
-const handleCardClick = async (card, evt) => {
-  if (state.isDraggingCard) return
-  const handler = cardClickHandlers[card?.type || 'link']
-  if (handler) {
-    await handler(card, evt)
-    return
-  }
-  await send({ type: 'openTabsInNewActive', urls: [card.url] })
-}
-
-const renderCards = () => {
-  cardDragController?.cancel({ restore: false })
-  for (const cancelIconLoad of state.iconLoadCleanups) cancelIconLoad()
-  state.iconLoadCleanups.clear()
-  const root = $('#cardsGrid')
-  root.innerHTML = ''
-  for (const timer of state.stockPollTimers.values()) clearInterval(timer)
-  state.stockPollTimers.clear()
-  for (const timer of state.metalsPollTimers.values()) clearInterval(timer)
-  state.metalsPollTimers.clear()
-  const cards = state.config.cards || []
-  for (const card of cards) {
-    const div = document.createElement('div')
-    renderCardBody(card, div)
-    div.draggable = true
-    div.dataset.cardId = card.id
-
-    div.addEventListener('click', (evt) => void handleCardClick(card, evt))
-
-    div.addEventListener('contextmenu', (evt) => {
-      evt.preventDefault()
-      openCardMenu({ x: evt.clientX, y: evt.clientY, cardId: card.id })
-    })
-
-    root.appendChild(div)
-    initializeCardData(card, div)
-  }
-
-  const addCard = document.createElement('button')
-  addCard.type = 'button'
-  addCard.className = 'card card-add'
-  addCard.innerHTML = `
-    <svg class="card-add-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <line x1="12" y1="6" x2="12" y2="18"></line>
-      <line x1="6" y1="12" x2="18" y2="12"></line>
-    </svg>
-  `
-  addCard.addEventListener('click', () => openAddChooser())
-  root.appendChild(addCard)
-}
 const saveConfig = async (patch) => {
   const res = await send({ type: 'setConfig', data: patch })
   if (!res?.ok) throw new Error(res?.error || '保存失败')
   state.config = res.data
   return res.data
-}
-
-const addCard = async ({ title, url, icon }) => {
-  const next = [...(state.config.cards || [])]
-  next.push({
-    id: crypto.randomUUID(),
-    title,
-    url,
-    ...(icon ? { icon } : {})
-  })
-  state.config.cards = next
-  await saveConfig({ cards: next })
-  renderCards()
-  scheduleAutoPush()
-}
-
-const updateCard = async ({ id, title, url, icon }) => {
-  const next = [...(state.config.cards || [])]
-  const index = next.findIndex((c) => c.id === id)
-  if (index === -1) return
-  const patch = { title, url }
-  if (icon) patch.icon = icon
-  else delete next[index].icon
-  next[index] = { ...next[index], ...patch }
-  state.config.cards = next
-  await saveConfig({ cards: next })
-  renderCards()
-  scheduleAutoPush()
-}
-
-const persistCardOrder = async (orderedIds) => {
-  const cards = state.config.cards || []
-  const cardsById = new Map(cards.map((card) => [card.id, card]))
-  const orderedCards = orderedIds.map((id) => cardsById.get(id)).filter(Boolean)
-  const orderedIdSet = new Set(orderedIds)
-  const next = [...orderedCards, ...cards.filter((card) => !orderedIdSet.has(card.id))]
-  if (next.every((card, index) => card.id === cards[index]?.id)) return
-  await saveConfig({ cards: next })
-  scheduleAutoPush()
-}
-
-const initCardDrag = () => {
-  if (cardDragController) return
-  cardDragController = createCardDragController({
-    root: $('#cardsGrid'),
-    onCommit: persistCardOrder,
-    onDragStateChange: (isDragging) => { state.isDraggingCard = isDragging },
-    onError: (error) => {
-      console.error('[chrome-home] card reorder failed', error)
-      renderCards()
-    }
-  })
-}
-
-const cardCleanupHandlers = {
-  weather: (card, remainingCards) => weatherCard.cleanup(card, remainingCards)
-}
-
-const cleanupCardResources = async (card, remainingCards) => {
-  const cleanup = cardCleanupHandlers[card?.type || 'link']
-  if (cleanup) await cleanup(card, remainingCards)
-}
-
-const deleteCard = async (id) => {
-  const cards = state.config.cards || []
-  const removedCard = cards.find((card) => card.id === id)
-  const next = cards.filter((card) => card.id !== id)
-  state.config.cards = next
-  await saveConfig({ cards: next })
-  if (removedCard) await cleanupCardResources(removedCard, next)
-  renderCards()
-  scheduleAutoPush()
 }
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max)
@@ -437,31 +190,6 @@ const closeConfirm = () => {
   state.confirmAction = null
 }
 
-const openCardModal = ({ mode, card }) => {
-  const overlay = $('#cardModalOverlay')
-  const title = $('#cardModalTitle')
-  const titleInput = $('#cardModalTitleInput')
-  const urlInput = $('#cardModalUrlInput')
-  const iconInput = $('#cardModalIconInput')
-
-  state.editingCardId = mode === 'edit' ? card.id : null
-  title.textContent = mode === 'edit' ? '修改卡片' : '新增卡片'
-  titleInput.value = mode === 'edit' ? card.title : ''
-  urlInput.value = mode === 'edit' ? card.url : ''
-  iconInput.value = mode === 'edit' ? card.icon || '' : ''
-
-  setError('')
-  overlay.hidden = false
-  closeCardMenu()
-  requestAnimationFrame(() => titleInput.focus())
-}
-
-const closeCardModal = () => {
-  $('#cardModalOverlay').hidden = true
-  state.editingCardId = null
-  setError('')
-}
-
 const openAddChooser = () => {
   setError('')
   $('#addChooserOverlay').hidden = false
@@ -479,8 +207,6 @@ const openComponentList = () => {
 const closeComponentList = () => {
   $('#componentListOverlay').hidden = true
 }
-
-const STOCK_REFRESH_INTERVAL = 60 * 1000
 
 /**
  * 获取股票相关文案（随语言切换）。
@@ -541,9 +267,10 @@ const cardRepository = {
     await saveConfig({ cards: next })
   },
   apply: () => {
-    renderCards()
+    cardGrid.render()
     scheduleAutoPush()
-  }
+  },
+  schedulePush: () => scheduleAutoPush()
 }
 
 /** 打开卡片弹窗前统一收起其它浮层（组件列表 + 卡片菜单）。 */
@@ -555,6 +282,75 @@ const closeCardOverlays = () => {
 /**
  * 天气卡片控制器：渲染、拉取、刷新与增删改弹窗都在 weather-card-controller 内完成。
  */
+/**
+ * 卡片类型注册表：网格只认这份表，各域提供渲染、初始化、点击与回收。
+ * link 不提供 handleClick，点击按 url 打开。
+ */
+const cardRegistry = {
+  anniversary: {
+    className: 'card card-anniversary',
+    render: (card, div) => {
+      div.innerHTML = anniversaryCard.renderHtml(card)
+    },
+    handleClick: (card) => anniversaryCard.openModal(card.id)
+  },
+  hot: {
+    className: 'card card-hot',
+    render: (card, div) => {
+      div.innerHTML = hotCard.renderHtml(card)
+    },
+    initialize: (card, div) => hotCard.initialize(card, div),
+    handleClick: (card, evt) => hotCard.handleClick(card, evt)
+  },
+  stock: {
+    className: 'card card-stock',
+    render: (card, div) => {
+      div.innerHTML = stockCard.renderHtml(card)
+    },
+    poll: { tokenDatasetKey: 'stockRenderToken', loadData: (card, options) => stockCard.loadData(card, options) },
+    handleClick: (card, evt) => stockCard.handleClick(card, evt)
+  },
+  metals: {
+    className: 'card card-metals',
+    render: (card, div) => {
+      div.innerHTML = metalsCard.renderHtml(card)
+    },
+    poll: { tokenDatasetKey: 'metalsRenderToken', loadData: (card, options) => metalsCard.loadData(card, options) },
+    handleClick: (card, evt) => metalsCard.handleClick(card, evt)
+  },
+  weather: {
+    className: 'card card-weather',
+    render: (card, div) => {
+      div.innerHTML = weatherCard.renderHtml(card)
+    },
+    initialize: (card, div) => weatherCard.initialize(card, div),
+    handleClick: (card, evt) => weatherCard.handleClick(card, evt),
+    cleanup: (card, remainingCards) => weatherCard.cleanup(card, remainingCards)
+  },
+  link: {
+    className: 'card',
+    render: (card, div) => linkCard.render(card, div)
+  }
+}
+
+/** 卡片网格：渲染、点击分发、资源回收与拖拽排序。 */
+const cardGrid = createCardGrid({
+  cards: cardRepository,
+  registry: cardRegistry,
+  openUrl: (url) => send({ type: 'openTabsInNewActive', urls: [url] }),
+  onContextMenu: ({ x, y, cardId }) => openCardMenu({ x, y, cardId }),
+  onAddCard: () => openAddChooser(),
+  onDragError: (error) => console.error('[chrome-home] card reorder failed', error)
+})
+
+/** 链接卡片控制器：卡面图标加载与新增/修改弹窗。 */
+const linkCard = createLinkCardController({
+  cards: cardRepository,
+  runtimeGetURL: chrome.runtime?.getURL?.bind(chrome.runtime),
+  setError,
+  closeOverlays: closeCardOverlays
+})
+
 const weatherCard = createWeatherCardController({
   storage: chrome.storage.local,
   getLang,
@@ -647,7 +443,7 @@ const initCardUi = () => {
     if (evt.key === 'Escape') {
       if (!menu.hidden) closeCardMenu()
       else if (!confirmOverlay.hidden) closeConfirm()
-      else if (!overlay.hidden) closeCardModal()
+      else if (!$('#cardModalOverlay').hidden) linkCard.closeModal()
       else if (!$('#anniversaryOverlay').hidden) anniversaryCard.closeModal()
       else if (!$('#hotOverlay').hidden) hotCard.closeModal()
       else if (!$('#stockOverlay').hidden) stockCard.closeModal()
@@ -664,7 +460,7 @@ const initCardUi = () => {
     else if ((card?.type || 'link') === 'stock') stockCard.openModal({ mode: 'edit', cardId: card.id })
     else if ((card?.type || 'link') === 'weather') weatherCard.openModal({ mode: 'edit', cardId: card.id })
     else if ((card?.type || 'link') === 'metals') closeCardMenu()
-    else openCardModal({ mode: 'edit', card })
+    else linkCard.openModal({ mode: 'edit', card })
   })
 
   deleteBtn.addEventListener('click', () => {
@@ -674,44 +470,12 @@ const initCardUi = () => {
       title: '确认删除',
       text: `确认删除卡片「${card.title}」吗？`,
       onConfirm: async () => {
-        await deleteCard(card.id)
+        await cardGrid.deleteCard(card.id)
       }
     })
   })
 
-  overlay.addEventListener('click', (evt) => {
-    if (evt.target === overlay) closeCardModal()
-  })
-
-  closeBtn.addEventListener('click', closeCardModal)
-  cancelBtn.addEventListener('click', closeCardModal)
-
-  form.addEventListener('submit', async (evt) => {
-    evt.preventDefault()
-    const title = titleInput.value.trim()
-    const url = normalizeUrl(urlInput.value)
-    const icon = normalizeIconUrl(iconInput.value)
-    if (!title) {
-      setError('请输入标题')
-      return
-    }
-    try {
-      new URL(url)
-    } catch {
-      setError('请输入合法网址')
-      return
-    }
-
-    setError('')
-    if (iconInput.value.trim() && !icon) {
-      setError('Icon 请输入合法 URL（http/https），或留空')
-      return
-    }
-
-    if (state.editingCardId) await updateCard({ id: state.editingCardId, title, url, icon })
-    else await addCard({ title, url, icon })
-    closeCardModal()
-  })
+  linkCard.bindModalUi()
 
   confirmOverlay.addEventListener('click', (evt) => {
     if (evt.target === confirmOverlay) closeConfirm()
@@ -734,7 +498,7 @@ const initCardUi = () => {
   addChooserClose.addEventListener('click', closeAddChooser)
   addChooserCard.addEventListener('click', () => {
     closeAddChooser()
-    openCardModal({ mode: 'create' })
+    linkCard.openModal({ mode: 'create' })
   })
   addChooserComponent.addEventListener('click', openComponentList)
 
@@ -941,7 +705,7 @@ const initSettingsModal = (themeController) => {
     applyLanguage()
     searchController.renderEngines()
     searchController.renderHistory()
-    renderCards()
+    cardGrid.render()
   })
 
   $('#syncTestBtn').addEventListener('click', async () => {
@@ -1022,8 +786,8 @@ const main = async () => {
   applyLanguage()
   searchController.renderEngines()
   searchController.renderHistory()
-  initCardDrag()
-  renderCards()
+  cardGrid.initDrag()
+  cardGrid.render()
   searchController.bindSearchForm()
   initBlankClickFocus()
   searchController.bindHistoryUi()
