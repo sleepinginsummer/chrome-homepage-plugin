@@ -31,13 +31,23 @@ describe('settings overlay styles', () => {
     expect(css).toContain("html[data-theme='neo-brutalism']")
 
     const script = readFileSync(new URL('../newtab.js', import.meta.url), 'utf8')
-    expect(script).toContain("theme_cyber_dark: '赛博深色'")
-    expect(script).not.toContain("theme_amber_neumorphic")
-    expect(script).toContain("theme_neo_brutalism: '新粗野'")
-    expect(script).toContain("theme_neo_brutalism: 'Neo-Brutalism'")
+    // 词典已迁到 i18n.js，主题文案在那边断言。
+    const dict = readFileSync(new URL('../i18n.js', import.meta.url), 'utf8')
+    expect(dict).toContain("theme_cyber_dark: '赛博深色'")
+    expect(dict).not.toContain('theme_amber_neumorphic')
+    expect(dict).toContain("theme_neo_brutalism: '新粗野'")
+    expect(dict).toContain("theme_neo_brutalism: 'Neo-Brutalism'")
     expect(script).toContain("'ArrowDown', 'ArrowRight', 'ArrowUp', 'ArrowLeft', 'Home', 'End'")
     expect(script).toContain("requestAnimationFrame(() => $('#settingsTabAppearance')?.focus())")
     expect(script).toContain('requestAnimationFrame(() => openBtn.focus())')
-    expect(script.match(/querySelectorAll\('\[data-i18n-aria-label\]'\)/)?.index).toBeLessThan(script.indexOf('const canAutoPush'))
+    // 四类 data-i18n* 标注都由 i18n.js 处理（原先这条断言的是 newtab.js 里的文本位置）。
+    for (const [selector, attribute] of [
+      ['[data-i18n]', 'textContent'],
+      ['[data-i18n-placeholder]', 'placeholder'],
+      ['[data-i18n-aria-label]', 'aria-label'],
+      ['[data-i18n-title]', 'title']
+    ]) {
+      expect(dict).toContain(`writeAll('${selector}', '${attribute}')`)
+    }
   })
 })

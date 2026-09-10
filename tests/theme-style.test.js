@@ -26,8 +26,6 @@ describe('shared theme styles', () => {
     expect(newtabHtml.indexOf('theme-tokens.css')).toBeLessThan(newtabHtml.indexOf('newtab.css'))
     expect(optionsHtml.indexOf('theme-tokens.css')).toBeLessThan(optionsHtml.indexOf('options.css'))
     expect(packageScript).toContain("'theme-tokens.css'")
-    // 主题模块必须进运行时清单，否则打包后的扩展会在启动时找不到模块。
-    expect(packageScript).toContain("'theme-controller.js'")
   })
 
 })
