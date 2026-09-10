@@ -62,7 +62,6 @@ export const createMetalsClient = ({
     }
 
     const res = await send({ type: 'fetchMetalsQuote' })
-    console.log('[chrome-home] metals response', res)
     if (!res?.ok) throw new Error(res?.error || '黄金白银抓取失败')
     const items = normalizeMetalsItems(res.data)
     if (!items.length) throw new Error('metals data missing')
