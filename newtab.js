@@ -2,7 +2,7 @@ const $ = (selector) => document.querySelector(selector)
 
 import { runStartupSync } from './sync-startup.js'
 import { createExtensionApiClient } from './extension-api.js'
-import { createHotNewsClient } from './hot-news.js'
+import { createHotCardController } from './hot-card-controller.js'
 import { createWeatherCardController } from './weather-card-controller.js'
 import { createCardDragController } from './card-drag.js'
 import { createCardIconCandidates, getCardInitial, loadCardIcon } from './card-icon.js'
@@ -19,8 +19,6 @@ const state = {
   editingCardId: null,
   editingAnniversaryCardId: null,
   editingAnniversaryItemId: null,
-  editingHotCardId: null,
-  hotModalMode: 'create',
   stockCache: new Map(),
   stockPollTimers: new Map(),
   metalsCache: new Map(),
@@ -51,7 +49,6 @@ const apiClient = createExtensionApiClient({
   }
 })
 const send = (payload) => apiClient.send(payload)
-const hotNewsClient = createHotNewsClient()
 
 const setSyncStatus = (text, kind = 'info') => {
   const status = $('#syncStatus')
@@ -546,7 +543,7 @@ const renderCardBody = (card, div) => {
   div.className = classNames[type] || 'card'
 
   if (type === 'anniversary') div.innerHTML = renderAnniversaryCardHtml(card)
-  else if (type === 'hot') div.innerHTML = renderHotCardHtml(card)
+  else if (type === 'hot') div.innerHTML = hotCard.renderHtml(card)
   else if (type === 'stock') div.innerHTML = renderStockCardHtml(card)
   else if (type === 'metals') div.innerHTML = renderMetalsCardHtml(card)
   else if (type === 'weather') div.innerHTML = weatherCard.renderHtml(card)
@@ -601,9 +598,7 @@ const initializePollingCard = (card, div, { tokenDatasetKey, ensureData, timers 
 const initializeCardData = (card, div) => {
   const type = card?.type || 'link'
   if (type === 'hot') {
-    const renderToken = crypto.randomUUID()
-    div.dataset.hotRenderToken = renderToken
-    void runWhenIdle(() => ensureHotDataForCard(card, { cardEl: div, renderToken }), 800)
+    hotCard.initialize(card, div)
     return
   }
 
@@ -628,23 +623,6 @@ const initializeCardData = (card, div) => {
       timers: state.metalsPollTimers
     })
   }
-}
-
-const handleHotCardClick = async (card, evt) => {
-  const actionEl = evt.target?.closest?.('[data-hot-action]')
-  if (actionEl?.dataset?.hotAction === 'refresh') {
-    evt.preventDefault()
-    evt.stopPropagation()
-    await refreshHotCard(card.id)
-    return
-  }
-  const itemEl = evt.target?.closest?.('[data-hot-link]')
-  if (itemEl) {
-    const url = itemEl.dataset.hotLink
-    if (url) await send({ type: 'openTabsInNewActive', urls: [url] })
-    return
-  }
-  openHotModal({ mode: 'edit', cardId: card.id })
 }
 
 const handleStockCardClick = async (card, evt) => {
@@ -683,7 +661,7 @@ const handleMetalsCardClick = async (card, evt) => {
 
 const cardClickHandlers = {
   anniversary: (card) => openAnniversaryModal(card.id),
-  hot: handleHotCardClick,
+  hot: (card, evt) => hotCard.handleClick(card, evt),
   stock: handleStockCardClick,
   weather: (card, evt) => weatherCard.handleClick(card, evt),
   metals: handleMetalsCardClick
@@ -1031,21 +1009,6 @@ const addAnniversaryComponent = async () => {
   renderCards()
   scheduleAutoPush()
 }
-
-const HOT_SOURCES = [
-  '哔哩哔哩',
-  '百度',
-  '知乎',
-  '百度贴吧',
-  '少数派',
-  'IT之家',
-  '澎湃新闻',
-  '今日头条',
-  '微博热搜',
-  '36氪',
-  '稀土掘金',
-  '腾讯新闻'
-]
 
 const STOCK_CACHE_TTL = 60 * 1000
 const STOCK_REFRESH_INTERVAL = 60 * 1000
@@ -1605,137 +1568,6 @@ const fetchTextWithTimeout = async (url, timeoutMs = 8000) => {
     clearTimeout(timer)
   }
 }
-const getHotSourceTitle = (card) => String(card?.sourceTitle || card?.title || '知乎')
-
-const renderHotCardHtml = (card) => {
-  const sourceTitle = escapeHtml(getHotSourceTitle(card))
-  return `
-    <div class="hot-card">
-      <div class="hot-header">
-        <div class="hot-title">${sourceTitle}</div>
-        <button class="hot-refresh" type="button" aria-label="刷新" data-hot-action="refresh">
-          <svg class="hot-refresh-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M21 12a9 9 0 0 1-15.3 6.4"></path>
-            <path d="M3 12a9 9 0 0 1 15.3-6.4"></path>
-            <polyline points="3 16 5.7 18.4 6.6 15"></polyline>
-            <polyline points="21 8 18.3 5.6 17.4 9"></polyline>
-          </svg>
-        </button>
-      </div>
-      <div class="hot-list" data-hot-list>
-        <div class="hot-empty">加载中...</div>
-      </div>
-    </div>
-  `
-}
-
-const updateHotCardDom = ({ cardEl, renderToken, items, errorText }) => {
-  if (!cardEl || cardEl.dataset.hotRenderToken !== renderToken) return
-  const listEl = cardEl.querySelector('[data-hot-list]')
-  if (!listEl) return
-
-  if (errorText) {
-    listEl.innerHTML = `<div class="hot-empty">${escapeHtml(errorText)}</div>`
-    return
-  }
-
-  if (!items?.length) {
-    listEl.innerHTML = `<div class="hot-empty">暂无数据</div>`
-    return
-  }
-
-  listEl.innerHTML = items
-    .slice(0, 50)
-    .map(
-      (it, idx) => `
-      <div class="hot-item" data-hot-link="${escapeHtml(it.link)}" title="${escapeHtml(it.title)}">
-        <div class="hot-rank hot-rank-${idx + 1}">${idx + 1}</div>
-        <div class="hot-text">${escapeHtml(it.title)}</div>
-      </div>
-    `
-    )
-    .join('')
-}
-
-/**
- * 为热搜卡片加载并渲染数据。
- *
- * @param {{ sourceTitle?: string, title?: string }} card 热搜卡片配置。
- * @param {{ cardEl: HTMLElement, renderToken: string, forceRefresh?: boolean }} options 渲染上下文。
- * @returns {Promise<void>}
- */
-const ensureHotDataForCard = async (card, { cardEl, renderToken, forceRefresh = false }) => {
-  try {
-    const items = await hotNewsClient.load(getHotSourceTitle(card), { forceRefresh })
-    updateHotCardDom({ cardEl, renderToken, items })
-  } catch {
-    updateHotCardDom({ cardEl, renderToken, items: [], errorText: '加载失败，点击刷新重试' })
-  }
-}
-
-const refreshHotCard = async (cardId) => {
-  const card = getCardById(cardId)
-  if (!card || (card.type || 'link') !== 'hot') return
-  const cardEl = document.querySelector(`.card[data-card-id="${card.id}"]`)
-  const renderToken = cardEl?.dataset?.hotRenderToken
-  if (!cardEl || !renderToken) {
-    renderCards()
-    return
-  }
-  await ensureHotDataForCard(card, { cardEl, renderToken, forceRefresh: true })
-}
-
-const closeHotModal = () => {
-  $('#hotOverlay').hidden = true
-  state.editingHotCardId = null
-  state.hotModalMode = 'create'
-}
-
-const openHotModal = ({ mode, cardId }) => {
-  const overlay = $('#hotOverlay')
-  const titleEl = $('#hotModalTitle')
-  const select = $('#hotSourceSelect')
-
-  state.hotModalMode = mode === 'edit' ? 'edit' : 'create'
-  state.editingHotCardId = mode === 'edit' ? cardId : null
-
-  if (mode === 'edit') titleEl.textContent = getLang() === 'en' ? 'Hot search' : '热搜设置'
-  else titleEl.textContent = getLang() === 'en' ? 'Add hot search' : '新增热搜'
-
-  const current = mode === 'edit' ? getHotSourceTitle(getCardById(cardId)) : '知乎'
-  const chosen = HOT_SOURCES.includes(current) ? current : '知乎'
-  select.value = chosen
-
-  overlay.hidden = false
-  closeComponentList()
-  closeCardMenu()
-}
-
-const addHotComponent = async (sourceTitle) => {
-  const next = [...(state.config.cards || [])]
-  const safeTitle = HOT_SOURCES.includes(sourceTitle) ? sourceTitle : '知乎'
-  next.push({
-    id: crypto.randomUUID(),
-    type: 'hot',
-    title: safeTitle,
-    sourceTitle: safeTitle
-  })
-  state.config.cards = next
-  await saveConfig({ cards: next })
-  renderCards()
-  scheduleAutoPush()
-}
-
-const saveHotCardPatch = async (cardId, patch) => {
-  const next = [...(state.config.cards || [])]
-  const index = next.findIndex((c) => c.id === cardId)
-  if (index === -1) return
-  next[index] = { ...next[index], ...patch }
-  state.config.cards = next
-  await saveConfig({ cards: next })
-  renderCards()
-  scheduleAutoPush()
-}
 
 /**
  * 关闭股票设置弹窗。
@@ -1931,30 +1763,47 @@ const saveAnniversaryCardPatch = async (cardId, patch) => {
 }
 
 /**
+ * 卡片仓储门面：卡片域的读写、重渲染与自动推送顺序只在这里维护一份，
+ * 由各域控制器注入使用（放在这里定义是因为它依赖的函数都在上方）。
+ */
+const cardRepository = {
+  list: () => state.config.cards || [],
+  getById: getCardById,
+  persist: async (next) => {
+    state.config.cards = next
+    await saveConfig({ cards: next })
+  },
+  apply: () => {
+    renderCards()
+    scheduleAutoPush()
+  }
+}
+
+/** 打开卡片弹窗前统一收起其它浮层（组件列表 + 卡片菜单）。 */
+const closeCardOverlays = () => {
+  closeComponentList()
+  closeCardMenu()
+}
+
+/**
  * 天气卡片控制器：渲染、拉取、刷新与增删改弹窗都在 weather-card-controller 内完成。
- * 放在这里创建是因为它依赖的卡片仓储（saveConfig/renderCards/getCardById 等）都已定义。
  */
 const weatherCard = createWeatherCardController({
   storage: chrome.storage.local,
   getLang,
   getText: getWeatherText,
   runWhenIdle,
-  closeOverlays: () => {
-    closeComponentList()
-    closeCardMenu()
-  },
-  cards: {
-    list: () => state.config.cards || [],
-    getById: getCardById,
-    persist: async (next) => {
-      state.config.cards = next
-      await saveConfig({ cards: next })
-    },
-    apply: () => {
-      renderCards()
-      scheduleAutoPush()
-    }
-  }
+  closeOverlays: closeCardOverlays,
+  cards: cardRepository
+})
+
+/** 热搜卡片控制器：渲染、拉取、刷新与增删改弹窗都在 hot-card-controller 内完成。 */
+const hotCard = createHotCardController({
+  getLang,
+  runWhenIdle,
+  openUrl: (url) => send({ type: 'openTabsInNewActive', urls: [url] }),
+  closeOverlays: closeCardOverlays,
+  cards: cardRepository
 })
 
 const initCardUi = () => {
@@ -1987,7 +1836,7 @@ const initCardUi = () => {
       else if (!confirmOverlay.hidden) closeConfirm()
       else if (!overlay.hidden) closeCardModal()
       else if (!$('#anniversaryOverlay').hidden) closeAnniversaryModal()
-      else if (!$('#hotOverlay').hidden) closeHotModal()
+      else if (!$('#hotOverlay').hidden) hotCard.closeModal()
       else if (!$('#stockOverlay').hidden) closeStockModal()
       else if (!$('#componentListOverlay').hidden) closeComponentList()
       else if (!$('#addChooserOverlay').hidden) closeAddChooser()
@@ -1998,7 +1847,7 @@ const initCardUi = () => {
     const card = getCardById(state.contextCardId)
     if (!card) return closeCardMenu()
     if ((card?.type || 'link') === 'anniversary') openAnniversaryModal(card.id)
-    else if ((card?.type || 'link') === 'hot') openHotModal({ mode: 'edit', cardId: card.id })
+    else if ((card?.type || 'link') === 'hot') hotCard.openModal({ mode: 'edit', cardId: card.id })
     else if ((card?.type || 'link') === 'stock') openStockModal({ mode: 'edit', cardId: card.id })
     else if ((card?.type || 'link') === 'weather') weatherCard.openModal({ mode: 'edit', cardId: card.id })
     else if ((card?.type || 'link') === 'metals') closeCardMenu()
@@ -2087,7 +1936,7 @@ const initCardUi = () => {
     if (evt.target === componentListOverlay) closeComponentList()
   })
   componentListClose.addEventListener('click', closeComponentList)
-  componentHotBtn.addEventListener('click', () => openHotModal({ mode: 'create' }))
+  componentHotBtn.addEventListener('click', () => hotCard.openModal({ mode: 'create' }))
   componentStockBtn.addEventListener('click', () => openStockModal({ mode: 'create' }))
   componentMetalsBtn.addEventListener('click', async () => {
     closeComponentList()
@@ -2099,29 +1948,7 @@ const initCardUi = () => {
   })
   componentWeatherBtn.addEventListener('click', () => weatherCard.openModal({ mode: 'create' }))
 
-  const hotOverlay = $('#hotOverlay')
-  const hotCloseBtn = $('#hotCloseBtn')
-  const hotCancelBtn = $('#hotCancelBtn')
-  const hotForm = $('#hotForm')
-  const hotSelect = $('#hotSourceSelect')
-  hotOverlay.addEventListener('click', (evt) => {
-    if (evt.target === hotOverlay) closeHotModal()
-  })
-  hotCloseBtn.addEventListener('click', closeHotModal)
-  hotCancelBtn.addEventListener('click', closeHotModal)
-  hotForm.addEventListener('submit', async (evt) => {
-    evt.preventDefault()
-    const sourceTitle = String(hotSelect.value || '知乎')
-    const safeTitle = HOT_SOURCES.includes(sourceTitle) ? sourceTitle : '知乎'
-    if (state.hotModalMode === 'edit' && state.editingHotCardId) {
-      const prev = getCardById(state.editingHotCardId)
-      if (prev) await hotNewsClient.invalidate(getHotSourceTitle(prev))
-      await saveHotCardPatch(state.editingHotCardId, { title: safeTitle, sourceTitle: safeTitle })
-    } else {
-      await addHotComponent(safeTitle)
-    }
-    closeHotModal()
-  })
+  hotCard.bindModalUi()
 
   weatherCard.bindModalUi()
 

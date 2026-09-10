@@ -24,7 +24,7 @@ if (releaseTag && releaseTag !== `v${version}`) {
 const runtimeEntries = [
   'manifest.json',
   'background.js', 'config-store.js', 'theme.js', 'theme-controller.js', 'theme-bootstrap.js', 'theme-tokens.css', 'tabs-ops.js', 'remote-sync.js', 'extension-api.js',
-  'weather-card-controller.js',
+  'weather-card-controller.js', 'hot-card-controller.js',
   'options.html', 'options.css', 'options.js',
   'newtab.html', 'newtab.css', 'newtab.js',
   'sync-startup.js', 'hot-news.js', 'request-cache.js',
