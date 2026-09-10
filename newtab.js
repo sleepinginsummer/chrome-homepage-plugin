@@ -5,6 +5,7 @@ import { createExtensionApiClient } from './extension-api.js'
 import { createHotCardController } from './hot-card-controller.js'
 import { createWeatherCardController } from './weather-card-controller.js'
 import { createStockCardController } from './stock-card-controller.js'
+import { createMetalsCardController } from './metals-card-controller.js'
 import { createCardDragController } from './card-drag.js'
 import { createCardIconCandidates, getCardInitial, loadCardIcon } from './card-icon.js'
 import { normalizeCardUrl } from './url-utils.js'
@@ -21,7 +22,6 @@ const state = {
   editingAnniversaryCardId: null,
   editingAnniversaryItemId: null,
   stockPollTimers: new Map(),
-  metalsCache: new Map(),
   metalsPollTimers: new Map(),
   iconLoadCleanups: new Set(),
   isDraggingCard: false,
@@ -542,7 +542,7 @@ const renderCardBody = (card, div) => {
   if (type === 'anniversary') div.innerHTML = renderAnniversaryCardHtml(card)
   else if (type === 'hot') div.innerHTML = hotCard.renderHtml(card)
   else if (type === 'stock') div.innerHTML = stockCard.renderHtml(card)
-  else if (type === 'metals') div.innerHTML = renderMetalsCardHtml(card)
+  else if (type === 'metals') div.innerHTML = metalsCard.renderHtml(card)
   else if (type === 'weather') div.innerHTML = weatherCard.renderHtml(card)
   else {
     div.innerHTML = `
@@ -616,25 +616,10 @@ const initializeCardData = (card, div) => {
   if (type === 'metals') {
     initializePollingCard(card, div, {
       tokenDatasetKey: 'metalsRenderToken',
-      ensureData: ensureMetalsDataForCard,
+      ensureData: metalsCard.loadData,
       timers: state.metalsPollTimers
     })
   }
-}
-
-const handleMetalsCardClick = async (card, evt) => {
-  const actionEl = evt.target?.closest?.('[data-metals-action]')
-  if (actionEl?.dataset?.metalsAction === 'refresh') {
-    evt.preventDefault()
-    evt.stopPropagation()
-    await refreshMetalsCard(card.id)
-    return
-  }
-  const itemEl = evt.target?.closest?.('[data-metals-symbol]')
-  const symbol = itemEl?.dataset?.metalsSymbol
-  if (!symbol) return
-  const url = `https://finance.yahoo.com/quote/${encodeURIComponent(symbol)}`
-  await send({ type: 'openTabsInNewActive', urls: [url] })
 }
 
 const cardClickHandlers = {
@@ -642,7 +627,7 @@ const cardClickHandlers = {
   hot: (card, evt) => hotCard.handleClick(card, evt),
   stock: (card, evt) => stockCard.handleClick(card, evt),
   weather: (card, evt) => weatherCard.handleClick(card, evt),
-  metals: handleMetalsCardClick
+  metals: (card, evt) => metalsCard.handleClick(card, evt)
 }
 
 const handleCardClick = async (card, evt) => {
@@ -988,7 +973,6 @@ const addAnniversaryComponent = async () => {
   scheduleAutoPush()
 }
 
-const QUOTE_CACHE_TTL = 60 * 1000
 const STOCK_REFRESH_INTERVAL = 60 * 1000
 
 /**
@@ -1034,229 +1018,6 @@ const getWeatherText = () => {
     updatedAt: dict.weather_updated_at || '更新于',
     refresh: dict.weather_refresh || '刷新天气'
   }
-}
-
-/**
- * 格式化行情更新时间。
- */
-const formatStockTime = (unixSeconds) => {
-  if (typeof unixSeconds !== 'number') return ''
-  const date = new Date(unixSeconds * 1000)
-  if (Number.isNaN(date.getTime())) return ''
-  const locale = getLang() === 'en' ? 'en-US' : 'zh-CN'
-  return date.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', hour12: getLang() === 'en' })
-}
-
-/**
- * 统一格式化卡片顶部更新时间。
- *
- * @param {string|number|Date|null|undefined} value 原始时间值。
- * @returns {string} 适合展示在卡片标题后的时间文本。
- */
-const formatCardUpdateTime = (value) => {
-  if (value instanceof Date) {
-    if (Number.isNaN(value.getTime())) return ''
-    const locale = getLang() === 'en' ? 'en-US' : 'zh-CN'
-    return value.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', hour12: getLang() === 'en' })
-  }
-
-  if (typeof value === 'number') return formatStockTime(value)
-
-  const text = String(value || '').trim()
-  if (!text) return ''
-  const date = new Date(text)
-  if (Number.isNaN(date.getTime())) return text
-  return formatCardUpdateTime(date)
-}
-
-/**
- * 按普通数值格式化价格，避免给页面抓取值附带额外货币符号。
- *
- * @param {number|null} value 数值。
- * @param {number} digits 保留小数位。
- * @returns {string} 格式化后的文本。
- */
-const formatPlainPrice = (value, digits = 2) => {
-  if (typeof value !== 'number' || Number.isNaN(value)) return '--'
-  return value.toFixed(digits)
-}
-
-/**
- * 生成黄金白银卡片 HTML。
- *
- * @param {any} card 卡片配置。
- * @returns {string} 卡片 HTML。
- */
-const renderMetalsCardHtml = (card) => {
-  const text = getMetalsText()
-  const title = escapeHtml(String(card?.title || text.title))
-  return `
-    <div class="metals-card">
-      <button class="metals-refresh" type="button" aria-label="刷新" data-metals-action="refresh">
-        <svg class="metals-refresh-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M21 12a9 9 0 0 1-15.3 6.4"></path>
-          <path d="M3 12a9 9 0 0 1 15.3-6.4"></path>
-          <polyline points="3 16 5.7 18.4 6.6 15"></polyline>
-          <polyline points="21 8 18.3 5.6 17.4 9"></polyline>
-        </svg>
-      </button>
-      <div class="card-head-row">
-        <div class="card-head-title">${title}</div>
-        <div class="card-head-time" data-metals-updated-at></div>
-      </div>
-      <div class="metals-grid" data-metals-grid>
-        <div class="metals-empty">${escapeHtml(text.loading)}</div>
-      </div>
-    </div>
-  `
-}
-
-/**
- * 更新黄金白银卡片 DOM。
- *
- * @param {{cardEl: HTMLElement, renderToken: string, items?: Array<any>, errorText?: string}} params 渲染参数。
- */
-const updateMetalsCardDom = ({ cardEl, renderToken, items, errorText }) => {
-  if (!cardEl || cardEl.dataset.metalsRenderToken !== renderToken) return
-  const text = getMetalsText()
-  const gridEl = cardEl.querySelector('[data-metals-grid]')
-  const updatedAtEl = cardEl.querySelector('[data-metals-updated-at]')
-  if (!gridEl) return
-
-  if (errorText) {
-    if (updatedAtEl) updatedAtEl.textContent = ''
-    gridEl.innerHTML = `<div class="metals-empty">${escapeHtml(errorText)}</div>`
-    return
-  }
-
-  if (!Array.isArray(items) || !items.length) {
-    if (updatedAtEl) updatedAtEl.textContent = ''
-    gridEl.innerHTML = `<div class="metals-empty">${escapeHtml(text.error)}</div>`
-    return
-  }
-
-  const latestTimeText = items.map((item) => item?.timeText).find(Boolean)
-  if (updatedAtEl) updatedAtEl.textContent = formatCardUpdateTime(latestTimeText)
-
-  gridEl.innerHTML = items
-    .map((item) => {
-      const usdValue = escapeHtml(formatPlainPrice(item?.usdPrice, 2))
-      const cnyValue = escapeHtml(formatPlainPrice(item?.cnyPrice, 2))
-      const changeUsdText =
-        typeof item?.changeUsd === 'number' && !Number.isNaN(item.changeUsd) ? escapeHtml(formatPlainPrice(item.changeUsd, 2)) : ''
-      const changeCnyText =
-        typeof item?.changeCny === 'number' && !Number.isNaN(item.changeCny) ? escapeHtml(formatPlainPrice(item.changeCny, 2)) : ''
-      return `
-        <div class="metals-item">
-          <div class="metals-item-title">${escapeHtml(item?.title || '--')}</div>
-          <div class="metals-prices">
-            <div class="metals-price-line">
-              <span class="metals-price-label">${escapeHtml(text.usd)}</span>
-              <span class="metals-price-value">${usdValue}</span>
-            </div>
-            ${changeUsdText ? `<div class="metals-price-change">${changeUsdText}</div>` : ''}
-            <div class="metals-price-line">
-              <span class="metals-price-label">${escapeHtml(text.cny)}</span>
-              <span class="metals-price-value">${cnyValue}</span>
-            </div>
-            ${changeCnyText ? `<div class="metals-price-change">${changeCnyText}</div>` : ''}
-          </div>
-        </div>
-      `
-    })
-    .join('')
-}
-
-/**
- * 通过扩展后台抓取黄金白银报价并提取美元/人民币价格。
- *
- * 数据来源文档：
- * - 金价：`https://api.gold-api.com/price/XAU`
- * - 银价：`https://api.gold-api.com/price/XAG`
- * - 汇率：`https://open.er-api.com/v6/latest/USD`
- * - 换算规则：美元/盎司 -> 人民币/克
- * - 说明：抓取与汇率换算都在 background/service worker 中完成，用于规避前台跨域限制
- *
- * @returns {Promise<Array<{title: string, usdPrice: number|null, cnyPrice: number|null, timeText: string, changeUsd: number|null, changeCny: number|null}>>}
- */
-const fetchMetalsItems = async () => {
-  const text = getMetalsText()
-  const res = await send({ type: 'fetchMetalsQuote' })
-  console.log('[chrome-home] metals response', res)
-  if (!res?.ok) throw new Error(res?.error || '黄金白银抓取失败')
-  const items = Array.isArray(res.data?.items) ? res.data.items : []
-  if (!items.length) throw new Error('metals data missing')
-
-  // 重要逻辑：前台只负责展示，标题映射统一按组件文案处理。
-  const normalizedItems = items.map((item) => ({
-    title: item?.key === 'silver' ? text.silver : text.gold,
-    usdPrice: Number.isFinite(Number(item?.usdPrice)) ? Number(item.usdPrice) : null,
-    cnyPrice: Number.isFinite(Number(item?.cnyPrice)) ? Number(item.cnyPrice) : null,
-    timeText: String(item?.timeText || ''),
-    changeUsd: null,
-    changeCny: null
-  }))
-  console.log('[chrome-home] metals items normalized', normalizedItems)
-  return normalizedItems
-}
-
-/**
- * 为黄金白银卡片加载并渲染数据。
- *
- * @param {any} card 卡片配置。
- * @param {{cardEl: HTMLElement, renderToken: string, forceRefresh?: boolean}} options 渲染上下文。
- */
-const ensureMetalsDataForCard = async (card, { cardEl, renderToken, forceRefresh = false }) => {
-  const text = getMetalsText()
-  const cached = state.metalsCache.get(card.id)
-  const now = Date.now()
-  if (!forceRefresh && cached && now - cached.ts < QUOTE_CACHE_TTL && Array.isArray(cached.items)) {
-    updateMetalsCardDom({ cardEl, renderToken, items: cached.items })
-    return
-  }
-
-  try {
-    const items = await fetchMetalsItems()
-    state.metalsCache.set(card.id, { ts: Date.now(), items })
-    updateMetalsCardDom({ cardEl, renderToken, items })
-  } catch (error) {
-    console.error('[chrome-home] ensureMetalsDataForCard:failed', error?.message || String(error))
-    updateMetalsCardDom({ cardEl, renderToken, items: [], errorText: text.error })
-  }
-}
-
-/**
- * 主动刷新黄金白银卡片。
- *
- * @param {string} cardId 卡片 ID。
- */
-const refreshMetalsCard = async (cardId) => {
-  const card = getCardById(cardId)
-  if (!card || (card.type || 'link') !== 'metals') return
-  state.metalsCache.delete(card.id)
-  const cardEl = document.querySelector(`.card[data-card-id="${card.id}"]`)
-  const renderToken = cardEl?.dataset?.metalsRenderToken
-  if (!cardEl || !renderToken) {
-    renderCards()
-    return
-  }
-  await ensureMetalsDataForCard(card, { cardEl, renderToken, forceRefresh: true })
-}
-
-/**
- * 新增黄金白银组件。
- */
-const addMetalsComponent = async () => {
-  const next = [...(state.config.cards || [])]
-  next.push({
-    id: crypto.randomUUID(),
-    type: 'metals',
-    title: getMetalsText().title
-  })
-  state.config.cards = next
-  await saveConfig({ cards: next })
-  renderCards()
-  scheduleAutoPush()
 }
 
 const closeAnniversaryModal = () => {
@@ -1379,6 +1140,18 @@ const stockCard = createStockCardController({
   confirm: openConfirm,
   setError,
   closeOverlays: closeCardOverlays,
+  cards: cardRepository
+})
+
+/**
+ * 黄金白银卡片控制器：报价缓存、刷新、点击与新增组件都在 metals-card-controller 内完成。
+ * 定时轮询仍由页面的 initializePollingCard 统一调度（与股票共用）。
+ */
+const metalsCard = createMetalsCardController({
+  getLang,
+  getText: getMetalsText,
+  openUrl: (url) => send({ type: 'openTabsInNewActive', urls: [url] }),
+  send,
   cards: cardRepository
 })
 
@@ -1516,7 +1289,7 @@ const initCardUi = () => {
   componentStockBtn.addEventListener('click', () => stockCard.openModal({ mode: 'create' }))
   componentMetalsBtn.addEventListener('click', async () => {
     closeComponentList()
-    await addMetalsComponent()
+    await metalsCard.addComponent()
   })
   componentAnniversaryBtn.addEventListener('click', async () => {
     closeComponentList()
