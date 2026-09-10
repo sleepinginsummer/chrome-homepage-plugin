@@ -10,6 +10,7 @@ import { createStockCardController } from './stock-card-controller.js'
 import { createMetalsCardController } from './metals-card-controller.js'
 import { createAnniversaryCardController } from './anniversary-card-controller.js'
 import { createSearchController } from './search-controller.js'
+import { createAutoPush } from './auto-push.js'
 import { createCardGrid } from './card-grid.js'
 import { createLinkCardController } from './link-card-controller.js'
 import { applyTheme, getConfigTheme } from './theme.js'
@@ -71,53 +72,6 @@ const applyLanguage = () => {
   applyTranslations({ root: document, lang })
   document.documentElement.lang = lang === 'en' ? 'en' : 'zh-CN'
   renderLastSyncAt()
-}
-
-const canAutoPush = (sync) => {
-  if (!sync?.autoPush) return false
-  const normalized = normalizeSyncDraft(sync)
-  const required = ['gitUrl', 'token']
-  return required.every((key) => Boolean(normalized[key]))
-}
-
-let autoPushTimer = null
-let autoPushInProgress = false
-let autoPushPending = false
-
-const scheduleAutoPush = () => {
-  if (!canAutoPush(state.config?.sync)) {
-    if (state.config?.sync?.autoPush) {
-      setSyncStatus('自动同步已开启，但同步配置不完整（需 gitUrl/token）', 'error')
-    }
-    return
-  }
-
-  if (autoPushTimer) clearTimeout(autoPushTimer)
-  autoPushTimer = setTimeout(async () => {
-    autoPushTimer = null
-    if (autoPushInProgress) {
-      autoPushPending = true
-      return
-    }
-
-    autoPushInProgress = true
-    try {
-      setSyncStatus('自动同步中...')
-      const pushed = await send({ type: 'pushRemote' })
-      if (!pushed?.ok) {
-        setSyncStatus(pushed?.error || '自动同步失败', 'error')
-      } else {
-        setSyncStatus('已自动同步', 'ok')
-        await renderLastSyncAt(pushed?.lastSyncAt)
-      }
-    } finally {
-      autoPushInProgress = false
-      if (autoPushPending) {
-        autoPushPending = false
-        scheduleAutoPush()
-      }
-    }
-  }, 1500)
 }
 
 const setError = (message) => {
@@ -268,9 +222,9 @@ const cardRepository = {
   },
   apply: () => {
     cardGrid.render()
-    scheduleAutoPush()
+    autoPushScheduler.schedule()
   },
-  schedulePush: () => scheduleAutoPush()
+  schedulePush: () => autoPushScheduler.schedule()
 }
 
 /** 打开卡片弹窗前统一收起其它浮层（组件列表 + 卡片菜单）。 */
@@ -412,7 +366,16 @@ const searchController = createSearchController({
   saveConfig,
   send,
   setError,
-  afterConfigChange: scheduleAutoPush
+  afterConfigChange: () => autoPushScheduler.schedule()
+})
+
+/** 自动推送调度：配置变更后延迟推送，页面只提供状态提示与收尾。 */
+const autoPushScheduler = createAutoPush({
+  getConfig: () => state.config,
+  normalizeSync: normalizeSyncDraft,
+  pushRemote: send,
+  setStatus: setSyncStatus,
+  afterPush: (lastSyncAt) => renderLastSyncAt(lastSyncAt)
 })
 
 const initCardUi = () => {
@@ -731,7 +694,7 @@ const initSettingsModal = (themeController) => {
     syncAutoPushActive()
     const saved = await send({ type: 'setConfig', data: { sync: getFormSync() } })
     if (saved?.ok) state.config = saved.data
-    scheduleAutoPush()
+    autoPushScheduler.schedule()
   })
 }
 
