@@ -8,7 +8,8 @@ import { renderWeatherCardHtml, updateWeatherCardDom } from './weather-card.js'
 import { createCardDragController } from './card-drag.js'
 import { createCardIconCandidates, getCardInitial, loadCardIcon } from './card-icon.js'
 import { normalizeCardUrl } from './url-utils.js'
-import { applyTheme, bindThemeRadioNavigation, getConfigTheme, persistThemeSelection, subscribeToThemeChanges } from './theme.js'
+import { applyTheme, getConfigTheme } from './theme.js'
+import { initThemeController } from './theme-controller.js'
 
 const LAST_SYNC_AT_KEY = 'chromeHomeLastSyncAt'
 
@@ -2415,7 +2416,7 @@ const initCardUi = () => {
   })
 }
 
-const initSettingsModal = () => {
+const initSettingsModal = (themeController) => {
   const overlay = $('#settingsOverlay')
   const openBtn = $('#openSettingsBtn')
   const closeBtn = $('#settingsCloseBtn')
@@ -2425,20 +2426,6 @@ const initSettingsModal = () => {
   const setStatus = (text, kind = 'info') => {
     status.textContent = text || ''
     status.dataset.kind = kind
-  }
-
-  const setThemeStatus = (text, kind = 'info') => {
-    const themeStatus = $('#themeStatus')
-    if (!themeStatus) return
-    themeStatus.textContent = text || ''
-    themeStatus.dataset.kind = kind
-  }
-
-  const renderThemeSelection = (theme = getConfigTheme(state.config)) => {
-    for (const input of document.querySelectorAll('input[name="theme"]')) {
-      input.checked = input.value === theme
-      input.closest('.theme-option')?.classList.toggle('active', input.checked)
-    }
   }
 
   const getFormSync = () => ({
@@ -2480,8 +2467,8 @@ const initSettingsModal = () => {
     renderLastSyncAt()
     const lang = $('#languageSelect')
     if (lang) lang.value = getLang()
-    renderThemeSelection()
-    setThemeStatus('')
+    themeController.syncRadios()
+    themeController.setStatus('')
     selectTab('appearance')
     requestAnimationFrame(() => $('#settingsTabAppearance')?.focus())
   }
@@ -2543,32 +2530,6 @@ const initSettingsModal = () => {
     })
   }
 
-  for (const input of document.querySelectorAll('input[name="theme"]')) {
-    input.addEventListener('change', async () => {
-      if (!input.checked) return
-      const previousTheme = getConfigTheme(state.config)
-      setThemeStatus('')
-      const result = await persistThemeSelection({
-        currentTheme: previousTheme,
-        nextTheme: input.value,
-        saveTheme: async (theme) => {
-          const saved = await send({
-            type: 'setConfig',
-            data: { ui: { ...(state.config.ui || {}), theme } }
-          })
-          if (!saved?.ok) throw new Error(saved?.error || '保存主题失败')
-          state.config = saved.data
-        }
-      })
-      renderThemeSelection(result.theme)
-      if (!result.ok) {
-        const dict = I18N[getLang()] || I18N.zh
-        setThemeStatus(dict.theme_save_error, 'error')
-      }
-    })
-  }
-  bindThemeRadioNavigation()
-
   const languageSelect = $('#languageSelect')
   if (languageSelect) {
     languageSelect.addEventListener('change', async () => {
@@ -2618,8 +2579,7 @@ const initSettingsModal = () => {
       return
     }
     state.config = pulled.data
-    applyTheme(getConfigTheme(state.config))
-    renderThemeSelection()
+    themeController.applyCurrent()
     setFormSync(pulled.data.sync || {})
     setStatus('拉取成功，已写入本地配置', 'ok')
     await renderLastSyncAt(pulled?.lastSyncAt)
@@ -2706,7 +2666,31 @@ const main = async () => {
   const res = await send({ type: 'getConfig' })
   state.config = res?.data
 
+  // 首屏先按缓存/配置应用主题，避免主题闪回；面板与订阅交给 theme-controller。
   applyTheme(getConfigTheme(state.config))
+  const themeController = initThemeController({
+    chromeApi: chrome,
+    getConfig: () => state.config,
+    saveTheme: async (theme) => {
+      const saved = await send({
+        type: 'setConfig',
+        data: { ui: { ...(state.config.ui || {}), theme } }
+      })
+      if (!saved?.ok) throw new Error(saved?.error || '保存主题失败')
+      state.config = saved.data
+    },
+    onConfigChange: (theme, nextConfig) => {
+      if (!state.config) return
+      const historyChanged = JSON.stringify(state.config.searchHistory) !== JSON.stringify(nextConfig.searchHistory)
+      state.config = {
+        ...state.config,
+        searchHistory: nextConfig.searchHistory || [],
+        ui: { ...(nextConfig.ui || {}), theme }
+      }
+      if (historyChanged) renderHistory()
+    },
+    getSaveErrorText: () => (I18N[getLang()] || I18N.zh).theme_save_error
+  })
   applyLanguage()
   renderEngines()
   renderHistory()
@@ -2716,19 +2700,7 @@ const main = async () => {
   initBlankClickFocus()
   initHistory()
   initCardUi()
-  initSettingsModal()
-  subscribeToThemeChanges(chrome, (theme, nextConfig) => {
-    if (state.config) {
-      const historyChanged = JSON.stringify(state.config.searchHistory) !== JSON.stringify(nextConfig.searchHistory)
-      state.config = { ...state.config, searchHistory: nextConfig.searchHistory || [], ui: { ...(nextConfig.ui || {}), theme } }
-      if (historyChanged) renderHistory()
-    }
-    applyTheme(theme)
-    for (const input of document.querySelectorAll('input[name="theme"]')) {
-      input.checked = input.value === theme
-      input.closest('.theme-option')?.classList.toggle('active', input.checked)
-    }
-  })
+  initSettingsModal(themeController)
   $('#keywordInput').focus()
 
   // 性能优化：启动同步属于非首屏关键路径任务，延迟到空闲时执行，避免“打开新标签页时卡顿”。

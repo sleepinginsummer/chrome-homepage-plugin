@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { runInNewContext } from 'node:vm'
 import { DEFAULT_THEME, normalizeThemeId } from '../config-store.js'
-import { LIGHT_THEME_IDS, THEME_MIRROR_KEY, applyTheme, bindThemeRadioNavigation, persistThemeSelection, readThemeMirror, subscribeToThemeChanges } from '../theme.js'
+import { LIGHT_THEME_IDS, THEME_MIRROR_KEY, applyTheme, persistThemeSelection, readThemeMirror, subscribeToThemeChanges } from '../theme.js'
 
 const createMirror = (initial = {}) => {
   const values = new Map(Object.entries(initial))
@@ -99,30 +99,4 @@ describe('theme runtime', () => {
     expect(apply.mock.calls.map(([theme]) => theme)).toEqual(['neo-brutalism', 'cyber-dark'])
   })
 
-  it('moves native theme radios with arrow keys and wraps at the ends', () => {
-    const handlers = new Map()
-    const inputs = ['cyber-dark', 'neo-brutalism'].map((value) => ({
-      value,
-      checked: value === 'cyber-dark',
-      addEventListener: vi.fn((_type, handler) => handlers.set(value, handler)),
-      removeEventListener: vi.fn(),
-      click: vi.fn(function () {
-        inputs.forEach((input) => { input.checked = input === this })
-      }),
-      focus: vi.fn()
-    }))
-    const root = { querySelectorAll: vi.fn(() => inputs) }
-    const cleanup = bindThemeRadioNavigation(root)
-    const preventDefault = vi.fn()
-
-    handlers.get('cyber-dark')({ key: 'ArrowLeft', currentTarget: inputs[0], preventDefault })
-
-    expect(preventDefault).toHaveBeenCalledOnce()
-    expect(inputs[1].click).toHaveBeenCalledOnce()
-    expect(inputs[1].focus).toHaveBeenCalledOnce()
-    expect(inputs[1].checked).toBe(true)
-
-    cleanup()
-    inputs.forEach((input) => expect(input.removeEventListener).toHaveBeenCalledWith('keydown', expect.any(Function)))
-  })
 })

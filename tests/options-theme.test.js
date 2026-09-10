@@ -12,8 +12,9 @@ describe('options theme controls', () => {
     expect(html).toContain('name="theme" value="neo-brutalism"')
     expect(html).toContain('Neo-Brutalism')
     expect(html).toContain('id="themeStatus"')
-    expect(script).toContain('persistThemeSelection')
-    expect(script).toContain('subscribeToThemeChanges')
+    // 主题 UI/持久化/订阅统一由 theme-controller 提供，页面只做注入。
+    expect(script).toContain('initThemeController')
+    expect(script).toContain('applyCurrent')
     expect(css).not.toContain("html[data-theme='amber-neumorphic']")
     expect(css).toContain("html[data-theme='neo-brutalism']")
     expect(css).toMatch(/\.theme-options\s*\{[^}]*grid-template-columns:\s*repeat\(2,/s)

@@ -36,30 +36,6 @@ export const applyTheme = (theme, { documentRef = getDocument(), mirrorStorage =
 
 export const getConfigTheme = (config) => normalizeThemeId(config?.ui?.theme)
 
-export const bindThemeRadioNavigation = (root = getDocument()) => {
-  const inputs = [...(root?.querySelectorAll?.('input[name="theme"]') || [])]
-  const keyOffsets = {
-    ArrowDown: 1,
-    ArrowRight: 1,
-    ArrowUp: -1,
-    ArrowLeft: -1
-  }
-
-  const handleKeydown = (event) => {
-    const currentIndex = inputs.indexOf(event.currentTarget)
-    if (currentIndex < 0 || !(event.key in keyOffsets)) return
-
-    event.preventDefault()
-    const nextIndex = (currentIndex + keyOffsets[event.key] + inputs.length) % inputs.length
-    const nextInput = inputs[nextIndex]
-    if (!nextInput.checked) nextInput.click()
-    nextInput.focus()
-  }
-
-  inputs.forEach((input) => input.addEventListener('keydown', handleKeydown))
-  return () => inputs.forEach((input) => input.removeEventListener('keydown', handleKeydown))
-}
-
 export const subscribeToThemeChanges = (chromeApi, onThemeChange) => {
   const changes = chromeApi?.storage?.onChanged
   if (!changes?.addListener || typeof onThemeChange !== 'function') return () => {}
