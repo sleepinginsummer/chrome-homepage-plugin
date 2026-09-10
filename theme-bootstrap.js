@@ -1,6 +1,6 @@
 (() => {
-  const allowed = new Set(['cyber-dark', 'amber-neumorphic', 'neo-brutalism'])
-  const lightThemes = new Set(['amber-neumorphic', 'neo-brutalism'])
+  const allowed = new Set(['cyber-dark', 'neo-brutalism'])
+  const lightThemes = new Set(['neo-brutalism'])
   let theme = 'cyber-dark'
 
   try {

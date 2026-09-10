@@ -4,24 +4,6 @@
   "title": "Design System: Smart Search",
   "extensions": {
     "colorMeta": {
-      "neo-background": {
-        "role": "neutral",
-        "displayName": "Mist Background",
-        "canonical": "#CDD5CF",
-        "tonalRamp": ["#202722", "#39443C", "#45544A", "#75847A", "#AAB5AC", "#CDD5CF", "#D7DDD8", "#EEF2EF"]
-      },
-      "amber-primary": {
-        "role": "primary",
-        "displayName": "Action Amber",
-        "canonical": "#FFC844",
-        "tonalRamp": ["#6D4E00", "#9C7100", "#C99100", "#DFA90A", "#F2B91F", "#FFC844", "#FFD875", "#FFF0C7"]
-      },
-      "neo-ink": {
-        "role": "neutral",
-        "displayName": "Workbench Ink",
-        "canonical": "#202722",
-        "tonalRamp": ["#202722", "#39443C", "#45544A", "#75847A", "#AAB5AC", "#CDD5CF", "#D7DDD8", "#EEF2EF"]
-      },
       "cyber-accent": {
         "role": "primary",
         "displayName": "Cyber Cyan",
@@ -53,9 +35,6 @@
       "label": { "displayName": "Control Label", "purpose": "Compact buttons, tabs, and metadata." }
     },
     "shadows": [
-      { "name": "neo-raised-control", "value": "-4px -4px 8px #EEF2EF, 4px 4px 8px #AAB5AC", "purpose": "Interactive secondary controls and shortcut icons." },
-      { "name": "neo-recessed-control", "value": "inset -4px -4px 8px #EEF2EF, inset 4px 4px 8px #AAB5AC", "purpose": "Search fields, selected chips, and editable fields." },
-      { "name": "neo-raised-panel", "value": "-6px -6px 14px #EEF2EF, 6px 6px 14px #AAB5AC", "purpose": "Settings, history, and large widgets only." },
       { "name": "brutal-panel", "value": "6px 6px 0 #171717", "purpose": "Search poster, widgets, sidebars, and dialogs." },
       { "name": "brutal-control", "value": "3px 3px 0 #171717", "purpose": "Buttons, inputs, theme choices, and compact data blocks." }
     ],
@@ -70,30 +49,6 @@
   },
   "components": [
     {
-      "name": "Action Amber Primary Button",
-      "kind": "button",
-      "refersTo": "button-primary",
-      "description": "High-emphasis action on the quiet neutral workbench.",
-      "html": "<button class=\"ds-button-primary\" type=\"button\">Search</button>",
-      "css": ".ds-button-primary { min-height: 44px; padding: 0 20px; border: 0; border-radius: 8px; background: #FFC844; color: #201B12; font: 700 13px/1 system-ui, sans-serif; box-shadow: 0 5px 10px rgba(79,85,76,.28); transition: transform 150ms cubic-bezier(0.25,1,0.5,1), background 180ms ease; } .ds-button-primary:hover { background: #F2B91F; } .ds-button-primary:active { transform: translateY(1px); background: #DFA90A; } .ds-button-primary:focus-visible { outline: 2px solid #005B66; outline-offset: 2px; }"
-    },
-    {
-      "name": "Amber Recessed Input",
-      "kind": "input",
-      "refersTo": "input-recessed",
-      "description": "Tactile search and settings input.",
-      "html": "<label class=\"ds-field\"><span>Search</span><input class=\"ds-input\" placeholder=\"Enter keywords\"></label>",
-      "css": ".ds-field { display: grid; gap: 8px; color: #202722; font: 700 13px/1.2 system-ui, sans-serif; } .ds-input { height: 56px; padding: 0 16px; border: 0; border-radius: 12px; background: #D7DDD8; color: #202722; box-shadow: inset -4px -4px 8px #EEF2EF, inset 4px 4px 8px #AAB5AC; font: 400 16px/1.5 system-ui, sans-serif; } .ds-input::placeholder { color: #45544A; } .ds-input:focus-visible { outline: 2px solid #005B66; outline-offset: 2px; }"
-    },
-    {
-      "name": "Soft Neumorphic Theme Option",
-      "kind": "custom",
-      "refersTo": "surface-raised",
-      "description": "Native radio-backed theme preview.",
-      "html": "<label class=\"ds-theme\"><input type=\"radio\" name=\"theme\" checked><span class=\"ds-swatch\"></span><span>Amber Neumorphic</span></label>",
-      "css": ".ds-theme { min-height: 72px; padding: 12px; border: 0; border-radius: 12px; background: #D7DDD8; color: #202722; box-shadow: -4px -4px 8px #EEF2EF, 4px 4px 8px #AAB5AC; display: flex; align-items: center; gap: 12px; font: 700 13px/1.2 system-ui, sans-serif; } .ds-theme:focus-within { outline: 2px solid #005B66; outline-offset: 2px; } .ds-swatch { width: 36px; height: 36px; border-radius: 8px; background: #FFC844; }"
-    },
-    {
       "name": "Neo-Brutal Primary Button",
       "kind": "button",
       "refersTo": "button-primary",
@@ -103,14 +58,14 @@
     }
   ],
   "narrative": {
-    "northStar": "Three Modes, One Command Surface",
-    "overview": "Smart Search keeps one information architecture across cyber-dark, amber-neumorphic, and neo-brutalism. The brutal theme uses concrete gray, heavy black structure, cobalt actions, compact coral emphasis, and no decorative patterns or blur.",
-    "keyCharacteristics": ["Search-first and immediately actionable", "Isolated theme vocabularies", "Amber or cobalt reserved for primary actions", "Stable compact-and-wide bento grid", "Fast accessible state feedback"],
+    "northStar": "Two Modes, One Command Surface",
+    "overview": "Smart Search keeps one information architecture across cyber-dark and neo-brutalism. The brutal theme uses concrete gray, heavy black structure, cobalt actions, compact coral emphasis, and no decorative patterns or blur.",
+    "keyCharacteristics": ["Search-first and immediately actionable", "Isolated theme vocabularies", "Cyan or cobalt reserved for primary actions", "Stable compact-and-wide bento grid", "Fast accessible state feedback"],
     "rules": [
       { "name": "The No-Leak Rule", "body": "Theme-specific accent colors never appear in the other theme unless they encode real external content.", "section": "colors" },
       { "name": "The Earned Elevation Rule", "body": "Plain information rows stay flat; if everything casts a shadow, the hierarchy has failed.", "section": "elevation" }
     ],
     "dos": ["Preserve the default cyber-dark theme's current computed colors and layout.", "Keep theme-specific accents isolated.", "Use only zero-blur hard shadows in neo-brutalism.", "Maintain visible focus, 320px reflow, and reduced-motion behavior."],
-    "donts": ["Create a toy-like soft-plastic interface in amber-neumorphic.", "Use saturated yellow as a page or card background.", "Add dots, stripes, gradients, glass, or blurred shadows to neo-brutalism.", "Use oversized rounded containers above 16px."]
+    "donts": ["Add dots, stripes, gradients, glass, or blurred shadows to neo-brutalism.", "Use oversized rounded containers above 16px."]
   }
 }

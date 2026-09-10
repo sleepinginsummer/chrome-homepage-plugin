@@ -16,7 +16,7 @@ export const STORAGE_KEY = 'chromeHomeConfig'
 export const LAST_SYNC_AT_KEY = 'chromeHomeLastSyncAt'
 export const LAST_REMOTE_HASH_KEY = 'chromeHomeLastRemoteHash'
 
-export const THEME_IDS = ['cyber-dark', 'amber-neumorphic', 'neo-brutalism']
+export const THEME_IDS = ['cyber-dark', 'neo-brutalism']
 export const DEFAULT_THEME = 'cyber-dark'
 
 export const normalizeThemeId = (value) => (THEME_IDS.includes(value) ? value : DEFAULT_THEME)

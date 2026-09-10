@@ -17,7 +17,7 @@ const contrastRatio = (foreground, background) => {
   return (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05)
 }
 
-describe('soft neumorphic palette', () => {
+describe('shared theme styles', () => {
   it('loads one shared token source before page-specific styles', () => {
     const newtabHtml = read('newtab.html')
     const optionsHtml = read('options.html')
@@ -28,41 +28,6 @@ describe('soft neumorphic palette', () => {
     expect(packageScript).toContain("'theme-tokens.css'")
   })
 
-  it('uses a neutral background and reserves bright yellow for primary actions', () => {
-    const tokens = read('theme-tokens.css')
-    const newtabCss = read('newtab.css')
-    const optionsCss = read('options.css')
-
-    expect(tokens).toContain('--neo-background: #cdd5cf')
-    expect(tokens).toContain('--neo-surface: #d7ddd8')
-    expect(tokens).toContain('--neo-primary: #ffc844')
-    expect(newtabCss).toMatch(/\.multi-search-page\s*\{[^}]*background:\s*var\(--neo-background\)/s)
-    expect(newtabCss).toMatch(/\.grid-bg\s*\{[^}]*background-image:\s*none/s)
-    expect(optionsCss).toMatch(/html\[data-theme='amber-neumorphic'\]\s+body\s*\{[^}]*background-image:\s*none/s)
-    expect(newtabCss).toMatch(/\.search-button,[\s\S]*?\.tip-button\s*\{[^}]*background:\s*var\(--neo-primary\)/)
-    expect(optionsCss).toMatch(/\.btn\.primary\s*\{[^}]*background:\s*var\(--neo-primary\)/s)
-    expect(newtabCss).toMatch(/button:disabled,[\s\S]*?\.component-item\.disabled\s*\{[^}]*opacity:\s*1;[^}]*background:\s*var\(--neo-surface-muted\)/)
-    expect(optionsCss).toMatch(/\.btn:disabled,[\s\S]*?input:disabled\)\s*\{[^}]*opacity:\s*1;[^}]*background:\s*var\(--neo-surface-muted\)/)
-    expect(`${newtabCss}\n${optionsCss}\n${read('weather-card.css')}`).not.toContain('--amber-surface')
-  })
-
-  it('keeps every planned text and focus pairing above WCAG AA', () => {
-    const pairs = [
-      ['#202722', '#cdd5cf'],
-      ['#45544a', '#cdd5cf'],
-      ['#202722', '#d7ddd8'],
-      ['#45544a', '#d7ddd8'],
-      ['#45544a', '#c5cec7'],
-      ['#201b12', '#ffc844'],
-      ['#005b66', '#cdd5cf'],
-      ['#871d2b', '#d7ddd8'],
-      ['#245c3a', '#d7ddd8']
-    ]
-
-    for (const [foreground, background] of pairs) {
-      expect(contrastRatio(foreground, background)).toBeGreaterThanOrEqual(4.5)
-    }
-  })
 })
 
 describe('concrete blue-red neo-brutalism palette', () => {

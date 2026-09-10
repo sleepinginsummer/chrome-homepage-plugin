@@ -56,16 +56,32 @@ describe('extension api local fallback', () => {
     expect(chromeApi.__stores.syncStore.has(STORAGE_KEY)).toBe(false)
   })
 
-  it('normalizes an invalid persisted theme to cyber dark', async () => {
+  it.each(['unknown-theme', 'amber-neumorphic'])('normalizes unsupported theme %s to cyber dark', async (theme) => {
     const chromeApi = createChromeStub()
 
     const saved = await handleMessageLocally(chromeApi, {
       type: 'setConfig',
-      data: { ui: { theme: 'unknown-theme' } }
+      data: { ui: { theme } }
     })
 
     expect(saved.data.ui.theme).toBe(DEFAULT_THEME)
     expect(chromeApi.__stores.localStore.get(STORAGE_KEY).ui.theme).toBe(DEFAULT_THEME)
+  })
+
+  it('loads a retired theme as cyber dark without losing existing user data', async () => {
+    const chromeApi = createChromeStub()
+    const config = {
+      ui: { theme: 'amber-neumorphic', language: 'en' },
+      searchHistory: ['已有历史'],
+      cards: [{ id: 'saved-card', title: '已保存网址', url: 'https://example.com' }]
+    }
+    chromeApi.__stores.localStore.set(STORAGE_KEY, config)
+
+    const loaded = await handleMessageLocally(chromeApi, { type: 'getConfig' })
+
+    expect(loaded.data.ui).toEqual({ theme: DEFAULT_THEME, language: 'en' })
+    expect(loaded.data.searchHistory).toEqual(config.searchHistory)
+    expect(loaded.data.cards).toEqual(config.cards)
   })
 
   it('persists the theme received from a remote pull', async () => {

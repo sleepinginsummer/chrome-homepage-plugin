@@ -1,7 +1,7 @@
 import { DEFAULT_THEME, STORAGE_KEY, normalizeThemeId } from './config-store.js'
 
 export const THEME_MIRROR_KEY = 'chromeHomeTheme'
-export const LIGHT_THEME_IDS = new Set(['amber-neumorphic', 'neo-brutalism'])
+export const LIGHT_THEME_IDS = new Set(['neo-brutalism'])
 
 const getDocument = () => (typeof document === 'undefined' ? null : document)
 const getMirrorStorage = () => (typeof localStorage === 'undefined' ? null : localStorage)

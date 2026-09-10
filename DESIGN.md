@@ -1,24 +1,10 @@
 ---
 name: Smart Search
-description: A fast personal new-tab workspace with cyber-dark, soft tactile, and neo-brutalist themes.
+description: A fast personal new-tab workspace with cyber-dark and neo-brutalist themes.
 colors:
   cyber-background: "#020408"
   cyber-accent: "#00F2FF"
   cyber-text: "#E0E0E0"
-  neo-background: "#CDD5CF"
-  neo-surface: "#D7DDD8"
-  neo-surface-muted: "#C5CEC7"
-  neo-ink: "#202722"
-  neo-muted: "#45544A"
-  neo-shadow-light: "#EEF2EF"
-  neo-shadow-dark: "#AAB5AC"
-  amber-primary: "#FFC844"
-  amber-primary-hover: "#F2B91F"
-  amber-primary-active: "#DFA90A"
-  on-primary: "#201B12"
-  state-error: "#871D2B"
-  state-success: "#245C3A"
-  state-focus: "#005B66"
   brutal-background: "#E4E7E3"
   brutal-surface: "#F5F6F3"
   brutal-surface-muted: "#CDD3CE"
@@ -26,6 +12,7 @@ colors:
   brutal-primary: "#315EFB"
   brutal-primary-hover: "#2449CC"
   brutal-primary-active: "#1939A6"
+  brutal-on-primary: "#FFFFFF"
   brutal-accent: "#FF6B5E"
   brutal-success: "#126A3A"
   brutal-error: "#A9271E"
@@ -68,31 +55,21 @@ spacing:
   xxl: "32px"
 components:
   button-primary:
-    backgroundColor: "{colors.amber-primary}"
-    textColor: "{colors.on-primary}"
+    backgroundColor: "{colors.brutal-primary}"
+    textColor: "{colors.brutal-on-primary}"
     rounded: "{rounded.md}"
     height: "44px"
     padding: "0 20px"
-  input-recessed:
-    backgroundColor: "{colors.neo-surface}"
-    textColor: "{colors.neo-ink}"
-    rounded: "{rounded.lg}"
-    height: "56px"
-    padding: "0 16px"
-  surface-raised:
-    backgroundColor: "{colors.neo-surface}"
-    textColor: "{colors.neo-ink}"
-    rounded: "{rounded.xl}"
-    padding: "16px"
+
 ---
 
 # Design System: Smart Search
 
 ## 1. Overview
 
-**Creative North Star: "Three Modes, One Command Surface"**
+**Creative North Star: "Two Modes, One Command Surface"**
 
-Smart Search is a compact work surface rather than a decorative dashboard. Its default cyber-dark theme remains intact; amber-neumorphic uses low-chroma mist-green neutrals and bright amber actions; neo-brutalism uses a clean concrete-gray canvas, black structure, cobalt actions, and sparse coral emphasis.
+Smart Search is a compact work surface rather than a decorative dashboard. Its default cyber-dark theme remains intact; neo-brutalism uses a clean concrete-gray canvas, black structure, cobalt actions, and sparse coral emphasis.
 
 Each theme owns a complete visual vocabulary without leaking into the others. Elevation communicates interaction, real cards and weather imagery retain their identity, and responsive changes preserve the same information order. Decorative patterns, mixed visual effects, and controls that trade familiarity for novelty are prohibited.
 
@@ -100,37 +77,29 @@ Each theme owns a complete visual vocabulary without leaking into the others. El
 
 - Search-first, dense, and immediately actionable.
 - One offline system-sans family with a fixed product type scale.
-- Mist-green neutral surfaces, dark ink, structural shadows, and sparse amber actions.
 - Concrete-gray surfaces, heavy black outlines, zero-blur hard shadows, cobalt actions, and compact coral highlights.
 - Compact shortcuts mixed with larger data widgets in a stable bento grid.
 - Fast state transitions with complete keyboard and reduced-motion support.
 
 ## 2. Colors
 
-The system uses three complete visual modes: deep cyber with cyan interactions, restrained soft-neumorphic with amber actions, and concrete neo-brutalism with cobalt actions and coral emphasis. Semantic colors keep the same meaning in every mode.
+The system uses two complete visual modes: deep cyber with cyan interactions and concrete neo-brutalism with cobalt actions and coral emphasis. Semantic colors keep the same meaning in every mode.
 
 ### Primary
 
-- **Action Amber** (`amber-primary`): reserved for search, save, confirm, and compact selection indicators.
-- **Cyber Cyan** (`cyber-accent`): remains the current theme's action and focus color; it never leaks into the amber theme.
+- **Cyber Cyan** (`cyber-accent`): is the default theme's action and focus color.
 - **Brutal Cobalt** (`brutal-primary`): search, save, confirm, and active navigation in neo-brutalism.
 
 ### Secondary
 
-- **Mist Background** (`neo-background`): the low-chroma page canvas.
-- **Raised Surface** (`neo-surface`): cards, inputs, settings, and shortcut controls.
 - **Concrete Background** and **Poster Surface** (`brutal-background`, `brutal-surface`): quiet canvas and high-contrast content planes for neo-brutalism.
 
 ### Tertiary
 
-- **Signal Teal** (`state-focus`): keyboard focus and informational state on neutral surfaces.
-- **Success Green** (`state-success`) and **Error Crimson** (`state-error`): persistent semantic feedback.
 - **Coral Signal** (`brutal-accent`): badges, selected theme state, and compact emphasis, never the primary action.
 
 ### Neutral
 
-- **Soft Ink** (`neo-muted`): accessible secondary text on neutral surfaces.
-- **Raised Light** and **Pressed Shade** (`neo-shadow-light`, `neo-shadow-dark`): structural shadow pair, never text colors.
 - **Night Canvas** and **Night Text** (`cyber-background`, `cyber-text`): unchanged foundation of the default theme.
 
 **The No-Leak Rule.** Theme-specific accent colors never appear in another theme unless they encode real external content.
@@ -153,15 +122,12 @@ The system uses three complete visual modes: deep cyber with cyan interactions, 
 
 ## 4. Elevation
 
-Cyber-dark uses the project's existing surface lightness, borders, and selective glow. Amber-neumorphic uses a structural two-shadow vocabulary without decorative borders: raised controls catch light at the top-left, recessed controls invert the same pair, and overlays use one compact cast shadow.
+Cyber-dark uses the project's existing surface lightness, borders, and selective glow.
 
 Neo-brutalism uses no blur: large panels carry a 3px black outline with a 6px hard shadow, while controls and independent data blocks carry a 2px outline with a 3px hard shadow. Hover moves up-left and expands the shadow; active moves 3px down-right and removes it.
 
 ### Shadow Vocabulary
 
-- **Raised control** (`-4px -4px 8px #EEF2EF, 4px 4px 8px #AAB5AC`): shortcut icons, icon buttons, and bounded secondary controls.
-- **Recessed control** (`inset -4px -4px 8px #EEF2EF, inset 4px 4px 8px #AAB5AC`): search fields, selected chips, and editable fields.
-- **Raised panel** (`-6px -6px 14px #EEF2EF, 6px 6px 14px #AAB5AC`): settings, history, and large widgets only.
 - **Brutal panel** (`6px 6px 0 #171717`): search poster, large widgets, sidebars, and dialogs.
 - **Brutal control** (`3px 3px 0 #171717`): buttons, inputs, theme options, and compact data blocks.
 
@@ -172,36 +138,36 @@ Neo-brutalism uses no blur: large panels carry a 3px black outline with a 6px ha
 ### Buttons
 
 - **Shape:** compact rounded rectangle or circular icon control (8–12px radius; circle only for icon-only controls).
-- **Primary:** bright Action Amber with dark text and a minimum 44px hit target.
+- **Primary:** cyan-accented in cyber-dark, with a minimum 44px hit target.
 - **Neo-brutal primary:** cobalt blue with white text, 3px black border, hard shadow, and a minimum 44px hit target.
-- **Hover / Focus:** 180ms color or shadow response; focus uses a 2px Signal Teal ring with 2px offset.
-- **Secondary:** neutral raised surface; active presses into a recessed state.
+- **Hover / Focus:** 180ms color or shadow response; focus uses a visible theme-specific outline.
+- **Secondary:** neutral surface with visible hover, focus, and active feedback.
 
 ### Chips
 
 - **Style:** engine choices use dark neutral labels with a compact 18–24px state control.
-- **State:** unselected is raised; selected is recessed and includes a visible checkmark, never color alone.
+- **State:** selected includes a visible checkmark, never color alone.
 
 ### Cards / Containers
 
 - **Corner Style:** 12px for shortcut icons and 16px for large widgets.
-- **Background:** mist-green neutrals for app-owned surfaces; weather photography remains real content under a stable dark readability overlay.
-- **Shadow Strategy:** shortcut icons and distinct data widgets earn elevation; nested rows remain flat or lightly recessed.
+- **Background:** theme-specific dark or concrete-gray neutrals for app-owned surfaces; weather photography remains real content under a stable dark readability overlay.
+- **Shadow Strategy:** shortcut icons and distinct data widgets earn elevation; nested rows remain flat.
 - **Internal Padding:** 12–24px from the spacing scale.
 
 ### Inputs / Fields
 
-- **Style:** neutral recessed surface, dark text, 12px radius, and persistent visible labels.
-- **Focus:** Signal Teal ring; placeholder text uses Soft Ink and meets AA contrast.
+- **Style:** theme-specific neutral surface, contrasting text, and persistent visible labels.
+- **Focus:** visible theme-specific outline; placeholder text meets AA contrast.
 - **Error / Disabled:** error combines text and focus treatment; disabled state reduces emphasis without removing legibility.
 
 ### Navigation
 
-- Settings uses familiar labeled tabs on desktop and a horizontally scrollable tab row below 720px. The active tab is recessed in amber and cyan-tinted in cyber-dark. All tabs remain keyboard reachable.
+- Settings uses familiar labeled tabs on desktop and a horizontally scrollable tab row below 720px. The active tab is cyan-tinted in cyber-dark and cobalt in neo-brutalism. All tabs remain keyboard reachable.
 
 ### Theme Selector
 
-- Three native radio options show a small palette preview plus localized theme name. Selection applies immediately, persists automatically, and rolls back with an announced error if storage fails.
+- Two native radio options show a small palette preview plus localized theme name. Selection applies immediately, persists automatically, and rolls back with an announced error if storage fails.
 
 ### Neo-Brutalism
 
@@ -215,18 +181,12 @@ Neo-brutalism uses no blur: large panels carry a 3px black outline with a 6px ha
 ### Do:
 
 - **Do** preserve the default cyber-dark theme's current computed colors and layout.
-- **Do** use `#202722` and `#45544A` for readable text on neutral surfaces.
-- **Do** reserve `#FFC844` for primary actions and compact selected indicators.
-- **Do** reserve raised and recessed shadows for interaction and structural grouping.
 - **Do** maintain 44px touch targets, visible focus, 320px reflow, and reduced-motion behavior.
 - **Do** keep user card order and information architecture identical across themes.
 - **Do** use only zero-blur hard shadows in neo-brutalism and preserve a visible press displacement.
 
 ### Don't:
 
-- **Don't** create a toy-like soft-plastic interface or place heavy shadows on every surface.
-- **Don't** use saturated yellow as the page or card background.
-- **Don't** mix glass-and-neon effects into amber-neumorphic.
 - **Don't** use oversized rounded containers above 16px.
 - **Don't** change familiar control behavior for visual novelty.
 - **Don't** add background dots, stripes, gradients, glass effects, or blurred shadows to neo-brutalism.

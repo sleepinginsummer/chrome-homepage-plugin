@@ -14,7 +14,7 @@ const createMirror = (initial = {}) => {
 
 describe('theme runtime', () => {
   it('normalizes unknown theme ids to the cyber default', () => {
-    expect(normalizeThemeId('amber-neumorphic')).toBe('amber-neumorphic')
+    expect(normalizeThemeId('amber-neumorphic')).toBe(DEFAULT_THEME)
     expect(normalizeThemeId('neo-brutalism')).toBe('neo-brutalism')
     expect(normalizeThemeId('unknown-theme')).toBe(DEFAULT_THEME)
   })
@@ -28,18 +28,21 @@ describe('theme runtime', () => {
     expect(documentRef.documentElement.style.colorScheme).toBe('light')
     expect(mirrorStorage.setItem).toHaveBeenCalledWith(THEME_MIRROR_KEY, 'neo-brutalism')
     expect(readThemeMirror(mirrorStorage)).toBe('neo-brutalism')
-    expect(LIGHT_THEME_IDS).toEqual(new Set(['amber-neumorphic', 'neo-brutalism']))
+    expect(LIGHT_THEME_IDS).toEqual(new Set(['neo-brutalism']))
   })
 
-  it('bootstraps the mirrored theme before page modules run', () => {
+  it.each([
+    ['neo-brutalism', 'neo-brutalism', 'light'],
+    ['amber-neumorphic', 'cyber-dark', 'dark']
+  ])('bootstraps cached %s as %s before page modules run', (cached, expected, colorScheme) => {
     const bootstrap = readFileSync(new URL('../theme-bootstrap.js', import.meta.url), 'utf8')
     const documentRef = { documentElement: { dataset: {}, style: {} } }
-    const localStorageRef = { getItem: vi.fn(() => 'neo-brutalism') }
+    const localStorageRef = { getItem: vi.fn(() => cached) }
 
     runInNewContext(bootstrap, { document: documentRef, localStorage: localStorageRef, Set })
 
-    expect(documentRef.documentElement.dataset.theme).toBe('neo-brutalism')
-    expect(documentRef.documentElement.style.colorScheme).toBe('light')
+    expect(documentRef.documentElement.dataset.theme).toBe(expected)
+    expect(documentRef.documentElement.style.colorScheme).toBe(colorScheme)
   })
 
   it('applies and persists a valid optimistic selection', async () => {
@@ -48,15 +51,15 @@ describe('theme runtime', () => {
 
     const result = await persistThemeSelection({
       currentTheme: 'cyber-dark',
-      nextTheme: 'amber-neumorphic',
+      nextTheme: 'neo-brutalism',
       saveTheme,
       apply
     })
 
-    expect(result).toEqual({ ok: true, theme: 'amber-neumorphic' })
+    expect(result).toEqual({ ok: true, theme: 'neo-brutalism' })
     expect(apply).toHaveBeenCalledOnce()
-    expect(apply).toHaveBeenCalledWith('amber-neumorphic')
-    expect(saveTheme).toHaveBeenCalledWith('amber-neumorphic')
+    expect(apply).toHaveBeenCalledWith('neo-brutalism')
+    expect(saveTheme).toHaveBeenCalledWith('neo-brutalism')
   })
 
   it('subscribes only to local config theme changes', () => {
@@ -72,11 +75,11 @@ describe('theme runtime', () => {
     const onThemeChange = vi.fn()
     const unsubscribe = subscribeToThemeChanges(chromeApi, onThemeChange)
 
-    listener({ chromeHomeConfig: { newValue: { ui: { theme: 'amber-neumorphic' } } } }, 'sync')
+    listener({ chromeHomeConfig: { newValue: { ui: { theme: 'neo-brutalism' } } } }, 'sync')
     expect(onThemeChange).not.toHaveBeenCalled()
 
-    listener({ chromeHomeConfig: { newValue: { ui: { theme: 'amber-neumorphic' } } } }, 'local')
-    expect(onThemeChange).toHaveBeenCalledWith('amber-neumorphic', { ui: { theme: 'amber-neumorphic' } })
+    listener({ chromeHomeConfig: { newValue: { ui: { theme: 'neo-brutalism' } } } }, 'local')
+    expect(onThemeChange).toHaveBeenCalledWith('neo-brutalism', { ui: { theme: 'neo-brutalism' } })
 
     unsubscribe()
     expect(chromeApi.storage.onChanged.removeListener).toHaveBeenCalledWith(listener)
@@ -86,19 +89,19 @@ describe('theme runtime', () => {
     const apply = vi.fn()
     const result = await persistThemeSelection({
       currentTheme: 'cyber-dark',
-      nextTheme: 'amber-neumorphic',
+      nextTheme: 'neo-brutalism',
       saveTheme: vi.fn().mockRejectedValue(new Error('storage failed')),
       apply
     })
 
     expect(result.ok).toBe(false)
     expect(result.theme).toBe('cyber-dark')
-    expect(apply.mock.calls.map(([theme]) => theme)).toEqual(['amber-neumorphic', 'cyber-dark'])
+    expect(apply.mock.calls.map(([theme]) => theme)).toEqual(['neo-brutalism', 'cyber-dark'])
   })
 
   it('moves native theme radios with arrow keys and wraps at the ends', () => {
     const handlers = new Map()
-    const inputs = ['cyber-dark', 'amber-neumorphic', 'neo-brutalism'].map((value) => ({
+    const inputs = ['cyber-dark', 'neo-brutalism'].map((value) => ({
       value,
       checked: value === 'cyber-dark',
       addEventListener: vi.fn((_type, handler) => handlers.set(value, handler)),
@@ -115,9 +118,9 @@ describe('theme runtime', () => {
     handlers.get('cyber-dark')({ key: 'ArrowLeft', currentTarget: inputs[0], preventDefault })
 
     expect(preventDefault).toHaveBeenCalledOnce()
-    expect(inputs[2].click).toHaveBeenCalledOnce()
-    expect(inputs[2].focus).toHaveBeenCalledOnce()
-    expect(inputs[2].checked).toBe(true)
+    expect(inputs[1].click).toHaveBeenCalledOnce()
+    expect(inputs[1].focus).toHaveBeenCalledOnce()
+    expect(inputs[1].checked).toBe(true)
 
     cleanup()
     inputs.forEach((input) => expect(input.removeEventListener).toHaveBeenCalledWith('keydown', expect.any(Function)))

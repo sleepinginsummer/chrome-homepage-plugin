@@ -14,11 +14,11 @@ Turn a blank new tab into a fast personal command surface. Success means search 
 
 ## Brand Personality
 
-Focused, direct, and adaptable. Cyber-dark is precise, amber-neumorphic is calm and tactile, and neo-brutalism is bold and poster-like without compromising repeated daily use.
+Focused, direct, and adaptable. Cyber-dark is precise, and neo-brutalism is bold and poster-like without compromising repeated daily use.
 
 ## Anti-references
 
-Avoid full-screen saturated color, low-contrast text, mixed visual languages, oversized rounded containers, decorative background patterns, and visual changes that make familiar controls harder to recognize. Soft themes must not look toy-like; brutal themes must not use blurred shadows or gradients.
+Avoid full-screen saturated color, low-contrast text, mixed visual languages, oversized rounded containers, decorative background patterns, and visual changes that make familiar controls harder to recognize. Brutal themes must not use blurred shadows or gradients.
 
 ## Design Principles
 
@@ -26,7 +26,7 @@ Avoid full-screen saturated color, low-contrast text, mixed visual languages, ov
 - Personal content and real data outrank decoration.
 - Theme changes alter presentation, never the user's information architecture or saved ordering.
 - Familiar controls, immediate feedback, and visible state make the interface trustworthy.
-- Theme-specific accents stay isolated: amber marks actions in the soft theme, while cobalt blue carries actions and coral marks compact emphasis in neo-brutalism.
+- Theme-specific accents stay isolated: cyan marks actions in cyber-dark, while cobalt blue carries actions and coral marks compact emphasis in neo-brutalism.
 
 ## Accessibility & Inclusion
 
