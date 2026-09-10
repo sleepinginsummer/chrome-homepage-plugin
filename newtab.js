@@ -3,8 +3,7 @@ const $ = (selector) => document.querySelector(selector)
 import { runStartupSync } from './sync-startup.js'
 import { createExtensionApiClient } from './extension-api.js'
 import { createHotNewsClient } from './hot-news.js'
-import { createWeatherClient } from './weather.js'
-import { renderWeatherCardHtml, updateWeatherCardDom } from './weather-card.js'
+import { createWeatherCardController } from './weather-card-controller.js'
 import { createCardDragController } from './card-drag.js'
 import { createCardIconCandidates, getCardInitial, loadCardIcon } from './card-icon.js'
 import { normalizeCardUrl } from './url-utils.js'
@@ -22,8 +21,6 @@ const state = {
   editingAnniversaryItemId: null,
   editingHotCardId: null,
   hotModalMode: 'create',
-  editingWeatherCardId: null,
-  weatherModalMode: 'create',
   stockCache: new Map(),
   stockPollTimers: new Map(),
   metalsCache: new Map(),
@@ -55,7 +52,6 @@ const apiClient = createExtensionApiClient({
 })
 const send = (payload) => apiClient.send(payload)
 const hotNewsClient = createHotNewsClient()
-const weatherClient = createWeatherClient({ storage: chrome.storage.local })
 
 const setSyncStatus = (text, kind = 'info') => {
   const status = $('#syncStatus')
@@ -553,7 +549,7 @@ const renderCardBody = (card, div) => {
   else if (type === 'hot') div.innerHTML = renderHotCardHtml(card)
   else if (type === 'stock') div.innerHTML = renderStockCardHtml(card)
   else if (type === 'metals') div.innerHTML = renderMetalsCardHtml(card)
-  else if (type === 'weather') div.innerHTML = renderWeatherCardHtml(card, getWeatherText())
+  else if (type === 'weather') div.innerHTML = weatherCard.renderHtml(card)
   else {
     div.innerHTML = `
       <div class="card-icon" aria-hidden="true">
@@ -612,9 +608,7 @@ const initializeCardData = (card, div) => {
   }
 
   if (type === 'weather') {
-    const renderToken = crypto.randomUUID()
-    div.dataset.weatherRenderToken = renderToken
-    void runWhenIdle(() => ensureWeatherDataForCard(card, { cardEl: div, renderToken }), 800)
+    weatherCard.initialize(card, div)
     return
   }
 
@@ -672,17 +666,6 @@ const handleStockCardClick = async (card, evt) => {
   await send({ type: 'openTabsInNewActive', urls: [url] })
 }
 
-const handleWeatherCardClick = async (card, evt) => {
-  const actionEl = evt.target?.closest?.('[data-weather-action]')
-  if (actionEl?.dataset?.weatherAction === 'refresh') {
-    evt.preventDefault()
-    evt.stopPropagation()
-    await refreshWeatherCard(card.id)
-    return
-  }
-  openWeatherModal({ mode: 'edit', cardId: card.id })
-}
-
 const handleMetalsCardClick = async (card, evt) => {
   const actionEl = evt.target?.closest?.('[data-metals-action]')
   if (actionEl?.dataset?.metalsAction === 'refresh') {
@@ -702,7 +685,7 @@ const cardClickHandlers = {
   anniversary: (card) => openAnniversaryModal(card.id),
   hot: handleHotCardClick,
   stock: handleStockCardClick,
-  weather: handleWeatherCardClick,
+  weather: (card, evt) => weatherCard.handleClick(card, evt),
   metals: handleMetalsCardClick
 }
 
@@ -817,11 +800,7 @@ const initCardDrag = () => {
 }
 
 const cardCleanupHandlers = {
-  weather: async (card, remainingCards) => {
-    const city = getWeatherCity(card)
-    const stillUsed = remainingCards.some((item) => item?.type === 'weather' && getWeatherCity(item) === city)
-    if (city && !stillUsed) await weatherClient.invalidate(city)
-  }
+  weather: (card, remainingCards) => weatherCard.cleanup(card, remainingCards)
 }
 
 const cleanupCardResources = async (card, remainingCards) => {
@@ -1706,84 +1685,6 @@ const refreshHotCard = async (cardId) => {
   await ensureHotDataForCard(card, { cardEl, renderToken, forceRefresh: true })
 }
 
-const getWeatherCity = (card) => String(card?.city || '').trim()
-
-const ensureWeatherDataForCard = async (card, { cardEl, renderToken, forceRefresh = false }) => {
-  const text = getWeatherText()
-  try {
-    const data = await weatherClient.load(getWeatherCity(card), { forceRefresh })
-    updateWeatherCardDom({ cardEl, renderToken, data, text })
-  } catch {
-    updateWeatherCardDom({ cardEl, renderToken, errorText: text.error, text })
-  }
-}
-
-const refreshWeatherCard = async (cardId) => {
-  const card = getCardById(cardId)
-  if (!card || (card.type || 'link') !== 'weather') return
-  const cardEl = document.querySelector(`.card[data-card-id="${card.id}"]`)
-  const renderToken = cardEl?.dataset?.weatherRenderToken
-  if (!cardEl || !renderToken) {
-    renderCards()
-    return
-  }
-  await ensureWeatherDataForCard(card, { cardEl, renderToken, forceRefresh: true })
-}
-
-const closeWeatherModal = () => {
-  $('#weatherOverlay').hidden = true
-  state.editingWeatherCardId = null
-  state.weatherModalMode = 'create'
-}
-
-const openWeatherModal = ({ mode, cardId }) => {
-  const overlay = $('#weatherOverlay')
-  const titleEl = $('#weatherModalTitle')
-  const cityInput = $('#weatherCityInput')
-  const card = mode === 'edit' ? getCardById(cardId) : null
-  state.weatherModalMode = mode === 'edit' ? 'edit' : 'create'
-  state.editingWeatherCardId = mode === 'edit' ? cardId : null
-  titleEl.textContent = mode === 'edit'
-    ? (getLang() === 'en' ? 'Weather settings' : '天气设置')
-    : (getLang() === 'en' ? 'Add weather' : '新增天气')
-  cityInput.value = getWeatherCity(card)
-  overlay.hidden = false
-  closeComponentList()
-  closeCardMenu()
-  requestAnimationFrame(() => cityInput.focus())
-}
-
-const addWeatherComponent = async (city) => {
-  const next = [...(state.config.cards || [])]
-  next.push({
-    id: crypto.randomUUID(),
-    type: 'weather',
-    city,
-    title: getLang() === 'en' ? `${city} Weather` : `${city}天气`
-  })
-  state.config.cards = next
-  await saveConfig({ cards: next })
-  renderCards()
-  scheduleAutoPush()
-}
-
-const saveWeatherCardPatch = async (cardId, city) => {
-  const next = [...(state.config.cards || [])]
-  const index = next.findIndex((card) => card.id === cardId)
-  if (index === -1) return
-  const previousCard = next[index]
-  next[index] = {
-    ...next[index],
-    city,
-    title: getLang() === 'en' ? `${city} Weather` : `${city}天气`
-  }
-  state.config.cards = next
-  await saveConfig({ cards: next })
-  await cleanupCardResources(previousCard, next)
-  renderCards()
-  scheduleAutoPush()
-}
-
 const closeHotModal = () => {
   $('#hotOverlay').hidden = true
   state.editingHotCardId = null
@@ -1835,7 +1736,6 @@ const saveHotCardPatch = async (cardId, patch) => {
   renderCards()
   scheduleAutoPush()
 }
-
 
 /**
  * 关闭股票设置弹窗。
@@ -2030,6 +1930,33 @@ const saveAnniversaryCardPatch = async (cardId, patch) => {
   scheduleAutoPush()
 }
 
+/**
+ * 天气卡片控制器：渲染、拉取、刷新与增删改弹窗都在 weather-card-controller 内完成。
+ * 放在这里创建是因为它依赖的卡片仓储（saveConfig/renderCards/getCardById 等）都已定义。
+ */
+const weatherCard = createWeatherCardController({
+  storage: chrome.storage.local,
+  getLang,
+  getText: getWeatherText,
+  runWhenIdle,
+  closeOverlays: () => {
+    closeComponentList()
+    closeCardMenu()
+  },
+  cards: {
+    list: () => state.config.cards || [],
+    getById: getCardById,
+    persist: async (next) => {
+      state.config.cards = next
+      await saveConfig({ cards: next })
+    },
+    apply: () => {
+      renderCards()
+      scheduleAutoPush()
+    }
+  }
+})
+
 const initCardUi = () => {
   const menu = $('#cardMenu')
   const editBtn = $('#cardMenuEditBtn')
@@ -2073,7 +2000,7 @@ const initCardUi = () => {
     if ((card?.type || 'link') === 'anniversary') openAnniversaryModal(card.id)
     else if ((card?.type || 'link') === 'hot') openHotModal({ mode: 'edit', cardId: card.id })
     else if ((card?.type || 'link') === 'stock') openStockModal({ mode: 'edit', cardId: card.id })
-    else if ((card?.type || 'link') === 'weather') openWeatherModal({ mode: 'edit', cardId: card.id })
+    else if ((card?.type || 'link') === 'weather') weatherCard.openModal({ mode: 'edit', cardId: card.id })
     else if ((card?.type || 'link') === 'metals') closeCardMenu()
     else openCardModal({ mode: 'edit', card })
   })
@@ -2170,7 +2097,7 @@ const initCardUi = () => {
     closeComponentList()
     await addAnniversaryComponent()
   })
-  componentWeatherBtn.addEventListener('click', () => openWeatherModal({ mode: 'create' }))
+  componentWeatherBtn.addEventListener('click', () => weatherCard.openModal({ mode: 'create' }))
 
   const hotOverlay = $('#hotOverlay')
   const hotCloseBtn = $('#hotCloseBtn')
@@ -2196,32 +2123,7 @@ const initCardUi = () => {
     closeHotModal()
   })
 
-  const weatherOverlay = $('#weatherOverlay')
-  const weatherCloseBtn = $('#weatherCloseBtn')
-  const weatherCancelBtn = $('#weatherCancelBtn')
-  const weatherForm = $('#weatherForm')
-  const weatherCityInput = $('#weatherCityInput')
-  weatherOverlay.addEventListener('click', (evt) => {
-    if (evt.target === weatherOverlay) closeWeatherModal()
-  })
-  weatherCloseBtn.addEventListener('click', closeWeatherModal)
-  weatherCancelBtn.addEventListener('click', closeWeatherModal)
-  weatherCityInput.addEventListener('input', () => weatherCityInput.setCustomValidity(''))
-  weatherForm.addEventListener('submit', async (evt) => {
-    evt.preventDefault()
-    const city = weatherCityInput.value.trim()
-    if (!city) {
-      weatherCityInput.setCustomValidity(getLang() === 'en' ? 'Enter a city' : '请输入城市名称')
-      weatherCityInput.reportValidity()
-      return
-    }
-    if (state.weatherModalMode === 'edit' && state.editingWeatherCardId) {
-      await saveWeatherCardPatch(state.editingWeatherCardId, city)
-    } else {
-      await addWeatherComponent(city)
-    }
-    closeWeatherModal()
-  })
+  weatherCard.bindModalUi()
 
   const stockOverlay = $('#stockOverlay')
   const stockCloseBtn = $('#stockCloseBtn')
