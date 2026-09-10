@@ -1,5 +1,5 @@
 import { createExtensionApiClient } from './extension-api.js'
-import { applyTheme, bindThemeRadioNavigation, getConfigTheme, persistThemeSelection, subscribeToThemeChanges } from './theme.js'
+import { initThemeController } from './theme-controller.js'
 
 const $ = (selector) => document.querySelector(selector)
 
@@ -34,19 +34,6 @@ const setStatus = (text, kind = 'info') => {
   const el = $('#status')
   el.textContent = text || ''
   el.dataset.kind = kind
-}
-
-const setThemeStatus = (text, kind = 'info') => {
-  const el = $('#themeStatus')
-  el.textContent = text || ''
-  el.dataset.kind = kind
-}
-
-const renderThemeSelection = (theme = getConfigTheme(currentConfig)) => {
-  for (const input of document.querySelectorAll('input[name="theme"]')) {
-    input.checked = input.value === theme
-    input.closest('.theme-option')?.classList.toggle('active', input.checked)
-  }
 }
 
 /**
@@ -115,37 +102,25 @@ const main = async () => {
     return
   }
   currentConfig = res.data
-  applyTheme(getConfigTheme(currentConfig))
-  renderThemeSelection()
+  // 主题面板的 UI 绑定、持久化与跨页面同步统一交给 theme-controller。
+  const themeController = initThemeController({
+    chromeApi: chrome,
+    getConfig: () => currentConfig,
+    saveTheme: async (theme) => {
+      const saved = await send({
+        type: 'setConfig',
+        data: { ui: { ...(currentConfig.ui || {}), theme } }
+      })
+      if (!saved?.ok) throw new Error(saved?.error || '保存主题失败')
+      currentConfig = saved.data
+    },
+    onConfigChange: (_theme, nextConfig) => {
+      currentConfig = nextConfig
+    }
+  })
+  themeController.applyCurrent()
   setFormSync(res.data.sync || {})
   setStatus('已加载当前配置')
-
-  for (const input of document.querySelectorAll('input[name="theme"]')) {
-    input.addEventListener('change', async () => {
-      if (!input.checked) return
-      const result = await persistThemeSelection({
-        currentTheme: getConfigTheme(currentConfig),
-        nextTheme: input.value,
-        saveTheme: async (theme) => {
-          const saved = await send({
-            type: 'setConfig',
-            data: { ui: { ...(currentConfig.ui || {}), theme } }
-          })
-          if (!saved?.ok) throw new Error(saved?.error || '保存主题失败')
-          currentConfig = saved.data
-        }
-      })
-      renderThemeSelection(result.theme)
-      setThemeStatus(result.ok ? '' : '主题保存失败，已恢复原主题', result.ok ? 'info' : 'error')
-    })
-  }
-  bindThemeRadioNavigation()
-
-  subscribeToThemeChanges(chrome, (theme, nextConfig) => {
-    currentConfig = nextConfig
-    applyTheme(theme)
-    renderThemeSelection(theme)
-  })
 
   $('#saveBtn').addEventListener('click', async () => {
     disableActions(true)
@@ -186,8 +161,7 @@ const main = async () => {
     }
     setFormSync(pulled.data.sync || {})
     currentConfig = pulled.data
-    applyTheme(getConfigTheme(currentConfig))
-    renderThemeSelection()
+    themeController.applyCurrent()
     setStatus('拉取成功，已写入本地配置', 'ok')
   })
 
@@ -228,8 +202,7 @@ const main = async () => {
       const saved = await send({ type: 'setConfig', data: json })
       if (!saved?.ok) throw new Error(saved?.error || '写入失败')
       currentConfig = saved.data
-      applyTheme(getConfigTheme(currentConfig))
-      renderThemeSelection()
+      themeController.applyCurrent()
       setFormSync(saved.data.sync || {})
       setStatus('导入成功', 'ok')
     } catch (err) {
