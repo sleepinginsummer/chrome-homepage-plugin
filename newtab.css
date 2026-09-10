@@ -3119,15 +3119,16 @@ html[data-theme='neo-brutalism'] .component-item.disabled {
   box-shadow: none;
 }
 
+/*
+ * 窄屏只调整画布宽度：不再隐藏历史侧栏。
+ * 主题只应改变外观，不应改变信息架构——侧栏的显隐统一交给基线的 640px 断点，
+ * 与赛博深色保持一致。
+ */
 @media (max-width: 1319px) {
   html[data-theme='neo-brutalism'] .content-container {
     max-width: 1240px;
     margin-right: 0;
     padding-top: 76px;
-  }
-
-  html[data-theme='neo-brutalism'] .history-sidebar {
-    display: none;
   }
 }
 
@@ -3285,5 +3286,15 @@ html[data-theme='neo-brutalism'] .component-item.disabled {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/*
+ * 窄屏隐藏历史侧栏：必须放在新粗野主题规则之后。
+ * 主题给侧栏设了 display:grid，与这条同特异性，源码顺序在后的才生效。
+ */
+@media (max-width: 640px) {
+  html[data-theme='neo-brutalism'] .history-sidebar {
+    display: none;
   }
 }

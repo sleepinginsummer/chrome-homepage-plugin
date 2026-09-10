@@ -12,7 +12,7 @@
 - 搜索历史：右侧浮层展示最近 20 条历史，搜索前保存到本机，点击可恢复搜索，支持清空。
 - 网址卡片：新增/编辑卡片（标题 + 网址 + 可选 icon URL），支持拖拽排序、右键菜单删除/修改、点击打开。
 - 配置同步：把当前配置（搜索引擎选择、历史、卡片、同步信息等）推送到远端（推荐：Gitee 代码片段），也支持从远端拉取覆盖设置（保留本机搜索历史）；可开启“配置变更后自动推送”。
-- 主题切换：内置「赛博深色」与「新粗野」两套主题，设置中可切换，选择跟随配置同步；窗口较窄时新粗野主题会隐藏历史侧栏。
+- 主题切换：内置「赛博深色」与「新粗野」两套主题，设置中可切换，选择跟随配置同步；两套主题的信息架构一致（例如历史侧栏在同样的窄屏断点才隐藏）。
 - 语言切换：设置中可切换中文/英文（默认中文）。
 
 ### 安装/加载
@@ -68,7 +68,7 @@ npm run smoke           # ~30 seconds per run
 - Search history: the latest 20 terms are saved locally before navigation, with click-to-search and clear-all.
 - Site cards: create/edit cards (title + URL + optional icon URL), drag to reorder, right-click menu to edit/delete, click to open.
 - Config sync: push the current config (engines selection, history, cards, sync settings, etc.) to remote (recommended: Gitee codes); pull to overwrite settings while preserving local search history (including an empty history); optional auto-push on changes.
-- Themes: two built-in themes (Cyber Dark and Neo-Brutalism), switchable in Settings and stored with the config; the Neo-Brutalism layout hides the history sidebar on narrow windows.
+- Themes: two built-in themes (Cyber Dark and Neo-Brutalism), switchable in Settings and stored with the config; both share the same information architecture (for example the history sidebar hides at the same narrow breakpoint).
 - Language: switch Chinese/English in Settings.
 
 ### Install / Load

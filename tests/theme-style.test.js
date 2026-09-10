@@ -51,9 +51,11 @@ describe('concrete blue-red neo-brutalism palette', () => {
     const newtabCss = read('newtab.css')
     const optionsCss = read('options.css')
     const weatherCss = read('weather-card.css')
-    const scopedCss = [newtabCss, optionsCss, weatherCss]
-      .map((css) => css.slice(css.indexOf("html[data-theme='neo-brutalism']")))
+    // 只取「选择器里带新粗野主题」的规则体，避免用首现位置切片把后面的基础样式也算进来。
+    const scopedRules = (css) => [...css.matchAll(/html\[data-theme='neo-brutalism'\][^{]*\{([^}]*)\}/gs)]
+      .map((match) => match[1])
       .join('\n')
+    const scopedCss = [newtabCss, optionsCss, weatherCss].map(scopedRules).join('\n')
 
     expect(newtabCss).toMatch(/html\[data-theme='neo-brutalism'\]\s+\.grid-bg\s*\{[^}]*background-image:\s*none/s)
     expect(optionsCss).toMatch(/html\[data-theme='neo-brutalism'\]\s+body\s*\{[^}]*background-image:\s*none/s)
@@ -88,6 +90,18 @@ describe('concrete blue-red neo-brutalism palette', () => {
 
     expect(newtabCss).toMatch(/html\[data-theme='neo-brutalism'\]\s+\.content-container\s*\{[^}]*max-width:\s*min\(1240px, calc\(100% - 520px\)\)[^}]*margin-right:\s*0/s)
     expect(newtabCss).toMatch(/@media \(max-width:\s*1319px\)[\s\S]*?\.content-container\s*\{[^}]*max-width:\s*1240px[^}]*padding-top:\s*76px/s)
-    expect(newtabCss).toMatch(/@media \(max-width:\s*1319px\)[\s\S]*?\.history-sidebar\s*\{[^}]*display:\s*none/s)
+  })
+
+  it('keeps the history sidebar visibility independent of the theme', () => {
+    const newtabCss = read('newtab.css')
+
+    // 主题只改外观：不管哪个主题，隐藏历史侧栏的规则都必须落在同一个 640px 断点里。
+    const hideRules = [...newtabCss.matchAll(/\.history-sidebar\s*\{[^}]*?display:\s*none[^}]*?\}/gs)]
+    expect(hideRules.length).toBeGreaterThan(0)
+
+    for (const rule of hideRules) {
+      const mediaStart = newtabCss.lastIndexOf('@media', rule.index)
+      expect(newtabCss.slice(mediaStart, rule.index)).toMatch(/@media \(max-width:\s*640px\)/)
+    }
   })
 })

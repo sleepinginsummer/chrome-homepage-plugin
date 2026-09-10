@@ -28,6 +28,11 @@ const EXT_DIR = realpathSync(rootDir)
 const PORT = Number(process.env.SMOKE_PORT || 9333)
 const HEARTBEAT_MS = 20000
 
+/**
+ * Linux（含 CI 容器）上需要额外参数：容器内没有用户命名空间，且 /dev/shm 常常很小。
+ */
+const PLATFORM_FLAGS = process.platform === 'linux' ? ['--no-sandbox', '--disable-dev-shm-usage'] : []
+
 const browser = resolveBrowser()
 if (!browser) {
   console.error('未找到可用于冒烟的浏览器。请先执行：npm run smoke:install')
@@ -46,6 +51,7 @@ const chrome = spawn(browser.path, [
   '--no-first-run',
   '--no-default-browser-check',
   '--disable-features=Translate,OptimizationHints',
+  ...PLATFORM_FLAGS,
   'about:blank'
 ], { stdio: ['ignore', 'pipe', 'pipe'] })
 
@@ -303,7 +309,34 @@ const runChecks = async () => {
     worker.close()
   }
 
-  // 9) 收尾：清掉冒烟写入的数据
+  // 9) 窄屏一致性：两个主题的侧栏显隐断点必须一致，且窄屏不出现横向溢出
+  const widths = [1600, 1320, 1319, 1024, 720, 641, 640, 480]
+  const layout = []
+  for (const width of widths) {
+    await page.send('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: false })
+    await sleep(120)
+    layout.push(await evaluate(`(() => {
+      const root = document.documentElement
+      const previous = root.dataset.theme
+      const sidebar = document.querySelector('#historySidebar')
+      const visible = {}
+      for (const theme of ['cyber-dark', 'neo-brutalism']) {
+        root.dataset.theme = theme
+        visible[theme] = getComputedStyle(sidebar).display !== 'none'
+      }
+      root.dataset.theme = previous
+      return { width: window.innerWidth, dark: visible['cyber-dark'], brutal: visible['neo-brutalism'], overflow: root.scrollWidth - window.innerWidth }
+    })()`))
+  }
+  const mismatched = layout.filter((row) => row.dark !== row.brutal)
+  check('两个主题的侧栏显隐完全一致', mismatched.length === 0, JSON.stringify(layout.map((row) => `${row.width}:${row.dark ? 'on' : 'off'}/${row.brutal ? 'on' : 'off'}`).join(' ')))
+  const wrongBreakpoint = layout.filter((row) => row.dark !== (row.width > 640))
+  check('侧栏只在 ≤640px 隐藏', wrongBreakpoint.length === 0, JSON.stringify(wrongBreakpoint))
+  const overflowing = layout.filter((row) => row.overflow > 1)
+  check('各宽度无横向溢出', overflowing.length === 0, JSON.stringify(overflowing))
+  await page.send('Emulation.clearDeviceMetricsOverride')
+
+  // 10) 收尾：清掉冒烟写入的数据
   await evaluate(`chrome.runtime.sendMessage({ type: 'setConfig', data: { cards: [], searchHistory: [], ui: { language: 'zh', theme: 'cyber-dark' } } })`)
   page.close()
 }
