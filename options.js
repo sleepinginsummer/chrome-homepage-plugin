@@ -1,34 +1,8 @@
 import { createExtensionApiClient } from './extension-api.js'
 import { initThemeController } from './theme-controller.js'
+import { DEFAULT_SYNC_PATH, normalizeSyncDraft, tryParseGitRemote } from './remote-sync.js'
 
 const $ = (selector) => document.querySelector(selector)
-
-const DEFAULT_SYNC_PATH = 'chrome-home-plugin/config.json'
-let currentConfig = null
-
-const parseGitRemote = (gitUrl) => {
-  const raw = String(gitUrl || '').trim()
-  if (!raw) return null
-
-  const giteeCodes = raw.match(/^https?:\/\/gitee\.com\/[^/]+\/codes\/([^/?#]+)(?:[/?#]|$)/i)
-  if (giteeCodes) return { provider: 'gitee_gist', gistId: giteeCodes[1] }
-  return null
-}
-
-const normalizeSync = (sync) => {
-  const raw = sync || {}
-  const parsed = parseGitRemote(raw.gitUrl)
-  return {
-    gitUrl: raw.gitUrl || '',
-    token: raw.token || '',
-    autoPush: Boolean(raw.autoPush),
-    provider: 'gitee_gist',
-    owner: '',
-    repo: '',
-    gistId: raw.gistId || parsed?.gistId || '',
-    path: raw.path || DEFAULT_SYNC_PATH
-  }
-}
 
 const setStatus = (text, kind = 'info') => {
   const el = $('#status')
@@ -55,7 +29,7 @@ const send = (payload) => apiClient.send(payload)
 const getFormSync = () => ({
   ...(() => {
     const gitUrl = $('#gitUrl').value.trim()
-    const parsed = parseGitRemote(gitUrl)
+    const parsed = tryParseGitRemote(gitUrl)
     return {
       gitUrl,
       ...(parsed?.provider === 'gitee_gist'
@@ -69,7 +43,7 @@ const getFormSync = () => ({
 })
 
 const setFormSync = (sync) => {
-  const normalized = normalizeSync(sync)
+  const normalized = normalizeSyncDraft(sync)
   $('#gitUrl').value = normalized.gitUrl || ''
   $('#token').value = normalized.token || ''
   const autoPush = $('#autoPush')
