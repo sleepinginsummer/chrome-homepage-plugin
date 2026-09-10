@@ -11,6 +11,7 @@ import { createMetalsCardController } from './metals-card-controller.js'
 import { createAnniversaryCardController } from './anniversary-card-controller.js'
 import { createSearchController } from './search-controller.js'
 import { createAutoPush } from './auto-push.js'
+import { createSettingsModal } from './settings-modal.js'
 import { createCardGrid } from './card-grid.js'
 import { createLinkCardController } from './link-card-controller.js'
 import { applyTheme, getConfigTheme } from './theme.js'
@@ -497,207 +498,6 @@ const initCardUi = () => {
   anniversaryCard.bindModalUi()
 }
 
-const initSettingsModal = (themeController) => {
-  const overlay = $('#settingsOverlay')
-  const openBtn = $('#openSettingsBtn')
-  const closeBtn = $('#settingsCloseBtn')
-  const title = $('#settingsTitle')
-  const status = $('#syncStatus')
-
-  const setStatus = (text, kind = 'info') => {
-    status.textContent = text || ''
-    status.dataset.kind = kind
-  }
-
-  const getFormSync = () => ({
-    ...(() => {
-      const gitUrl = $('#syncGitUrl').value.trim()
-      const parsed = tryParseGitRemote(gitUrl)
-      return {
-        gitUrl,
-        ...(parsed?.provider === 'gitee_gist'
-          ? { provider: parsed.provider, gistId: parsed.gistId }
-          : {})
-      }
-    })(),
-    token: $('#syncToken').value.trim(),
-    autoPush: Boolean($('#syncAutoPush')?.checked),
-    path: DEFAULT_SYNC_PATH
-  })
-
-  const setFormSync = (sync) => {
-    const normalized = normalizeSyncDraft(sync)
-    $('#syncGitUrl').value = normalized.gitUrl || ''
-    $('#syncToken').value = normalized.token || ''
-    const autoPush = $('#syncAutoPush')
-    if (autoPush) autoPush.checked = Boolean(normalized.autoPush)
-    const autoPushLabel = autoPush?.closest('.engine-checkbox')
-    if (autoPushLabel) autoPushLabel.classList.toggle('active', Boolean(autoPush?.checked))
-  }
-
-  const disableSyncActions = (disabled) => {
-    for (const id of ['syncSaveBtn', 'syncPushBtn', 'syncPullBtn', 'syncTestBtn']) {
-      $(`#${id}`).disabled = disabled
-    }
-  }
-
-  const open = () => {
-    overlay.hidden = false
-    setStatus('')
-    setFormSync(state.config.sync || {})
-    renderLastSyncAt()
-    const lang = $('#languageSelect')
-    if (lang) lang.value = getLang()
-    themeController.syncRadios()
-    themeController.setStatus('')
-    selectTab('appearance')
-    requestAnimationFrame(() => $('#settingsTabAppearance')?.focus())
-  }
-
-  const close = () => {
-    const wasOpen = !overlay.hidden
-    overlay.hidden = true
-    setStatus('')
-    if (wasOpen) requestAnimationFrame(() => openBtn.focus())
-  }
-
-  const selectTab = (tab) => {
-    for (const btn of document.querySelectorAll('.settings-item')) {
-      const active = btn.dataset.tab === tab
-      btn.classList.toggle('active', active)
-      btn.setAttribute('aria-selected', String(active))
-      btn.tabIndex = active ? 0 : -1
-    }
-    $('#settingsPanelAppearance').hidden = tab !== 'appearance'
-    $('#settingsPanelSync').hidden = tab !== 'sync'
-    $('#settingsPanelLanguage').hidden = tab !== 'language'
-    $('#settingsPanelAbout').hidden = tab !== 'about'
-    const dict = getDict()
-    const titleByTab = {
-      appearance: dict.settings_appearance,
-      sync: dict.settings_sync,
-      language: dict.settings_language,
-      about: dict.settings_about
-    }
-    title.textContent = titleByTab[tab] || dict.settings_appearance
-  }
-
-  openBtn.addEventListener('click', open)
-  closeBtn.addEventListener('click', close)
-
-  overlay.addEventListener('click', (evt) => {
-    if (evt.target === overlay) close()
-  })
-
-  document.addEventListener('keydown', (evt) => {
-    if (evt.key === 'Escape' && !overlay.hidden) close()
-  })
-
-  for (const btn of document.querySelectorAll('.settings-item')) {
-    btn.addEventListener('click', () => selectTab(btn.dataset.tab))
-    btn.addEventListener('keydown', (evt) => {
-      if (!['ArrowDown', 'ArrowRight', 'ArrowUp', 'ArrowLeft', 'Home', 'End'].includes(evt.key)) return
-      const tabs = [...document.querySelectorAll('.settings-item')]
-      const currentIndex = tabs.indexOf(btn)
-      const direction = ['ArrowDown', 'ArrowRight'].includes(evt.key) ? 1 : -1
-      const nextIndex = evt.key === 'Home'
-        ? 0
-        : evt.key === 'End'
-          ? tabs.length - 1
-          : (currentIndex + direction + tabs.length) % tabs.length
-      evt.preventDefault()
-      selectTab(tabs[nextIndex].dataset.tab)
-      tabs[nextIndex].focus()
-    })
-  }
-
-  const languageSelect = $('#languageSelect')
-  if (languageSelect) {
-    languageSelect.addEventListener('change', async () => {
-      const next = languageSelect.value === 'en' ? 'en' : 'zh'
-      state.config.ui = { ...(state.config.ui || {}), language: next }
-      await saveConfig({ ui: state.config.ui })
-      applyLanguage()
-      selectTab('language')
-    })
-  }
-
-  $('#syncSaveBtn').addEventListener('click', async () => {
-    disableSyncActions(true)
-    setStatus('保存中...')
-    const saved = await send({ type: 'setConfig', data: { sync: getFormSync() } })
-    disableSyncActions(false)
-    if (!saved?.ok) {
-      setStatus(saved?.error || '保存失败', 'error')
-      return
-    }
-    state.config = saved.data
-    setStatus('已保存', 'ok')
-  })
-
-  $('#syncPushBtn').addEventListener('click', async () => {
-    disableSyncActions(true)
-    setStatus('推送中...')
-    await send({ type: 'setConfig', data: { sync: getFormSync() } })
-    const pushed = await send({ type: 'pushRemote' })
-    disableSyncActions(false)
-    if (!pushed?.ok) {
-      setStatus(pushed?.error || '推送失败', 'error')
-      return
-    }
-    setStatus('推送成功', 'ok')
-    await renderLastSyncAt(pushed?.lastSyncAt)
-  })
-
-  $('#syncPullBtn').addEventListener('click', async () => {
-    disableSyncActions(true)
-    setStatus('拉取中...')
-    await send({ type: 'setConfig', data: { sync: getFormSync() } })
-    const pulled = await send({ type: 'pullRemote' })
-    disableSyncActions(false)
-    if (!pulled?.ok) {
-      setStatus(pulled?.error || '拉取失败', 'error')
-      return
-    }
-    state.config = pulled.data
-    themeController.applyCurrent()
-    setFormSync(pulled.data.sync || {})
-    setStatus('拉取成功，已写入本地配置', 'ok')
-    await renderLastSyncAt(pulled?.lastSyncAt)
-
-    applyLanguage()
-    searchController.renderEngines()
-    searchController.renderHistory()
-    cardGrid.render()
-  })
-
-  $('#syncTestBtn').addEventListener('click', async () => {
-    disableSyncActions(true)
-    setStatus('测试中...')
-    await send({ type: 'setConfig', data: { sync: getFormSync() } })
-    const tested = await send({ type: 'testRemote' })
-    disableSyncActions(false)
-    if (!tested?.ok) {
-      setStatus(tested?.error || '测试失败', 'error')
-      return
-    }
-    setStatus('连接正常', 'ok')
-  })
-
-  const syncAutoPushLabel = $('#syncAutoPush')?.closest('.engine-checkbox')
-  const syncAutoPushActive = () => {
-    if (!syncAutoPushLabel) return
-    syncAutoPushLabel.classList.toggle('active', Boolean($('#syncAutoPush')?.checked))
-  }
-  syncAutoPushActive()
-  $('#syncAutoPush')?.addEventListener('change', async () => {
-    syncAutoPushActive()
-    const saved = await send({ type: 'setConfig', data: { sync: getFormSync() } })
-    if (saved?.ok) state.config = saved.data
-    autoPushScheduler.schedule()
-  })
-}
-
 /**
  * 点击空白区域时将焦点移动到搜索输入框。
  */
@@ -755,7 +555,30 @@ const main = async () => {
   initBlankClickFocus()
   searchController.bindHistoryUi()
   initCardUi()
-  initSettingsModal(themeController)
+
+  // 设置面板要用到主题控制器与各域刷新，放在 main 里创建。
+  const settingsModal = createSettingsModal({
+    getConfig: () => state.config,
+    applyConfig: (next) => {
+      state.config = next
+    },
+    saveConfig,
+    send,
+    setStatus: setSyncStatus,
+    renderLastSyncAt,
+    applyLanguage,
+    theme: themeController,
+    onRemoteConfigApplied: () => {
+      themeController.applyCurrent()
+      applyLanguage()
+      searchController.renderEngines()
+      searchController.renderHistory()
+      cardGrid.render()
+    },
+    onSyncFormChanged: () => autoPushScheduler.schedule(),
+    getLang
+  })
+  settingsModal.init()
   $('#keywordInput').focus()
 
   // 性能优化：启动同步属于非首屏关键路径任务，延迟到空闲时执行，避免“打开新标签页时卡顿”。
