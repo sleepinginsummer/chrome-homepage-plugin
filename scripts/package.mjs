@@ -27,6 +27,7 @@ const runtimeEntries = [
   'weather-card-controller.js', 'hot-card-controller.js',
   'stock.js', 'stock-card.js', 'stock-card-controller.js',
   'metals.js', 'metals-card.js', 'metals-card-controller.js',
+  'anniversary.js', 'anniversary-card.js', 'anniversary-card-controller.js',
   'i18n.js',
   'options.html', 'options.css', 'options.js',
   'newtab.html', 'newtab.css', 'newtab.js',
