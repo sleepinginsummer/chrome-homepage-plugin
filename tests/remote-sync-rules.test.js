@@ -42,10 +42,18 @@ describe('sync remote rules', () => {
     expect(normalizeSyncDraft(broken)).toMatchObject({ gitUrl: broken.gitUrl, gistId: '', branch: 'main' })
   })
 
-  it('keeps stored values over defaults', () => {
+  it('prefers the gistId derived from the url over a stored one', () => {
+    // 存量配置可能同时留着旧 gistId 和新改的地址：必须按地址走，否则会同步到旧代码片段。
     const draft = normalizeSyncDraft({ gitUrl: GITEE_URL, gistId: 'stored', branch: 'dev', path: 'custom/config.json' })
 
-    expect(draft).toMatchObject({ gistId: 'stored', branch: 'dev', path: 'custom/config.json' })
+    expect(draft).toMatchObject({ gistId: 'abc123', branch: 'dev', path: 'custom/config.json' })
+    expect(normalizeSyncConfig({ gitUrl: GITEE_URL, gistId: 'stored' }).gistId).toBe('abc123')
+  })
+
+  it('falls back to the stored gistId when there is no usable url', () => {
+    // 迁移数据：地址为空或指向非 gist 来源时，只能沿用存量 gistId。
+    expect(normalizeSyncDraft({ gitUrl: '', gistId: 'stored' }).gistId).toBe('stored')
+    expect(normalizeSyncDraft({ gitUrl: 'https://github.com/a/b', gistId: 'stored' }).gistId).toBe('stored')
   })
 
   it('fills defaults for an empty config', () => {
