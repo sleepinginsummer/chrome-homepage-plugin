@@ -270,6 +270,49 @@ const runChecks = async () => {
   check('刷新后主题仍为新粗野', (await evaluate('document.documentElement.dataset.theme')) === 'neo-brutalism')
   check('首屏缓存已写入 localStorage', (await evaluate(`localStorage.getItem('chromeHomeTheme')`)) === 'neo-brutalism')
 
+  // 5.1) 跨页面同步：在选项页切主题，新标签页要跟着变
+  const optionsUrl = `chrome-extension://${extensionId}/options.html`
+  const optionsTarget = await (await fetch(`http://127.0.0.1:${PORT}/json/new?${encodeURIComponent(optionsUrl)}`, { method: 'PUT' })).json()
+  const optionsPage = new Cdp(optionsTarget.webSocketDebuggerUrl)
+  await optionsPage.ready
+  await optionsPage.send('Runtime.enable')
+  await optionsPage.send('Log.enable')
+  await sleep(1200)
+
+  const readOptions = async (expression) => {
+    const res = await optionsPage.send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true })
+    if (res.exceptionDetails) throw new Error(`选项页求值异常：${res.exceptionDetails.exception?.description || res.exceptionDetails.text}`)
+    return res.result.value
+  }
+
+  const optionsState = await readOptions(`(() => ({
+    theme: document.documentElement.dataset.theme,
+    checked: document.querySelector('input[name="theme"]:checked')?.value ?? null,
+    status: document.querySelector('#status')?.textContent ?? null
+  }))()`)
+  check('选项页读到同一主题', optionsState.theme === 'neo-brutalism' && optionsState.checked === 'neo-brutalism', JSON.stringify(optionsState))
+  // 选项页 main() 的异常会被它自己的 catch 写进 #status，这里必须显式看一眼
+  check('选项页无错误提示', optionsState.status === '已加载当前配置', String(optionsState.status))
+
+  const optionsSwitch = await readOptions(`(async () => {
+    const radio = document.querySelector('input[name="theme"][value="cyber-dark"]')
+    if (!radio) return { ok: false }
+    radio.click()
+    await new Promise((resolve) => setTimeout(resolve, 600))
+    return { ok: true, theme: document.documentElement.dataset.theme }
+  })()`)
+  check('选项页可以切回赛博深色', optionsSwitch.ok && optionsSwitch.theme === 'cyber-dark', JSON.stringify(optionsSwitch))
+
+  await sleep(800)
+  const synced = await evaluate(`(() => ({
+    theme: document.documentElement.dataset.theme,
+    checked: document.querySelector('input[name="theme"]:checked')?.value ?? null
+  }))()`)
+  check('新标签页跟着切到赛博深色', synced.theme === 'cyber-dark', JSON.stringify(synced))
+  check('新标签页的单选状态同步', synced.checked === 'cyber-dark', JSON.stringify(synced))
+  check('选项页无 JS 异常', optionsPage.errors().length === 0, JSON.stringify(optionsPage.errors()).slice(0, 300))
+  optionsPage.close()
+
   // 6) 语言切换
   const language = await evaluate(`(async () => {
     const select = document.querySelector('#languageSelect')

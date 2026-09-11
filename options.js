@@ -4,6 +4,13 @@ import { DEFAULT_SYNC_PATH, normalizeSyncDraft, tryParseGitRemote } from './remo
 
 const $ = (selector) => document.querySelector(selector)
 
+/**
+ * 选项页持有的配置副本。
+ * 注意：这一行在 8b0660f 收敛同步规则时被误删过（当时和它相邻的 DEFAULT_SYNC_PATH 一起被当副本删掉），
+ * 导致整页 main() 抛 ReferenceError、主题与同步表单全废——tests/options-module.test.js 现在会守住它。
+ */
+let currentConfig = null
+
 const setStatus = (text, kind = 'info') => {
   const el = $('#status')
   el.textContent = text || ''
