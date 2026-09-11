@@ -47,16 +47,20 @@ export const binaryPath = (platform) => {
 }
 
 /**
- * 解析本次要用的浏览器：优先 CHROME_BIN，其次缓存目录里的 Chrome for Testing。
+ * 解析本次要用的浏览器：优先我们自己的 Chrome for Testing 缓存，其次 CHROME_BIN。
+ *
+ * 顺序说明：缓存里的浏览器一定能用命令行加载未打包扩展，而环境里的 CHROME_BIN
+ * 可能指向 stable 版 Chrome（从 137 起禁止 --load-extension，CI 镜像就自带一个），
+ * 所以先用自己的缓存；没装过 CFT 时才回退到 CHROME_BIN。
  *
  * @returns {{path: string, source: string}|null} 找不到时返回 null。
  */
 export const resolveBrowser = () => {
-  const fromEnv = process.env.CHROME_BIN
-  if (fromEnv && existsSync(fromEnv)) return { path: fromEnv, source: 'CHROME_BIN' }
-
   const cached = binaryPath(detectPlatform())
   if (cached && existsSync(cached)) return { path: cached, source: cacheDir }
+
+  const fromEnv = process.env.CHROME_BIN
+  if (fromEnv && existsSync(fromEnv)) return { path: fromEnv, source: 'CHROME_BIN' }
 
   return null
 }

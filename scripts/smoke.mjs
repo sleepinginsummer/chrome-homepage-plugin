@@ -167,6 +167,16 @@ const runChecks = async () => {
   }
 
   // 1) 页面是否真的起来了
+  const isExtensionPage = await evaluate('typeof chrome !== "undefined" && Boolean(chrome.runtime?.id)')
+  if (!isExtensionPage) {
+    const href = await evaluate('location.href')
+    check('页面命中扩展新标签页', false, `当前地址 ${href}`)
+    throw new Error(
+      `扩展没有被加载：${browser.path}（来源 ${browser.source}）。` +
+      'stable 版 Chrome（137+）禁止命令行 --load-extension，' +
+      '请先 npm run smoke:install，或把 CHROME_BIN 指向 Chrome for Testing / Chromium。'
+    )
+  }
   check('页面命中扩展新标签页', (await evaluate('location.href')).includes(`${extensionId}/newtab.html`))
   check('页面确认是 Chrome Home Plugin', (await evaluate('chrome.runtime.getManifest().name')) === 'Chrome Home Plugin')
   check('搜索表单与输入框已渲染', await evaluate(`Boolean(document.querySelector('#keywordInput') && document.querySelector('#searchForm'))`))
