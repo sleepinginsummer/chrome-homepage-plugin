@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          # 冒烟脚本用 Node 自带的 WebSocket 走 CDP，需要 22+
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm test -- --run
+
+      - name: Install Chrome for Testing
+        run: npm run smoke:install
+
+      - name: Smoke test in a real browser
+        run: npm run smoke
+
+      - name: Check packaging
+        run: npm run package
