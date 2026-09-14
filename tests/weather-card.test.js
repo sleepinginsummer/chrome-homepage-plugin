@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getWeatherKind, renderWeatherCardHtml, renderWeatherIcon, updateWeatherCardDom } from '../weather-card.js'
+import { getWeatherDriftDuration, getWeatherKind, renderWeatherCardHtml, renderWeatherIcon, updateWeatherCardDom } from '../weather-card.js'
 
 describe('weather card', () => {
   it('识别不同天气视觉类型', () => {
@@ -9,6 +9,17 @@ describe('weather card', () => {
     expect(getWeatherKind('小雨')).toBe('rain')
     expect(getWeatherKind('大雪')).toBe('snow')
     expect(getWeatherKind('雾')).toBe('fog')
+  })
+
+  it.each([
+    ['未知', 22],
+    ['0km/h', 30],
+    [0, 30],
+    ['8km/h', 22],
+    ['15.5km/h', 14.5],
+    ['100km/h', 6]
+  ])('将风速 %s 换算为背景漂移周期', (windSpeed, duration) => {
+    expect(getWeatherDriftDuration(windSpeed)).toBe(duration)
   })
 
   it('晴天始终使用静态太阳', () => {
@@ -41,8 +52,10 @@ describe('weather card', () => {
   it('渲染实时天气和七天预报', () => {
     const content = { innerHTML: '' }
     const updatedAt = { textContent: '' }
+    const styles = {}
     const cardEl = {
       dataset: { weatherRenderToken: 'token' },
+      style: { setProperty: (name, value) => { styles[name] = value } },
       querySelector: (selector) => selector === '[data-weather-content]' ? content : updatedAt
     }
     const forecasts = Array.from({ length: 7 }, (_, index) => ({
@@ -61,6 +74,7 @@ describe('weather card', () => {
     })
 
     expect(cardEl.dataset.weatherKind).toBe('clear')
+    expect(styles['--weather-drift-duration']).toBe('22s')
     expect(updatedAt.textContent).toBe('更新于 14:25')
     expect(content.innerHTML.match(/class="weather-day /g)).toHaveLength(7)
     expect(content.innerHTML.match(/<picture /g)).toHaveLength(8)

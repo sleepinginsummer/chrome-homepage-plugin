@@ -25,6 +25,24 @@ const WEATHER_ICON_FILES = {
   fog: 'fog'
 }
 
+const DEFAULT_WEATHER_DRIFT_DURATION_SECONDS = 22
+const MIN_WEATHER_DRIFT_DURATION_SECONDS = 6
+const MAX_WEATHER_DRIFT_DURATION_SECONDS = 30
+
+/**
+ * 将接口返回的 km/h 风速换算为背景漂移周期；风速越高，周期越短。
+ */
+export const getWeatherDriftDuration = (windSpeed) => {
+  const match = String(windSpeed ?? '').match(/\d+(?:\.\d+)?/)
+  if (!match) return DEFAULT_WEATHER_DRIFT_DURATION_SECONDS
+
+  const speed = Number(match[0])
+  return Math.min(
+    MAX_WEATHER_DRIFT_DURATION_SECONDS,
+    Math.max(MIN_WEATHER_DRIFT_DURATION_SECONDS, MAX_WEATHER_DRIFT_DURATION_SECONDS - speed)
+  )
+}
+
 export const renderWeatherIcon = (condition, className = 'weather-icon') => {
   const kind = getWeatherKind(condition)
   const iconName = WEATHER_ICON_FILES[kind]
@@ -77,6 +95,7 @@ export const updateWeatherCardDom = ({ cardEl, renderToken, data, errorText, tex
   const current = data.current || {}
   const currentKind = getWeatherKind(current.condition)
   cardEl.dataset.weatherKind = currentKind
+  cardEl.style.setProperty('--weather-drift-duration', `${getWeatherDriftDuration(current.windSpeed)}s`)
   if (updatedAtEl) updatedAtEl.textContent = `${text.updatedAt} ${data.updatedAt || '--'}`
 
   const forecastHtml = (data.forecasts || []).slice(0, 7).map((item) => {

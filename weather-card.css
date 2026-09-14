@@ -68,7 +68,7 @@
   background-size: cover;
   opacity: 0.72;
   transform: scale(1.03);
-  animation: weather-backdrop-drift 22s ease-in-out infinite alternate;
+  animation: weather-backdrop-drift var(--weather-drift-duration, 22s) ease-in-out infinite alternate;
 }
 
 .card.card-weather::after {
