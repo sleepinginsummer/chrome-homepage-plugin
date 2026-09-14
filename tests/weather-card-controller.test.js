@@ -34,6 +34,8 @@ const createDom = () => {
       value: '',
       innerHTML: '',
       dataset: {},
+      // 卡片会用 style.setProperty 写 CSS 变量（背景漂移周期随风速变化）
+      style: { setProperty: vi.fn() },
       addEventListener: vi.fn((type, listener) => listeners.set(type, listener)),
       setCustomValidity: vi.fn(),
       reportValidity: vi.fn(),
