@@ -1,6 +1,6 @@
 import { createCachedRequestClient } from './request-cache.js'
 
-const WEATHER_API_BASE_URL = 'http://47.102.98.123:8778/weather'
+const WEATHER_API_BASE_URL = 'https://bot.znzme.com/weather'
 const DEFAULT_CACHE_TTL_MS = 30 * 60 * 1000
 const DEFAULT_TIMEOUT_MS = 10000
 const DEFAULT_RETRY_DELAYS_MS = [800, 1600]

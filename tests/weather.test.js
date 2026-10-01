@@ -15,6 +15,10 @@ const weatherText = `南京实时天气(更新时间14:25)
 const successResponse = () => ({ ok: true, status: 200, json: async () => ({ data: weatherText }) })
 
 describe('weather client', () => {
+  it('天气请求使用 HTTPS 域名并编码城市参数', () => {
+    expect(getWeatherApiUrl(' 南京 ')).toBe('https://bot.znzme.com/weather?city=%E5%8D%97%E4%BA%AC')
+  })
+
   it('解析实时天气与七天预报', () => {
     const result = parseWeatherApiData({ data: weatherText })
     expect(result.city).toBe('南京')
