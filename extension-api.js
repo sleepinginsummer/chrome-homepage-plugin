@@ -224,14 +224,22 @@ export const handleMessageLocally = async (chromeApi, message) => {
 }
 
 /**
+ * 只做本地读写的消息：service worker 正常时毫秒级就能回。
+ * 给它们短超时，worker 失活时才不会让首屏和配置读写白等一整个长超时。
+ */
+const FAST_TIMEOUT_TYPES = new Set(['getConfig', 'setConfig', 'addSearchHistory'])
+const DEFAULT_FAST_TIMEOUT_MS = 600
+
+/**
  * 创建扩展内部 API 客户端。
  *
  * @param {object} options
  * @param {typeof chrome} options.chromeApi Chrome 扩展 API（通常传 chrome）
  * @param {number} [options.timeoutMs=1500] 单次 sendMessage 超时毫秒
+ * @param {number} [options.fastTimeoutMs=600] 本地读写类消息的超时毫秒（超时后直接本地兜底，不重试）
  * @param {function} [options.onFallback] 发生“无接收端”并切换本地兜底时回调（用于轻提示）
  */
-export const createExtensionApiClient = ({ chromeApi, timeoutMs = 1500, onFallback } = {}) => {
+export const createExtensionApiClient = ({ chromeApi, timeoutMs = 1500, fastTimeoutMs = DEFAULT_FAST_TIMEOUT_MS, onFallback } = {}) => {
   let fallbackNotified = false
 
   /**
@@ -267,8 +275,10 @@ export const createExtensionApiClient = ({ chromeApi, timeoutMs = 1500, onFallba
    * 发送消息：优先 background；“无接收端”时自动切换本地兜底。
    */
   const send = async (payload) => {
+    const isFastMessage = FAST_TIMEOUT_TYPES.has(payload?.type)
+    const attemptTimeoutMs = isFastMessage ? fastTimeoutMs : timeoutMs
     // 重要逻辑：避免 background 不在线时一直 await，导致 newtab 启动卡住。
-    const first = await withTimeout(trySendMessageOnce(payload), timeoutMs, {
+    const first = await withTimeout(trySendMessageOnce(payload), attemptTimeoutMs, {
       ok: false,
       error: 'sendMessage timeout',
       code: 'SEND_TIMEOUT'
@@ -288,17 +298,19 @@ export const createExtensionApiClient = ({ chromeApi, timeoutMs = 1500, onFallba
       return { ok: false, error: errorText || 'sendMessage failed', code: first?.code || 'SEND_FAILED' }
     }
 
-    // 小幅重试一次，降低竞态窗口（service worker 正在唤醒时）。
-    await new Promise((r) => setTimeout(r, 50))
-    const second = await withTimeout(trySendMessageOnce(payload), timeoutMs, {
-      ok: false,
-      error: 'sendMessage timeout',
-      code: 'SEND_TIMEOUT'
-    })
-    if (second?.ok) return second
-
-    // 仍失败：切换本地兜底
-    const reason = second?.error || errorText || 'background unavailable'
+    let reason = errorText || 'background unavailable'
+    // 重要逻辑：本地读写类消息超时即说明 worker 不可用，再重试只会多等一个超时窗口，直接兜底。
+    if (!(isFastMessage && first?.code === 'SEND_TIMEOUT')) {
+      // 小幅重试一次，降低竞态窗口（service worker 正在唤醒时）。
+      await new Promise((r) => setTimeout(r, 50))
+      const second = await withTimeout(trySendMessageOnce(payload), attemptTimeoutMs, {
+        ok: false,
+        error: 'sendMessage timeout',
+        code: 'SEND_TIMEOUT'
+      })
+      if (second?.ok) return second
+      reason = second?.error || reason
+    }
     notifyFallbackOnce(reason)
     console.warn('[chrome-home] fallback to local handler:', reason)
 

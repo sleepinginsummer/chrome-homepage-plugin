@@ -44,6 +44,8 @@ export const computeSearchUrls = (engines, keyword, selectedEngines) => {
  * @param {function(object): void} options.applyConfig 写入控制器从后台拿到的最新配置。
  * @param {function(object): Promise<void>} options.saveConfig 持久化配置补丁（引擎选择、清空历史）。
  * @param {function(object): Promise<object>} options.send 扩展内部消息发送。
+ * @param {function(string[]): Promise<void>} [options.openTabs] 本地打开搜索结果（首个复用当前标签页，其余后台）。
+ *   不传时回退到后台消息；传了就不必再等 service worker 回应。
  * @param {function(string=): void} [options.setError] 页面级错误提示位。
  * @param {function(): void} [options.afterConfigChange] 配置写入后的收尾（自动推送调度）。
  * @param {object} [options.root=document] DOM 根节点。
@@ -57,6 +59,7 @@ export const createSearchController = ({
   applyConfig,
   saveConfig,
   send,
+  openTabs,
   setError,
   afterConfigChange,
   root = getDocument()
@@ -204,8 +207,13 @@ export const createSearchController = ({
     try {
       // openTabs 会导航并卸载当前页面，必须先确认历史已持久化。
       if (shouldAddToHistory) await addToHistory(keyword)
-      const res = await send({ type: 'openTabs', urls })
-      if (!res?.ok) setError?.(res?.error || '打开标签页失败')
+      // 重要逻辑：优先本地打开，避免 service worker 失活时等满消息超时才跳转。
+      if (openTabs) {
+        await openTabs(urls)
+      } else {
+        const res = await send({ type: 'openTabs', urls })
+        if (!res?.ok) setError?.(res?.error || '打开标签页失败')
+      }
     } catch (err) {
       setError?.(err?.message || '搜索失败，请重试')
     } finally {

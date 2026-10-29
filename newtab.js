@@ -17,6 +17,7 @@ import { createCardGrid } from './card-grid.js'
 import { createLinkCardController } from './link-card-controller.js'
 import { applyTheme, getConfigTheme } from './theme.js'
 import { initThemeController } from './theme-controller.js'
+import { openTabs, openTabsInNewActive } from './tabs-ops.js'
 
 const LAST_SYNC_AT_KEY = 'chromeHomeLastSyncAt'
 
@@ -86,6 +87,21 @@ const setError = (message) => {
   }
   box.hidden = false
   text.textContent = message
+}
+
+/**
+ * 在扩展页本地打开标签页。
+ *
+ * 重要逻辑：这里不能用 send({type:'openTabsInNewActive'}) 中转——service worker 失活时，
+ * 消息要等满超时才落到本地兜底，用户点完卡片要干等好几秒才跳转。
+ * 扩展页本身就有 tabs 权限，直接调用即可把点击反馈压到毫秒级。
+ */
+const openInNewTab = async (url) => {
+  try {
+    await openTabsInNewActive(chrome, [url])
+  } catch (error) {
+    setError(error?.message || '打开标签页失败')
+  }
 }
 
 /**
@@ -191,7 +207,7 @@ const cardRegistry = {
 const cardGrid = createCardGrid({
   cards: cardRepository,
   registry: cardRegistry,
-  openUrl: (url) => send({ type: 'openTabsInNewActive', urls: [url] }),
+  openUrl: openInNewTab,
   onContextMenu: ({ x, y, cardId }) => cardUi.openMenu({ x, y, cardId }),
   onAddCard: () => cardUi.openAddChooser(),
   onDragError: (error) => console.error('[chrome-home] card reorder failed', error)
@@ -218,7 +234,7 @@ const weatherCard = createWeatherCardController({
 const hotCard = createHotCardController({
   getLang,
   runWhenIdle,
-  openUrl: (url) => send({ type: 'openTabsInNewActive', urls: [url] }),
+  openUrl: openInNewTab,
   closeOverlays: closeCardOverlays,
   cards: cardRepository
 })
@@ -230,7 +246,7 @@ const hotCard = createHotCardController({
 const stockCard = createStockCardController({
   getLang,
   getText: () => getStockText(getLang()),
-  openUrl: (url) => send({ type: 'openTabsInNewActive', urls: [url] }),
+  openUrl: openInNewTab,
   confirm: (options) => cardUi.openConfirm(options),
   setError,
   closeOverlays: closeCardOverlays,
@@ -244,7 +260,7 @@ const stockCard = createStockCardController({
 const metalsCard = createMetalsCardController({
   getLang,
   getText: () => getMetalsText(getLang()),
-  openUrl: (url) => send({ type: 'openTabsInNewActive', urls: [url] }),
+  openUrl: openInNewTab,
   send,
   cards: cardRepository
 })
@@ -273,6 +289,14 @@ const searchController = createSearchController({
   },
   saveConfig,
   send,
+  // 搜索结果直接本地开标签页：首个复用当前标签页，其余后台打开（与后台分支语义一致）。
+  openTabs: async (urls) => {
+    try {
+      await openTabs(chrome, urls, { preferCurrentTab: true })
+    } catch (error) {
+      setError(error?.message || '打开标签页失败')
+    }
+  },
   setError,
   afterConfigChange: () => autoPushScheduler.schedule()
 })

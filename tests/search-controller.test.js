@@ -71,7 +71,7 @@ const createDom = () => {
   }
 }
 
-const createHarness = ({ config = {}, openResult = { ok: true }, saveError = null } = {}) => {
+const createHarness = ({ config = {}, openResult = { ok: true }, saveError = null, openTabs = null } = {}) => {
   const dom = createDom()
   const errors = []
   const persisted = []
@@ -96,6 +96,7 @@ const createHarness = ({ config = {}, openResult = { ok: true }, saveError = nul
       current = { ...current, ...patch }
     }),
     send,
+    ...(openTabs ? { openTabs } : {}),
     setError: (message) => errors.push(message),
     afterConfigChange: vi.fn(),
     root: dom.root
@@ -245,6 +246,20 @@ describe('search controller form', () => {
     await dom.elements.get('#searchForm').fire('submit')
 
     expect(send.mock.calls.map(([message]) => message.type)).toEqual(['addSearchHistory', 'openTabs'])
+  })
+
+  it('opens results locally when a local opener is injected', async () => {
+    const localOpenTabs = vi.fn(async () => {})
+    const { controller, dom, send } = createHarness({ openTabs: localOpenTabs })
+    controller.bindSearchForm()
+    dom.elements.get('#keywordInput').value = '关键词'
+
+    await dom.elements.get('#searchForm').fire('submit')
+
+    // 本地打开一次，且不再发 openTabs 消息（避免等 service worker 超时）
+    expect(localOpenTabs).toHaveBeenCalledTimes(1)
+    expect(localOpenTabs.mock.calls[0][0]).toHaveLength(2)
+    expect(send.mock.calls.map(([message]) => message.type)).toEqual(['addSearchHistory'])
   })
 
   it('clears the input on Escape', () => {
