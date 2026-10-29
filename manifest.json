@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Chrome Home Plugin",
+  "name": "Smart Home Tab",
   "version": "0.4.0",
   "description": "多引擎搜索 + 常用网址卡片 + 配置同步",
   "chrome_url_overrides": {
@@ -11,9 +11,8 @@
     "service_worker": "background.js",
     "type": "module"
   },
-  "permissions": ["storage", "tabs", "favicon"],
+  "permissions": ["storage", "favicon"],
   "host_permissions": [
-    "https://api.github.com/*",
     "https://gitee.com/*",
     "https://bot.znzme.com/*",
     "https://qt.gtimg.cn/*",
@@ -27,7 +26,7 @@
     "128": "icons/icon128.png"
   },
   "action": {
-    "default_title": "Chrome Home Plugin",
+    "default_title": "Smart Home Tab",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png",

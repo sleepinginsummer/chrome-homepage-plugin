@@ -178,7 +178,7 @@ const runChecks = async () => {
     )
   }
   check('页面命中扩展新标签页', (await evaluate('location.href')).includes(`${extensionId}/newtab.html`))
-  check('页面确认是 Chrome Home Plugin', (await evaluate('chrome.runtime.getManifest().name')) === 'Chrome Home Plugin')
+  check('页面确认是 Smart Home Tab', (await evaluate('chrome.runtime.getManifest().name')) === 'Smart Home Tab')
   check('搜索表单与输入框已渲染', await evaluate(`Boolean(document.querySelector('#keywordInput') && document.querySelector('#searchForm'))`))
   check('默认主题为 cyber-dark', (await evaluate('document.documentElement.dataset.theme')) === 'cyber-dark')
 
@@ -357,7 +357,7 @@ const runChecks = async () => {
       expression: 'chrome.runtime.getManifest().name',
       returnByValue: true
     })).result.value
-    check('service worker 命中的是我们的扩展', swName === 'Chrome Home Plugin', String(swName))
+    check('service worker 命中的是我们的扩展', swName === 'Smart Home Tab', String(swName))
     check('service worker 无异常', worker.errors().length === 0, JSON.stringify(worker.errors()).slice(0, 300))
     worker.close()
   }

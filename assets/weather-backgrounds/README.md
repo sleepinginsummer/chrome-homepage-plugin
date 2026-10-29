@@ -1,6 +1,6 @@
 # Weather card backgrounds
 
-These six local weather backgrounds were generated for the Chrome Home Plugin weather card.
+These six local weather backgrounds were generated for the Smart Home Tab weather card.
 
 ## Generation settings
 
