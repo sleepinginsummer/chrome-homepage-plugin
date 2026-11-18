@@ -173,7 +173,8 @@ body {
   inset: 0;
   border: 2px solid rgba(0, 242, 255, 0.3);
   border-radius: 50%;
-  animation: pulse 3s infinite;
+  /* 有限次后停：无限动画会让合成器在高刷屏上持续出帧，页面静置也占 CPU */
+  animation: pulse 3s 3;
 }
 
 .logo-ring::before {
@@ -182,7 +183,8 @@ body {
   inset: -4px;
   border: 1px dashed rgba(0, 242, 255, 0.2);
   border-radius: 50%;
-  animation: spin 10s linear infinite;
+  /* 同上，转两圈后停 */
+  animation: spin 10s linear 2;
 }
 
 .mini {

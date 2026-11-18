@@ -27,7 +27,9 @@ describe('weather card styles', () => {
     expect(weatherCss).toContain('background-repeat: repeat-x')
     expect(weatherCss).toContain('from { background-position: 0px 50%; }')
     expect(weatherCss).toContain('to { background-position: -2000px 50%; }')
-    expect(weatherCss).toContain('calc(var(--weather-drift-duration, 8s) * 25) linear infinite')
+    // 漂移一圈后停：background-position 动画每帧都要重绘整张卡，不能无限跑。
+    expect(weatherCss).toContain('animation: weather-backdrop-drift calc(var(--weather-drift-duration, 8s) * 25) linear 1;')
+    expect(weatherCss).not.toContain('var(--weather-drift-duration, 8s) * 25) linear infinite')
     expect(weatherCss).not.toContain('infinite alternate')
     expect(weatherCss).not.toContain('translate3d(')
     expect(weatherCss).toContain('.card.card-weather::before { animation: none; }')

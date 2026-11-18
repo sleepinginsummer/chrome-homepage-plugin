@@ -69,7 +69,8 @@
   background-size: 2000px auto;
   background-repeat: repeat-x;
   opacity: 0.72;
-  animation: weather-backdrop-drift calc(var(--weather-drift-duration, 8s) * 25) linear infinite;
+  /* 漂移一圈后停：background-position 动画每帧都要重绘整张卡 */
+  animation: weather-backdrop-drift calc(var(--weather-drift-duration, 8s) * 25) linear 1;
 }
 
 .card.card-weather::after {
