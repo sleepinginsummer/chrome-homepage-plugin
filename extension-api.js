@@ -23,6 +23,8 @@
  * - `{ type: 'pullRemote' }`
  * - `{ type: 'pushRemote' }`
  * - `{ type: 'testRemote' }`
+ * - `{ type: 'readRemoteState' }` 读远端当前配置与备份版本摘要
+ * - `{ type: 'restoreRemote', at: string }` 回滚到指定备份版本
  * - `{ type: 'fetchMetalsQuote' }`
  *
  * ### Response（统一返回）
@@ -31,12 +33,12 @@
  *
  * 约定：
  * - 所有 handler 不应抛出到调用方（除非调用方选择自行 throw），而是返回 ok=false。
- * - 本地兜底的行为应尽量与 background.js 的 onMessage 分支一致。
+ * - 本地兜底的行为应尽量与 background.js 的 onMessage 分支一致（同步类消息已共用 sync-actions.js）。
  */
 
-import { DEFAULT_CONFIG, addSearchHistory, applyRemoteConfig, deepMerge, readConfig, readLastRemoteHash, updateConfig, writeLastRemoteHash, writeLastSyncAt } from './config-store.js'
+import { addSearchHistory, readConfig, updateConfig } from './config-store.js'
 import { openTabs, openTabsInNewActive } from './tabs-ops.js'
-import { computeConfigBeforePush, computeConfigHash, pullRemoteConfig, pushRemoteConfigAndVerify, testRemoteConfig } from './remote-sync.js'
+import { handleSyncMessage, isSyncMessage } from './sync-actions.js'
 
 const GOLD_API_BASE_URL = 'https://api.gold-api.com/price'
 const USD_CNY_API_URL = 'https://open.er-api.com/v6/latest/USD'
@@ -182,36 +184,8 @@ export const handleMessageLocally = async (chromeApi, message) => {
     return { ok: true }
   }
 
-  if (message?.type === 'pullRemote') {
-    const config = await readConfig(chromeApi)
-    const remote = await pullRemoteConfig(config.sync)
-    const merged = await applyRemoteConfig(chromeApi, remote)
-    await writeLastRemoteHash(chromeApi, await computeConfigHash(remote))
-    const lastSyncAt = await writeLastSyncAt(chromeApi)
-    return { ok: true, data: merged, lastSyncAt }
-  }
-
-  if (message?.type === 'pushRemote') {
-    const config = await readConfig(chromeApi)
-    const nextConfig = await computeConfigBeforePush({
-      sync: config.sync,
-      localConfig: config,
-      deepMerge,
-      defaultConfig: DEFAULT_CONFIG,
-      lastRemoteHash: await readLastRemoteHash(chromeApi)
-    })
-    // 推送快照不回写本地，保留网络等待期间的本机变更。
-    const verifiedRemote = await pushRemoteConfigAndVerify(nextConfig.sync, nextConfig)
-    await writeLastRemoteHash(chromeApi, await computeConfigHash(verifiedRemote))
-    const lastSyncAt = await writeLastSyncAt(chromeApi)
-    return { ok: true, lastSyncAt }
-  }
-
-  if (message?.type === 'testRemote') {
-    const config = await readConfig(chromeApi)
-    await testRemoteConfig(config.sync)
-    return { ok: true }
-  }
+  // 同步类消息与 background 共用 sync-actions 的实现，避免两条路径行为分叉。
+  if (isSyncMessage(message)) return handleSyncMessage(chromeApi, message)
 
   if (message?.type === 'fetchMetalsQuote') {
     console.log('[chrome-home] fetchMetalsQuote:local:start')
@@ -276,7 +250,7 @@ export const createExtensionApiClient = ({ chromeApi, timeoutMs = 1500, fastTime
    */
   const send = async (payload) => {
     const isFastMessage = FAST_TIMEOUT_TYPES.has(payload?.type)
-    const attemptTimeoutMs = isFastMessage ? fastTimeoutMs : timeoutMs
+    const attemptTimeoutMs = isSyncMessage(payload) ? Math.max(timeoutMs, 45000) : isFastMessage ? fastTimeoutMs : timeoutMs
     // 重要逻辑：避免 background 不在线时一直 await，导致 newtab 启动卡住。
     const first = await withTimeout(trySendMessageOnce(payload), attemptTimeoutMs, {
       ok: false,
@@ -285,12 +259,13 @@ export const createExtensionApiClient = ({ chromeApi, timeoutMs = 1500, fastTime
     })
 
     if (first?.ok) return first
+    if (first?.code === 'SYNC_CONFLICT') return first
 
     const errorText = first?.error || ''
     const shouldFallbackForMetals = payload?.type === 'fetchMetalsQuote' && /未知消息类型/i.test(errorText)
     const shouldFallback =
       shouldFallbackForMetals ||
-      first?.code === 'SEND_TIMEOUT' ||
+      (first?.code === 'SEND_TIMEOUT' && !isSyncMessage(payload)) ||
       (first?.code === 'RUNTIME_LAST_ERROR' && isNoReceivingEndError(errorText))
 
     if (!shouldFallback) {

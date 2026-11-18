@@ -204,7 +204,28 @@ const runChecks = async () => {
   })()`)
   check('通过后台写入 6 张卡片', seeded)
 
+  // 只替换天气接口响应：真实扩展仍负责发请求、解析和渲染，不依赖线上天气服务。
+  await page.send('Fetch.enable', { patterns: [{ urlPattern: 'https://bot.znzme.com/weather?*' }] })
+  const weatherFixture = new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error('没有收到天气请求')), HEARTBEAT_MS)
+    const onPaused = (event) => {
+      const message = JSON.parse(event.data)
+      if (message.method !== 'Fetch.requestPaused') return
+      page.ws.removeEventListener('message', onPaused)
+      clearTimeout(timeout)
+      const data = '南京实时天气(更新时间14:25)\n气温:23℃,湿度60%,pm2.5:18,东风,风力2级\n[今天]:晴,气温18~25℃,风力2级'
+      page.send('Fetch.fulfillRequest', {
+        requestId: message.params.requestId,
+        responseCode: 200,
+        responseHeaders: [{ name: 'Content-Type', value: 'application/json; charset=utf-8' }],
+        body: Buffer.from(JSON.stringify({ data }), 'utf8').toString('base64')
+      }).then(resolve, reject)
+    }
+    page.ws.addEventListener('message', onPaused)
+  })
   await page.send('Page.reload', { ignoreCache: false })
+  await weatherFixture
+  await page.send('Fetch.disable')
   await sleep(2000)
   const cards = await evaluate(`[...document.querySelectorAll('#cardsGrid .card[data-card-id]')].map((el) => ({ id: el.dataset.cardId, cls: el.className }))`)
   check('6 张卡片全部渲染', cards.length === 6, JSON.stringify(cards.map((card) => card.id)))
@@ -241,6 +262,10 @@ const runChecks = async () => {
       return /加载|Loading/.test(empty.textContent) ? 'loading' : 'error'
     })()`)
     check(`${name}卡片数据链路跑通（离开加载中）`, state === 'data' || state === 'error', `结果：${state}`)
+    if (name === '天气') {
+      const rendered = await evaluate(`document.querySelector(${JSON.stringify(selector)})?.textContent.includes('23')`)
+      check('天气固定响应成功渲染温度', state === 'data' && rendered, `结果：${state}`)
+    }
   }
   check('行情链路无 JS 异常', page.errors().length === 0, JSON.stringify(page.errors()).slice(0, 300))
 

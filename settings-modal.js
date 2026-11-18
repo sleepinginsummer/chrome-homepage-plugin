@@ -11,7 +11,15 @@
  * - 拉取成功后会整体替换配置，因此需要页面回调把卡片、搜索、语言、主题一起刷新。
  */
 
-import { DEFAULT_SYNC_PATH, normalizeSyncDraft, tryParseGitRemote } from './remote-sync.js'
+import {
+  applyProviderVisibility,
+  clearRemoteSearchHistory,
+  sendManualSync,
+  readSyncForm,
+  renderSnapshotList,
+  requestProviderPermission,
+  writeSyncForm
+} from './sync-form.js'
 import { getDict } from './i18n.js'
 
 const TAB_TITLE_KEY = {
@@ -21,7 +29,7 @@ const TAB_TITLE_KEY = {
   about: 'settings_about'
 }
 
-const SYNC_ACTION_IDS = ['syncSaveBtn', 'syncPushBtn', 'syncPullBtn', 'syncTestBtn']
+const SYNC_ACTION_IDS = ['syncSaveBtn', 'syncPushBtn', 'syncPullBtn', 'syncTestBtn', 'syncRefreshBackupsBtn', 'syncClearRemoteHistoryBtn']
 
 const getDocument = () => (typeof document === 'undefined' ? null : document)
 
@@ -59,31 +67,93 @@ export const createSettingsModal = ({
 }) => {
   const $ = (selector) => root?.querySelector?.(selector) || null
 
-  const getFormSync = () => ({
-    ...(() => {
-      const gitUrl = $('#syncGitUrl')?.value.trim() || ''
-      const parsed = tryParseGitRemote(gitUrl)
-      return {
-        gitUrl,
-        ...(parsed?.provider === 'gitee_gist' ? { provider: parsed.provider, gistId: parsed.gistId } : {})
-      }
-    })(),
-    token: $('#syncToken')?.value.trim() || '',
-    autoPush: Boolean($('#syncAutoPush')?.checked),
-    path: DEFAULT_SYNC_PATH
-  })
+  const getFormSync = () => readSyncForm($)
 
+  /**
+   * 动作前确保同步域名已授权。
+   *
+   * 必须在点击处理器最前面调用：chrome.permissions.request 依赖用户手势。
+   *
+   * @returns {Promise<boolean>} 是否拿到权限。
+   */
+  const ensurePermission = async () => {
+    const granted = await requestProviderPermission(
+      typeof chrome === 'undefined' ? null : chrome,
+      getFormSync()
+    )
+    if (!granted) setStatus?.('需要授权访问同步服务商域名，已取消本次操作', 'error')
+    return granted
+  }
+
+  /**
+   * 回填同步表单。
+   *
+   * 注意：复选框用 .engine-checkbox 的 active 类来上色，写值后必须同步一次，
+   * 否则配置是开着的但界面上是灰的。
+   */
   const setFormSync = (sync) => {
-    const normalized = normalizeSyncDraft(sync)
-    const gitUrlInput = $('#syncGitUrl')
-    const tokenInput = $('#syncToken')
-    if (gitUrlInput) gitUrlInput.value = normalized.gitUrl || ''
-    if (tokenInput) tokenInput.value = normalized.token || ''
+    writeSyncForm($, sync)
+    for (const id of ['syncAutoPush', 'syncSectionCards', 'syncSectionEngines', 'syncSectionUi', 'syncSectionHistory']) {
+      const input = $(`#${id}`)
+      const label = input?.closest('.engine-checkbox')
+      if (label) label.classList.toggle('active', Boolean(input?.checked))
+    }
+  }
 
-    const autoPush = $('#syncAutoPush')
-    if (autoPush) autoPush.checked = Boolean(normalized.autoPush)
-    const autoPushLabel = autoPush?.closest('.engine-checkbox')
-    if (autoPushLabel) autoPushLabel.classList.toggle('active', Boolean(autoPush?.checked))
+  /**
+   * 勾选状态变化后刷新对应复选框的高亮。
+   *
+   * @param {Event} evt change 事件。
+   */
+  const syncCheckboxHighlight = (evt) => {
+    const label = evt?.target?.closest?.('.engine-checkbox')
+    if (label) label.classList.toggle('active', Boolean(evt.target.checked))
+  }
+
+  /**
+   * 刷新备份版本列表。
+   *
+   * @param {boolean} [silent] 静默模式：失败时不覆盖面板提示。
+   * @returns {Promise<void>}
+   */
+  const refreshBackups = async ({ silent = false } = {}) => {
+    const state = await send({ type: 'readRemoteState' })
+    if (!state?.ok || !state.data) {
+      if (!silent) setStatus?.(state?.error || '读取备份版本失败', 'error')
+      return
+    }
+    renderSnapshotList({
+      $,
+      state: state.data,
+      lang: getLang(),
+      onRestore: (at) => void restoreBackup(at),
+      setText: setStatus
+    })
+  }
+
+  /**
+   * 回滚到指定备份版本。
+   *
+   * @param {string} at 快照时间戳。
+   * @returns {Promise<void>}
+   */
+  const restoreBackup = async (at) => {
+    if (!at) return
+    if (typeof window !== 'undefined' && !window.confirm('回滚会用该备份覆盖远端当前配置，并保留回滚前的状态。继续？')) return
+
+    await runSyncAction({
+      pendingText: '回滚中...',
+      failureText: '回滚失败',
+      run: () => send({ type: 'restoreRemote', at }),
+      onSuccess: async (restored) => {
+        applyConfig?.(restored.data)
+        onRemoteConfigApplied?.(restored.data)
+        setFormSync(restored.data?.sync || {})
+        setStatus?.('已回滚到该备份版本', 'ok')
+        await refreshBackups({ silent: true })
+        await renderLastSyncAt?.(restored?.lastSyncAt)
+      }
+    })
   }
 
   const disableSyncActions = (disabled) => {
@@ -112,6 +182,9 @@ export const createSettingsModal = ({
     const dict = getDict(getLang())
     const title = $('#settingsTitle')
     if (title) title.textContent = dict[TAB_TITLE_KEY[tab]] || dict.settings_appearance
+
+    // 进入同步分页时拉一次备份列表：只在打开面板时读，避免每次切换都发请求。
+    if (tab === 'sync') void refreshBackups({ silent: true })
   }
 
   const open = () => {
@@ -139,7 +212,8 @@ export const createSettingsModal = ({
   /**
    * 同步表单动作的统一壳：禁用按钮 → 提示 → 执行 → 恢复按钮。
    */
-  const runSyncAction = async ({ pendingText, run, failureText, onSuccess }) => {
+  const runSyncAction = async ({ pendingText, run, failureText, onSuccess, needsPermission = false }) => {
+    if (needsPermission && !(await ensurePermission())) return
     disableSyncActions(true)
     setStatus?.(pendingText)
     try {
@@ -200,6 +274,7 @@ export const createSettingsModal = ({
     $('#syncSaveBtn')?.addEventListener('click', () =>
       runSyncAction({
         pendingText: '保存中...',
+        needsPermission: true,
         failureText: '保存失败',
         run: () => send({ type: 'setConfig', data: { sync: getFormSync() } }),
         onSuccess: async (saved) => {
@@ -212,14 +287,16 @@ export const createSettingsModal = ({
     $('#syncPushBtn')?.addEventListener('click', () =>
       runSyncAction({
         pendingText: '推送中...',
+        needsPermission: true,
         failureText: '推送失败',
         run: async () => {
           await send({ type: 'setConfig', data: { sync: getFormSync() } })
-          return send({ type: 'pushRemote' })
+          return sendManualSync(send, 'pushRemote', () => window.confirm(getDict(getLang()).sync_confirm_push))
         },
         onSuccess: async (pushed) => {
-          setStatus?.('推送成功', 'ok')
+          setStatus?.(pushed.accountStorage ? getDict(getLang()).sync_account_saved : '推送成功', 'ok')
           await renderLastSyncAt?.(pushed?.lastSyncAt)
+          await refreshBackups({ silent: true })
         }
       })
     )
@@ -227,10 +304,11 @@ export const createSettingsModal = ({
     $('#syncPullBtn')?.addEventListener('click', () =>
       runSyncAction({
         pendingText: '拉取中...',
+        needsPermission: true,
         failureText: '拉取失败',
         run: async () => {
           await send({ type: 'setConfig', data: { sync: getFormSync() } })
-          return send({ type: 'pullRemote' })
+          return sendManualSync(send, 'pullRemote', () => window.confirm(getDict(getLang()).sync_confirm_pull))
         },
         onSuccess: async (pulled) => {
           applyConfig?.(pulled.data)
@@ -242,9 +320,26 @@ export const createSettingsModal = ({
       })
     )
 
+    $('#syncClearRemoteHistoryBtn')?.addEventListener('click', () => {
+      const dict = getDict(getLang())
+      const sync = getFormSync()
+      if (sync.sections.history) return setStatus?.(dict.sync_clear_remote_history_disabled, 'error')
+      if (!window.confirm(dict.sync_clear_remote_history_confirm)) return
+      return runSyncAction({
+        pendingText: dict.sync_clear_remote_history,
+        needsPermission: true,
+        failureText: '清除失败',
+        run: () => clearRemoteSearchHistory(send, sync),
+        onSuccess: async () => {
+          setStatus?.(dict.sync_clear_remote_history_done, 'ok')
+          await refreshBackups({ silent: true })
+        }
+      })
+    })
     $('#syncTestBtn')?.addEventListener('click', () =>
       runSyncAction({
         pendingText: '测试中...',
+        needsPermission: true,
         failureText: '测试失败',
         run: async () => {
           await send({ type: 'setConfig', data: { sync: getFormSync() } })
@@ -255,6 +350,29 @@ export const createSettingsModal = ({
         }
       })
     )
+
+    $('#syncProvider')?.addEventListener('change', (evt) => {
+      applyProviderVisibility($, evt.target.value)
+    })
+
+    // 分区开关只是配置项，勾选即落盘，不强制用户再点保存。
+    for (const id of ['syncSectionCards', 'syncSectionEngines', 'syncSectionUi', 'syncSectionHistory']) {
+      const input = $(`#${id}`)
+      if (!input) continue
+      input.addEventListener('change', async (evt) => {
+        syncCheckboxHighlight(evt)
+        const section = id.slice('syncSection'.length).toLowerCase()
+        const saved = await send({ type: 'setConfig', data: { sync: { sections: { [section]: input.checked } } } })
+        if (!saved?.ok) {
+          input.checked = !input.checked
+          syncCheckboxHighlight(evt)
+          setStatus?.(saved?.error || '保存失败', 'error')
+          return
+        }
+        applyConfig?.(saved.data)
+        onSyncFormChanged?.()
+      })
+    }
 
     const syncAutoPushLabel = $('#syncAutoPush')?.closest('.engine-checkbox')
     const syncAutoPushActive = () => {
@@ -268,6 +386,16 @@ export const createSettingsModal = ({
       if (saved?.ok) applyConfig?.(saved.data)
       onSyncFormChanged?.()
     })
+
+    $('#syncRefreshBackupsBtn')?.addEventListener('click', () =>
+      runSyncAction({
+        pendingText: '读取备份版本...',
+        failureText: '读取备份版本失败',
+        needsPermission: true,
+        run: () => send({ type: 'readRemoteState' }),
+        onSuccess: async () => refreshBackups({ silent: true })
+      })
+    )
   }
 
   return { init, open, close, selectTab, getFormSync, setFormSync }

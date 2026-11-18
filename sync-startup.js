@@ -1,33 +1,23 @@
-/**
- * 判断启动时是否满足自动同步条件。
- */
-export const isAutoSyncReady = (sync) => {
-  if (!sync?.autoPush) return false
-  const required = ['gitUrl', 'token']
-  return required.every((key) => Boolean(sync?.[key]))
-}
+import { isSyncConfigured } from './remote-sync.js'
 
-/**
- * 启动时执行一次同步（拉取 + 推送）。
- */
-export const runStartupSync = async ({ sync, send, setStatus, renderLastSyncAt }) => {
+export const isAutoSyncReady = (sync) => Boolean(sync?.autoPush) && isSyncConfigured(sync)
+
+/** 启动只发一条消息，由后台根据持久化状态选择拉取或推送。 */
+export const runStartupSync = async ({ sync, send, setStatus, renderLastSyncAt, applyConfig, onConflict }) => {
   if (!isAutoSyncReady(sync)) return { ok: false, skipped: true }
-
   setStatus?.('启动同步中...')
-  // 先拉取，再推送，保证远端覆盖冲突最小化。
-  const pulled = await send({ type: 'pullRemote' })
-  if (!pulled?.ok) {
-    setStatus?.(pulled?.error || '启动同步拉取失败', 'error')
-    return { ok: false, stage: 'pull' }
+  const result = await send({ type: 'autoSync' })
+  if (!result?.ok) {
+    setStatus?.(result?.error || '启动同步失败', 'error')
+    if (result?.code === 'SYNC_CONFLICT') onConflict?.(result.error)
+    return { ok: false }
   }
-
-  const pushed = await send({ type: 'pushRemote' })
-  if (!pushed?.ok) {
-    setStatus?.(pushed?.error || '启动同步推送失败', 'error')
-    return { ok: false, stage: 'push' }
+  if (result.skipped) {
+    setStatus?.('')
+    return { ok: true, skipped: true }
   }
-
-  setStatus?.('启动同步完成', 'ok')
-  await renderLastSyncAt?.(pushed?.lastSyncAt || pulled?.lastSyncAt)
+  if (result.pulled) applyConfig?.(result.data)
+  setStatus?.(result.accountStorage ? '已更新本机 Chrome 同步存储' : '启动同步完成', 'ok')
+  await renderLastSyncAt?.(result.lastSyncAt)
   return { ok: true }
 }

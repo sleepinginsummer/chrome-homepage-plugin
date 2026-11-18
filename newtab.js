@@ -1,7 +1,7 @@
 const $ = (selector) => document.querySelector(selector)
 
 import { runStartupSync } from './sync-startup.js'
-import { DEFAULT_SYNC_PATH, normalizeSyncDraft, tryParseGitRemote } from './remote-sync.js'
+import { isSyncConfigured } from './remote-sync.js'
 import { getDict, applyTranslations, getMetalsText, getStockText, getWeatherText } from './i18n.js'
 import { createExtensionApiClient } from './extension-api.js'
 import { createHotCardController } from './hot-card-controller.js'
@@ -43,7 +43,16 @@ const apiClient = createExtensionApiClient({
 })
 const send = (payload) => apiClient.send(payload)
 
+let syncConflictText = ''
+const showSyncConflict = (message) => {
+  syncConflictText = message
+  setError(message)
+}
 const setSyncStatus = (text, kind = 'info') => {
+  if (kind === 'ok' && syncConflictText && text) {
+    if ($('#errorText')?.textContent === syncConflictText) setError('')
+    syncConflictText = ''
+  }
   const status = $('#syncStatus')
   if (!status) return
   status.textContent = text || ''
@@ -304,9 +313,10 @@ const searchController = createSearchController({
 /** 自动推送调度：配置变更后延迟推送，页面只提供状态提示与收尾。 */
 const autoPushScheduler = createAutoPush({
   getConfig: () => state.config,
-  normalizeSync: normalizeSyncDraft,
+  isSyncReady: isSyncConfigured,
   pushRemote: send,
   setStatus: setSyncStatus,
+  onConflict: showSyncConflict,
   afterPush: (lastSyncAt) => renderLastSyncAt(lastSyncAt)
 })
 
@@ -395,12 +405,19 @@ const main = async () => {
 
   // 性能优化：启动同步属于非首屏关键路径任务，延迟到空闲时执行，避免“打开新标签页时卡顿”。
   runWhenIdle(async () => {
-    // 启动时若开启自动同步，执行一次拉取 + 推送。
     await runStartupSync({
-      sync: normalizeSyncDraft(state.config?.sync),
+      sync: state.config?.sync,
       send,
       setStatus: setSyncStatus,
-      renderLastSyncAt
+      renderLastSyncAt,
+      onConflict: showSyncConflict,
+      applyConfig: (config) => {
+        state.config = config
+        applyLanguage()
+        searchController.renderEngines()
+        searchController.renderHistory()
+        cardGrid.render()
+      }
     })
   }, 1500)
 }

@@ -102,7 +102,7 @@ describe.each(['background', 'local'])('search history via %s', (mode) => {
     expect(await readHistory(send)).toEqual([])
   })
 
-  it('startup pull and push preserve local history even when remote omits it', async () => {
+  it('startup pull preserves local history even when remote omits it', async () => {
     delete remote.searchHistory
     const result = await runStartupSync({ sync: remote.sync, send })
     expect(result.ok).toBe(true)
@@ -110,6 +110,9 @@ describe.each(['background', 'local'])('search history via %s', (mode) => {
   })
 
   it('does not overwrite changes made while a push is waiting', async () => {
+    expect((await send({ type: 'pullRemote' })).ok).toBe(true)
+    await send({ type: 'setConfig', data: { cards: [{ id: 'new', title: '新卡片' }] } })
+    fetchStarted = deferred()
     fetchRelease = deferred()
     const push = send({ type: 'pushRemote' })
     await fetchStarted.promise

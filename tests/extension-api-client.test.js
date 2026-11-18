@@ -42,10 +42,19 @@ describe('extension api client timeout policy', () => {
     const chromeApi = createSilentSendChrome()
     const client = createExtensionApiClient({ chromeApi, timeoutMs: 100 })
 
-    const pending = client.send({ type: 'testRemote' })
+    const pending = client.send({ type: 'openTabs' })
     await vi.advanceTimersByTimeAsync(100 + 50 + 100 + 50)
     await pending
 
     expect(chromeApi.runtime.sendMessage).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not repeat a remote mutation when the worker response times out', async () => {
+    const chromeApi = createSilentSendChrome()
+    const client = createExtensionApiClient({ chromeApi })
+    const pending = client.send({ type: 'clearRemoteHistory' })
+    await vi.advanceTimersByTimeAsync(45000)
+    expect(await pending).toMatchObject({ ok: false, code: 'SEND_TIMEOUT' })
+    expect(chromeApi.runtime.sendMessage).toHaveBeenCalledTimes(1)
   })
 })

@@ -12,9 +12,13 @@
  * - 返回的配置始终会与 DEFAULT_CONFIG 深合并，保证 engines 等关键字段不为 undefined。
  */
 
+import { DEFAULT_SNAPSHOT_KEEP, DEFAULT_SYNC_SECTIONS, applyRemotePayload, buildRemotePayload, computeConfigHash } from './sync-remote-doc.js'
+
 export const STORAGE_KEY = 'chromeHomeConfig'
 export const LAST_SYNC_AT_KEY = 'chromeHomeLastSyncAt'
 export const LAST_REMOTE_HASH_KEY = 'chromeHomeLastRemoteHash'
+const SYNC_STATE_KEY = 'chromeHomeSyncState'
+export const SYNC_DEVICE_KEY = 'chromeHomeSyncDevice'
 
 export const THEME_IDS = ['cyber-dark', 'neo-brutalism']
 export const DEFAULT_THEME = 'cyber-dark'
@@ -42,9 +46,15 @@ export const DEFAULT_CONFIG = {
     theme: DEFAULT_THEME
   },
   sync: {
+    // provider 由 remote-sync 推断/校验；这里只给空骨架，避免默认值与真实规范化规则两处漂移。
+    provider: '',
     gitUrl: '',
+    webdavUrl: '',
+    username: '',
     token: '',
-    autoPush: false
+    autoPush: false,
+    sections: DEFAULT_SYNC_SECTIONS,
+    snapshotKeep: DEFAULT_SNAPSHOT_KEEP
   }
 }
 
@@ -199,11 +209,51 @@ export const writeConfig = async (chromeApi, nextConfig) => {
  * 在扩展页面与 service worker 之间串行化读改写，避免并发更新覆盖历史。
  * 网络请求应放在锁外，拿到结果后再基于最新本地配置更新。
  */
-export const updateConfig = (chromeApi, patch) =>
-  navigator.locks.request('chrome-home-config', async () => {
+const withConfigLock = (run) => navigator.locks.request('chrome-home-config', run)
+const payloadHash = (config) => computeConfigHash(buildRemotePayload(config, config.sync?.sections))
+
+export const readSyncState = (chromeApi) => withConfigLock(async () => {
+  const config = await readConfig(chromeApi)
+  const stored = await storageLocalGet(chromeApi, [SYNC_STATE_KEY, LAST_REMOTE_HASH_KEY])
+  return { config, revision: '', baseline: stored[LAST_REMOTE_HASH_KEY] || '', ...stored[SYNC_STATE_KEY] }
+})
+
+export const updateConfig = (chromeApi, patch) => withConfigLock(async () => {
+  const current = await readConfig(chromeApi)
+  const next = normalizeConfig(typeof patch === 'function' ? patch(current) : deepMerge(current, patch || {}))
+  const values = { [STORAGE_KEY]: next }
+  // 配置和待上传版本一起落盘，页面关闭也不会丢掉这笔改动。
+  if (await payloadHash(current) !== await payloadHash(next)) {
+    const stored = await storageLocalGet(chromeApi, [SYNC_STATE_KEY, LAST_REMOTE_HASH_KEY])
+    values[SYNC_STATE_KEY] = {
+      baseline: stored[LAST_REMOTE_HASH_KEY] || '',
+      ...stored[SYNC_STATE_KEY],
+      revision: createDeviceId()
+    }
+  }
+  await storageLocalSet(chromeApi, values)
+  return next
+})
+
+/** 在锁内提交同步结果。网络等待期间新增的改动必须保留，不能被拉取或清掉待上传标记。 */
+export const commitSyncState = (chromeApi, started, { target, baseline, remote, keepPending = false }) =>
+  withConfigLock(async () => {
     const current = await readConfig(chromeApi)
-    const next = typeof patch === 'function' ? patch(current) : deepMerge(current, patch || {})
-    return writeConfig(chromeApi, next)
+    const stored = await storageLocalGet(chromeApi, SYNC_STATE_KEY)
+    const revision = stored[SYNC_STATE_KEY]?.revision || ''
+    if (await computeConfigHash(current.sync) !== await computeConfigHash(started.config.sync)) {
+      throw new Error('同步设置已变更，请重试')
+    }
+    const changed = revision !== started.revision
+    if (remote && changed) throw new Error('同步期间本机配置已变更，已保留本机修改，请重试')
+    const config = remote ? normalizeConfig(applyRemotePayload(current, remote, current.sync?.sections)) : current
+    const lastSyncAt = new Date().toISOString()
+    await storageLocalSet(chromeApi, {
+      ...(remote ? { [STORAGE_KEY]: config } : {}),
+      [SYNC_STATE_KEY]: { target, baseline, revision: keepPending || changed ? revision : '' },
+      [LAST_SYNC_AT_KEY]: lastSyncAt
+    })
+    return { ok: true, data: config, lastSyncAt }
   })
 
 export const addSearchHistory = (chromeApi, keyword) => {
@@ -215,37 +265,47 @@ export const addSearchHistory = (chromeApi, keyword) => {
   }))
 }
 
-/**
- * 远端配置覆盖可同步设置；历史属于本机，包含主动清空的空数组。
- */
-export const applyRemoteConfig = (chromeApi, remote) =>
-  updateConfig(chromeApi, (current) => ({
-    ...normalizeConfig(remote),
-    searchHistory: current.searchHistory
-  }))
 
 /**
- * 写入最近一次成功拉取/推送确认后的远端配置 hash，用于防止旧本地配置覆盖新远端。
+ * 生成设备标识，写进远端文档用来展示"这一版是哪台设备推的"。
+ *
+ * @param {object} chromeApi Chrome API。
+ * @returns {Promise<{id: string, name: string}>} 设备信息。
  */
-export const writeLastRemoteHash = async (chromeApi, hash) => {
-  const value = typeof hash === 'string' ? hash : ''
-  await storageLocalSet(chromeApi, { [LAST_REMOTE_HASH_KEY]: value })
-  return value
+export const readSyncDevice = async (chromeApi) => {
+  const result = await storageLocalGet(chromeApi, SYNC_DEVICE_KEY)
+  const stored = result?.[SYNC_DEVICE_KEY]
+  if (stored && typeof stored.id === 'string' && stored.id) {
+    return { id: stored.id, name: typeof stored.name === 'string' ? stored.name : '' }
+  }
+
+  const device = { id: createDeviceId(), name: describePlatform() }
+  await storageLocalSet(chromeApi, { [SYNC_DEVICE_KEY]: device })
+  return device
 }
 
 /**
- * 读取最近一次成功拉取/推送确认后的远端配置 hash。
+ * 优先用 crypto.randomUUID，老内核退化成随机串。
+ *
+ * @returns {string} 设备 id。
  */
-export const readLastRemoteHash = async (chromeApi) => {
-  const result = await storageLocalGet(chromeApi, LAST_REMOTE_HASH_KEY)
-  return result?.[LAST_REMOTE_HASH_KEY] || ''
+const createDeviceId = () => {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID()
+  const random = Math.random().toString(36).slice(2, 10)
+  return `${Date.now().toString(36)}-${random}`
 }
 
 /**
- * 写入最近同步时间到 storage.local。
+ * 从 userAgent 取一个人能看懂的平台名，避免在设置页显示一长串 UA。
+ *
+ * @returns {string} 平台名。
  */
-export const writeLastSyncAt = async (chromeApi, isoTime) => {
-  const value = typeof isoTime === 'string' && isoTime ? isoTime : new Date().toISOString()
-  await storageLocalSet(chromeApi, { [LAST_SYNC_AT_KEY]: value })
-  return value
+const describePlatform = () => {
+  const ua = typeof navigator === 'undefined' ? '' : navigator.userAgent || ''
+  if (/CrOS/.test(ua)) return 'ChromeOS'
+  if (/Mac OS X|Macintosh/.test(ua)) return 'macOS'
+  if (/Windows/.test(ua)) return 'Windows'
+  if (/Android/.test(ua)) return 'Android'
+  if (/Linux/.test(ua)) return 'Linux'
+  return 'Chrome'
 }

@@ -1,6 +1,6 @@
-import { DEFAULT_CONFIG, addSearchHistory, applyRemoteConfig, deepMerge, readConfig, readLastRemoteHash, updateConfig, writeLastRemoteHash, writeLastSyncAt } from './config-store.js'
+import { addSearchHistory, readConfig, updateConfig } from './config-store.js'
 import { openTabs, openTabsInNewActive } from './tabs-ops.js'
-import { computeConfigBeforePush, computeConfigHash, pullRemoteConfig, pushRemoteConfigAndVerify, testRemoteConfig } from './remote-sync.js'
+import { handleSyncMessage, isSyncMessage } from './sync-actions.js'
 
 const GOLD_API_BASE_URL = 'https://api.gold-api.com/price'
 const USD_CNY_API_URL = 'https://open.er-api.com/v6/latest/USD'
@@ -157,35 +157,9 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       sendResponse({ ok: true })
       return
     }
-    if (message?.type === 'pullRemote') {
-      const config = await readConfig(chrome)
-      const remote = await pullRemoteConfig(config.sync)
-      const merged = await applyRemoteConfig(chrome, remote)
-      await writeLastRemoteHash(chrome, await computeConfigHash(remote))
-      const lastSyncAt = await writeLastSyncAt(chrome)
-      sendResponse({ ok: true, data: merged, lastSyncAt })
-      return
-    }
-    if (message?.type === 'pushRemote') {
-      const config = await readConfig(chrome)
-      const nextConfig = await computeConfigBeforePush({
-        sync: config.sync,
-        localConfig: config,
-        deepMerge,
-        defaultConfig: DEFAULT_CONFIG,
-        lastRemoteHash: await readLastRemoteHash(chrome)
-      })
-      // 推送的是读取时的快照，不回写本地，避免覆盖网络等待期间新增的历史。
-      const verifiedRemote = await pushRemoteConfigAndVerify(nextConfig.sync, nextConfig)
-      await writeLastRemoteHash(chrome, await computeConfigHash(verifiedRemote))
-      const lastSyncAt = await writeLastSyncAt(chrome)
-      sendResponse({ ok: true, lastSyncAt })
-      return
-    }
-    if (message?.type === 'testRemote') {
-      const config = await readConfig(chrome)
-      await testRemoteConfig(config.sync)
-      sendResponse({ ok: true })
+    // 同步类消息统一交给 sync-actions，与页面本地兜底共用同一份实现。
+    if (isSyncMessage(message)) {
+      sendResponse(await handleSyncMessage(chrome, message))
       return
     }
     if (message?.type === 'fetchMetalsQuote') {

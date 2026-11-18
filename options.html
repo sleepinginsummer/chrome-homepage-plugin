@@ -13,7 +13,7 @@
     <main class="page">
       <header class="header">
         <h1>配置同步</h1>
-        <p class="sub">支持 GitHub / Gitee：把当前配置（搜索、历史、卡片、同步信息）保存为仓库中的一个 JSON 文件。</p>
+        <p class="sub" data-i18n="sync_sub">把配置存到 GitHub / Gitee 代码片段、WebDAV 或 Chrome 账号同步，并保留历史版本可回滚。</p>
       </header>
 
       <section class="card appearance-card" aria-labelledby="appearanceTitle">
@@ -38,35 +38,72 @@
 
       <section class="card">
         <div class="grid">
-          <label class="field">
-            <span class="label">Git 代码片段地址</span>
-            <input id="gitUrl" class="input" placeholder="例如：https://gitee.com/<用户名>/codes/<代码片段ID>" />
-            <span class="hint">仅支持 Gitee 代码片段地址（/codes/…）。</span>
+          <label class="field field-full">
+            <span class="label" data-i18n="sync_provider">服务商</span>
+            <select id="syncProvider" class="input">
+              <option value="github_gist" data-i18n="sync_provider_github">GitHub 代码片段</option>
+              <option value="gitee_gist" data-i18n="sync_provider_gitee">Gitee 代码片段</option>
+              <option value="webdav" data-i18n="sync_provider_webdav">WebDAV（坚果云 / Nextcloud）</option>
+              <option value="storage_sync" data-i18n="sync_provider_storage">Chrome 账号同步</option>
+            </select>
           </label>
 
-          <label class="field field-full">
-            <span class="label">Token</span>
-            <input id="token" class="input" type="password" placeholder="GitHub Token / Gitee 私人令牌" />
-            <span class="hint">仅保存在浏览器的 `chrome.storage.local`，不会上传到别处；推送/拉取时会使用该 token。</span>
+          <label class="field field-full" data-sync-field="gitUrl">
+            <span class="label" data-i18n="sync_giturl">代码片段地址</span>
+            <input id="syncGitUrl" class="input" data-i18n-placeholder="sync_giturl_ph" />
           </label>
 
-          <label class="field field-full">
-            <span class="label">自动同步</span>
+          <label class="field field-full" data-sync-field="webdavUrl">
+            <span class="label" data-i18n="sync_webdav_url">WebDAV 目录地址</span>
+            <input id="syncWebdavUrl" class="input" data-i18n-placeholder="sync_webdav_url_ph" />
+          </label>
+
+          <label class="field" data-sync-field="username">
+            <span class="label" data-i18n="sync_username">用户名</span>
+            <input id="syncUsername" class="input" autocomplete="off" />
+          </label>
+
+          <label class="field" data-sync-field="token">
+            <span class="label" data-i18n="sync_token">Token / 密码</span>
+            <input id="syncToken" class="input" type="password" autocomplete="off" data-i18n-placeholder="sync_token_ph" />
+          </label>
+
+          <div class="field field-full">
+            <span class="label" data-i18n="sync_sections">同步内容</span>
+            <div class="toggle-grid">
+              <label class="toggle-row"><input id="syncSectionCards" type="checkbox" /><span class="hint" data-i18n="sync_section_cards">网址卡片</span></label>
+              <label class="toggle-row"><input id="syncSectionEngines" type="checkbox" /><span class="hint" data-i18n="sync_section_engines">搜索引擎</span></label>
+              <label class="toggle-row"><input id="syncSectionUi" type="checkbox" /><span class="hint" data-i18n="sync_section_ui">主题与语言</span></label>
+              <label class="toggle-row"><input id="syncSectionHistory" type="checkbox" /><span class="hint" data-i18n="sync_section_history">搜索历史</span></label>
+            </div>
+          </div>
+
+          <div class="field field-full" data-sync-field="autoPush">
+            <span class="label" data-i18n="sync_autopush">自动同步</span>
             <label class="toggle-row">
-              <input id="autoPush" type="checkbox" />
-              <span class="hint">配置变更后自动推送到远端</span>
+              <input id="syncAutoPush" type="checkbox" />
+              <span class="hint" data-i18n="sync_autopush_desc">配置变更后自动推送到远端</span>
             </label>
-          </label>
+          </div>
         </div>
 
         <div class="actions">
-          <button id="saveBtn" class="btn primary" type="button">保存</button>
-          <button id="pushBtn" class="btn" type="button">推送到远端</button>
-          <button id="pullBtn" class="btn" type="button">从远端拉取</button>
-          <button id="testBtn" class="btn" type="button">测试连接</button>
+          <button id="saveBtn" class="btn primary" type="button" data-i18n="common_save">保存</button>
+          <button id="pushBtn" class="btn" type="button" data-i18n="sync_push">推送到远端</button>
+          <button id="pullBtn" class="btn" type="button" data-i18n="sync_pull">从远端拉取</button>
+          <button id="testBtn" class="btn" type="button" data-i18n="sync_test">测试连接</button>
+          <button id="clearRemoteHistoryBtn" class="btn" type="button" data-i18n="sync_clear_remote_history">清除远端搜索历史</button>
         </div>
 
         <p id="status" class="status" role="status"></p>
+
+        <div class="backup" data-sync-field="backup">
+          <div class="backup-head">
+            <h2 data-i18n="sync_snapshots">备份版本</h2>
+            <button id="refreshBackupsBtn" class="btn" type="button" data-i18n="sync_snapshots_refresh">刷新</button>
+          </div>
+          <ul id="syncSnapshotList" class="snapshot-list"></ul>
+        </div>
       </section>
 
       <section class="card">

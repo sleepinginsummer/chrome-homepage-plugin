@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
  * 这里用最小 chrome + DOM 桩把它跑一遍，断言能读出配置且无错误提示。
  */
 
-const BUTTON_IDS = ['saveBtn', 'pushBtn', 'pullBtn', 'testBtn', 'exportBtn', 'importFile']
+const BUTTON_IDS = ['saveBtn', 'pushBtn', 'pullBtn', 'testBtn', 'exportBtn', 'importFile', 'refreshBackupsBtn']
 
 const createFakeElement = (selector) => {
   const listeners = new Map()
@@ -44,7 +44,8 @@ const createDocumentStub = () => {
   }
 
   for (const id of [
-    '#status', '#themeStatus', '#gitUrl', '#token', '#autoPush',
+    '#status', '#themeStatus', '#syncProvider', '#syncGitUrl', '#syncWebdavUrl', '#syncUsername', '#syncToken',
+    '#syncAutoPush', '#syncSectionCards', '#syncSectionEngines', '#syncSectionUi', '#syncSectionHistory',
     ...BUTTON_IDS.map((id) => `#${id}`)
   ]) get(id)
 
@@ -121,8 +122,11 @@ describe('options module boot', () => {
     const checked = globalThis.document.radios.filter((radio) => radio.checked).map((radio) => radio.value)
     expect(checked).toEqual(['cyber-dark'])
 
-    // 同步表单按配置预填，且按钮没有被永久禁用
-    expect(globalThis.document.get('#gitUrl').value).toBe('')
+    // 同步表单按配置预填：默认服务商是 GitHub 代码片段，地址为空，分区默认只同步卡片/引擎/外观
+    expect(globalThis.document.get('#syncProvider').value).toBe('github_gist')
+    expect(globalThis.document.get('#syncGitUrl').value).toBe('')
+    expect(globalThis.document.get('#syncSectionCards').checked).toBe(true)
+    expect(globalThis.document.get('#syncSectionHistory').checked).toBe(false)
     expect(globalThis.document.get('#saveBtn').disabled).toBe(false)
   })
 })

@@ -2,14 +2,15 @@
 
 Smart Home Tab（下称"本扩展"，原 Chrome Home Plugin）
 
-最后更新：2026-10-29
+最后更新：2026-11-04
 
 ## 你的数据存在哪里
 
 本扩展不使用任何作者自建的服务器，也不会把用户数据上传到作者。
 
 - 扩展配置、网址卡片、搜索历史、主题与语言设置：保存在浏览器本地存储（`chrome.storage.local`）中，仅存在于你自己的电脑上。
-- 配置同步 token（可选功能）：保存在浏览器本地存储中；只有你主动填写并开启同步时，才会请求你指定的 Gitee 代码片段地址来读写你自己的配置文件。
+- 配置同步凭据（可选功能）：代码片段 Token 或 WebDAV 应用密码，保存在浏览器本地存储中，**不会写入远端配置文件**；只有你主动填写并开启同步时，才会请求你指定的同步服务地址来读写你自己的配置文件。
+- 搜索历史默认不参与同步。关闭后不会上传新的本机历史；「清除远端搜索历史」会清理当前同步源的配置文件和插件备份。该操作不删除本机历史或服务商保留的历史修订。
 
 ## 会发起的网络请求
 
@@ -22,7 +23,8 @@ Smart Home Tab（下称"本扩展"，原 Chrome Home Plugin）
 | 股票行情 | qt.gtimg.cn | 你在自选股卡片中填写的股票代码 |
 | 黄金白银报价 | api.gold-api.com | 无用户数据 |
 | 美元兑人民币汇率 | open.er-api.com | 无用户数据 |
-| 配置同步（可选） | gitee.com | 你自己的配置文件内容与 token |
+| 配置同步（可选，代码片段） | gitee.com / api.github.com / gist.githubusercontent.com | 你自己的配置文件内容（不含 token） |
+| 配置同步（可选，WebDAV） | 你自己填写的 WebDAV 域名 | 你自己的配置文件内容（不含密码） |
 | 网址卡片图标 | 卡片对应站点、favicon.im、Chrome favicon API | 卡片网址 |
 
 ## 不收集什么
@@ -37,6 +39,7 @@ Smart Home Tab（下称"本扩展"，原 Chrome Home Plugin）
 - `storage`：保存上述配置与历史
 - `favicon`：在网址卡片上显示站点图标
 - 各站点主机权限：仅用于上表列出的内容请求
+- 可选主机权限（GitHub 代码片段、WebDAV 域名）：只在你于设置中点击推送/拉取/测试时按需申请，拒绝授权不影响其它功能；`chrome.storage.sync` 同步源不需要任何额外权限
 
 ## 删除数据
 
@@ -52,6 +55,6 @@ Smart Home Tab（下称"本扩展"，原 Chrome Home Plugin）
 
 Smart Home Tab stores all configuration, cards and search history in your browser's local storage (`chrome.storage.local`). The developer operates no servers and does not collect, transmit or sell your data.
 
-Optional config sync talks only to the Gitee snippet URL you configure yourself. Network requests are limited to the weather, trending, stock, precious-metal, exchange-rate and favicon endpoints listed above, and are used solely to render the new tab page.
+Optional config sync talks only to the sync endpoint you configure yourself. Network requests are limited to the weather, trending, stock, precious-metal, exchange-rate and favicon endpoints listed above, and are used solely to render the new tab page.
 
 No analytics, no ads, no tracking, no web page content access. Uninstalling the extension removes all locally stored data.

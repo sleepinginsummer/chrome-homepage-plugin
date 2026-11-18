@@ -139,23 +139,78 @@
             <section class="settings-panel" id="settingsPanelSync" role="tabpanel" aria-labelledby="settingsTabSync" hidden>
               <div class="settings-grid">
                 <label class="field field-full">
-                  <span class="label" data-i18n="sync_giturl">Git 代码片段地址</span>
-                  <input
-                    id="syncGitUrl"
-                    class="input"
-                    placeholder="例如：https://gitee.com/<用户名>/codes/<代码片段ID>"
-                    data-i18n-placeholder="sync_giturl_ph"
-                  />
-                  <span class="settings-hint" data-i18n="sync_giturl_hint">仅支持 Gitee 代码片段地址（/codes/…）。</span>
+                  <span class="label" data-i18n="sync_provider">服务商</span>
+                  <select id="syncProvider" class="input">
+                    <option value="github_gist" data-i18n="sync_provider_github">GitHub 代码片段</option>
+                    <option value="gitee_gist" data-i18n="sync_provider_gitee">Gitee 代码片段</option>
+                    <option value="webdav" data-i18n="sync_provider_webdav">WebDAV（坚果云 / Nextcloud）</option>
+                    <option value="storage_sync" data-i18n="sync_provider_storage">Chrome 账号同步</option>
+                  </select>
                 </label>
 
-                <label class="field field-full">
-                  <span class="label" data-i18n="sync_token">Token</span>
-                  <input id="syncToken" class="input" type="password" placeholder="GitHub Token / Gitee 私人令牌" data-i18n-placeholder="sync_token_ph" />
-                  <span class="settings-hint" data-i18n="sync_token_hint">token 仅保存在 `chrome.storage.local`；推送/拉取时会使用。</span>
+                <label class="field field-full" data-sync-field="gitUrl">
+                  <span class="label" data-i18n="sync_giturl">代码片段地址</span>
+                  <input id="syncGitUrl" class="input" data-i18n-placeholder="sync_giturl_ph" />
                 </label>
 
-                <label class="field field-full">
+                <label class="field field-full" data-sync-field="webdavUrl">
+                  <span class="label" data-i18n="sync_webdav_url">WebDAV 目录地址</span>
+                  <input id="syncWebdavUrl" class="input" data-i18n-placeholder="sync_webdav_url_ph" />
+                </label>
+
+                <label class="field" data-sync-field="username">
+                  <span class="label" data-i18n="sync_username">用户名</span>
+                  <input id="syncUsername" class="input" autocomplete="off" />
+                </label>
+
+                <label class="field" data-sync-field="token">
+                  <span class="label" data-i18n="sync_token">Token / 密码</span>
+                  <input id="syncToken" class="input" type="password" autocomplete="off" data-i18n-placeholder="sync_token_ph" />
+                </label>
+
+                <div class="field field-full">
+                  <span class="label" data-i18n="sync_sections">同步内容</span>
+                  <div class="sync-sections">
+                    <label class="engine-checkbox">
+                      <input type="checkbox" id="syncSectionCards" />
+                      <div class="checkbox-custom" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                          <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                      </div>
+                      <span class="engine-name" data-i18n="sync_section_cards">网址卡片</span>
+                    </label>
+                    <label class="engine-checkbox">
+                      <input type="checkbox" id="syncSectionEngines" />
+                      <div class="checkbox-custom" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                          <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                      </div>
+                      <span class="engine-name" data-i18n="sync_section_engines">搜索引擎</span>
+                    </label>
+                    <label class="engine-checkbox">
+                      <input type="checkbox" id="syncSectionUi" />
+                      <div class="checkbox-custom" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                          <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                      </div>
+                      <span class="engine-name" data-i18n="sync_section_ui">主题与语言</span>
+                    </label>
+                    <label class="engine-checkbox">
+                      <input type="checkbox" id="syncSectionHistory" />
+                      <div class="checkbox-custom" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                          <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                      </div>
+                      <span class="engine-name" data-i18n="sync_section_history">搜索历史</span>
+                    </label>
+                  </div>
+                </div>
+
+                <label class="field field-full" data-sync-field="autoPush">
                   <span class="label" data-i18n="sync_autopush">自动同步</span>
                   <label class="engine-checkbox sync-autopush-control">
                     <input type="checkbox" id="syncAutoPush" />
@@ -174,10 +229,19 @@
                 <button class="ghost-button" id="syncPushBtn" type="button" data-i18n="sync_push">推送到远端</button>
                 <button class="ghost-button" id="syncPullBtn" type="button" data-i18n="sync_pull">从远端拉取</button>
                 <button class="ghost-button" id="syncTestBtn" type="button" data-i18n="sync_test">测试连接</button>
+                <button class="ghost-button" id="syncClearRemoteHistoryBtn" type="button" data-i18n="sync_clear_remote_history">清除远端搜索历史</button>
               </div>
 
               <p class="settings-status" id="syncStatus" role="status"></p>
               <p class="settings-status settings-substatus" id="syncLastSyncAt" aria-live="polite"></p>
+
+              <div class="sync-backup" data-sync-field="backup">
+                <div class="sync-backup-head">
+                  <span class="label" data-i18n="sync_snapshots">备份版本</span>
+                  <button class="ghost-button" id="syncRefreshBackupsBtn" type="button" data-i18n="sync_snapshots_refresh">刷新</button>
+                </div>
+                <ul class="sync-snapshot-list" id="syncSnapshotList"></ul>
+              </div>
             </section>
 
             <section class="settings-panel" id="settingsPanelLanguage" role="tabpanel" aria-labelledby="settingsTabLanguage" hidden>

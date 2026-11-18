@@ -33,9 +33,18 @@ const createDom = () => {
     openBtn: register('#openSettingsBtn'),
     closeBtn: register('#settingsCloseBtn'),
     title: register('#settingsTitle'),
+    provider: register('#syncProvider'),
     gitUrl: register('#syncGitUrl'),
+    webdavUrl: register('#syncWebdavUrl'),
+    username: register('#syncUsername'),
     token: register('#syncToken'),
     autoPush: register('#syncAutoPush'),
+    sectionCards: register('#syncSectionCards'),
+    sectionEngines: register('#syncSectionEngines'),
+    sectionUi: register('#syncSectionUi'),
+    sectionHistory: register('#syncSectionHistory'),
+    snapshotList: register('#syncSnapshotList'),
+    refreshBackupsBtn: register('#syncRefreshBackupsBtn'),
     languageSelect: register('#languageSelect'),
     saveBtn: register('#syncSaveBtn'),
     pushBtn: register('#syncPushBtn'),
@@ -47,6 +56,11 @@ const createDom = () => {
     panelAbout: register('#settingsPanelAbout'),
     focusTab: register('#settingsTabAppearance')
   }
+
+  dom.sectionCards.checked = true
+  dom.sectionEngines.checked = true
+  dom.sectionUi.checked = true
+  dom.sectionHistory.checked = false
 
   const tabs = ['appearance', 'sync', 'language', 'about'].map((tab) => {
     const el = createEl(`.settings-item[${tab}]`)
@@ -202,7 +216,19 @@ describe('settings modal sync actions', () => {
 
     expect(deps.send).toHaveBeenCalledWith({
       type: 'setConfig',
-      data: { sync: { gitUrl: 'https://gitee.com/a/codes/b', provider: 'gitee_gist', gistId: 'b', token: 't', autoPush: false, path: 'chrome-home-plugin/config.json' } }
+      data: {
+        sync: {
+          provider: 'gitee_gist',
+          gitUrl: 'https://gitee.com/a/codes/b',
+          gistId: 'b',
+          webdavUrl: '',
+          username: '',
+          token: 't',
+          autoPush: false,
+          sections: { cards: true, engines: true, ui: true, history: false },
+          path: 'config.json'
+        }
+      }
     })
     expect(status).toEqual([['保存中...', 'info'], ['已保存', 'ok']])
     expect(dom.saveBtn.disabled).toBe(false)
@@ -226,7 +252,8 @@ describe('settings modal sync actions', () => {
 
     await dom.pushBtn.fire('click')
 
-    expect(deps.send.mock.calls.map(([message]) => message.type)).toEqual(['setConfig', 'pushRemote'])
+    // 推送成功后顺带刷新一次备份列表，让刚生成的版本立即可见。
+    expect(deps.send.mock.calls.map(([message]) => message.type)).toEqual(['setConfig', 'pushRemote', 'readRemoteState'])
     expect(status.at(-1)).toEqual(['推送成功', 'ok'])
     expect(deps.renderLastSyncAt).toHaveBeenCalledWith('later')
   })

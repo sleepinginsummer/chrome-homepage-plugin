@@ -32,9 +32,9 @@ describe('sync startup', () => {
     expect(calls).toEqual([])
   })
 
-  it('pulls then pushes when auto sync is enabled', async () => {
+  it('delegates the startup decision as a single sync operation', async () => {
     const sync = { autoPush: true, gitUrl: 'https://gitee.com/a/codes/1', token: 't' }
-    const { send, calls } = createSendStub([{ ok: true }, { ok: true, lastSyncAt: '2024-01-01T00:00:00Z' }])
+    const { send, calls } = createSendStub([{ ok: true, lastSyncAt: '2024-01-01T00:00:00Z' }])
     const statuses = []
     const setStatus = (text, kind) => statuses.push({ text, kind })
     let lastSyncAt = null
@@ -49,7 +49,7 @@ describe('sync startup', () => {
     })
 
     expect(isAutoSyncReady(sync)).toBe(true)
-    expect(calls).toEqual([{ type: 'pullRemote' }, { type: 'pushRemote' }])
+    expect(calls).toEqual([{ type: 'autoSync' }])
     expect(statuses[0].text).toContain('启动同步')
     expect(lastSyncAt).toBe('2024-01-01T00:00:00Z')
   })

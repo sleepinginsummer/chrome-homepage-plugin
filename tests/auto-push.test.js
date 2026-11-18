@@ -1,11 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { canAutoPush, createAutoPush } from '../auto-push.js'
 
-const normalizeSync = (sync) => ({
-  gitUrl: sync?.gitUrl || '',
-  token: sync?.token || '',
-  autoPush: Boolean(sync?.autoPush)
-})
+/** 就绪判断由页面注入（真实实现是 remote-sync 的 isSyncConfigured）。 */
+const isSyncReady = (sync) => Boolean(sync?.gitUrl && sync?.token)
 
 const createHarness = ({ sync = {}, pushed = { ok: true, lastSyncAt: 'now' }, debounceMs = 10 } = {}) => {
   let current = { sync }
@@ -17,7 +14,7 @@ const createHarness = ({ sync = {}, pushed = { ok: true, lastSyncAt: 'now' }, de
 
   const scheduler = createAutoPush({
     getConfig: () => current,
-    normalizeSync,
+    isSyncReady,
     pushRemote,
     setStatus: (text, kind = 'info') => status.push([text, kind]),
     afterPush: vi.fn(async () => {}),
@@ -44,7 +41,7 @@ describe('canAutoPush', () => {
     [{ autoPush: true, token: 't' }, false],
     [READY_SYNC, true]
   ])('canAutoPush(%o) === %s', (sync, expected) => {
-    expect(canAutoPush(sync, normalizeSync)).toBe(expected)
+    expect(canAutoPush(sync, isSyncReady)).toBe(expected)
   })
 })
 
@@ -66,7 +63,7 @@ describe('auto push scheduler', () => {
     await vi.advanceTimersByTimeAsync(20)
 
     expect(pushRemote).toHaveBeenCalledTimes(1)
-    expect(pushRemote).toHaveBeenCalledWith({ type: 'pushRemote' })
+    expect(pushRemote).toHaveBeenCalledWith({ type: 'autoSync' })
   })
 
   it('reports success and hands the sync time to the page', async () => {
@@ -94,7 +91,7 @@ describe('auto push scheduler', () => {
     await vi.advanceTimersByTimeAsync(20)
 
     expect(pushRemote).not.toHaveBeenCalled()
-    expect(status).toEqual([['自动同步已开启，但同步配置不完整（需 gitUrl/token）', 'error']])
+    expect(status).toEqual([['自动同步已开启，但同步配置不完整', 'error']])
   })
 
   it('stays quiet when auto push is off', async () => {
@@ -118,7 +115,7 @@ describe('auto push scheduler', () => {
     })
     const scheduler = createAutoPush({
       getConfig: () => ({ sync: READY_SYNC }),
-      normalizeSync,
+      isSyncReady,
       pushRemote,
       setStatus: vi.fn(),
       debounceMs: 10

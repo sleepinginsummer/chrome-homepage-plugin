@@ -538,3 +538,75 @@ html[data-theme='neo-brutalism'] .btn.file:focus-within {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* 同步面板：分区开关与备份版本列表 */
+.toggle-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+.backup {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.backup-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.backup-head h2 {
+  margin: 0;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+.snapshot-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.snapshot-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.snapshot-meta {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.65);
+  font-variant-numeric: tabular-nums;
+}
+
+.snapshot-restore {
+  height: 30px;
+  padding: 0 12px;
+}
+
+html[data-theme='neo-brutalism'] .backup {
+  border-top-color: rgba(0, 0, 0, 0.6);
+}
+
+html[data-theme='neo-brutalism'] .snapshot-meta {
+  color: rgba(0, 0, 0, 0.75);
+}
+
+.snapshot-empty {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.45);
+  line-height: 1.5;
+}
+
+html[data-theme='neo-brutalism'] .snapshot-empty {
+  color: rgba(0, 0, 0, 0.6);
+}
