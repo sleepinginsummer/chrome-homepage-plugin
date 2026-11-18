@@ -60,9 +60,20 @@ npm run smoke           # 一轮约 30 秒
 - 冒烟用独立临时 profile，不碰你本机 Chrome 的数据；结束时会把冒烟写入的卡片与历史清掉。
 - 天气使用固定接口响应，必须成功渲染温度。其他行情卡片只校验离开加载状态，避免第三方服务不可用时阻断冒烟。
 
+### 发布到 Chrome 应用商店
+
+```bash
+npm run package            # 生成 dist/chrome-home-plugin-v<version>.zip
+npm run publish:webstore   # 上传并提交审核
+```
+
+- 需要环境变量 `CWS_CLIENT_ID`、`CWS_CLIENT_SECRET`、`CWS_REFRESH_TOKEN`、`CWS_PUBLISHER_ID`、`CWS_ITEM_ID`；来源与流程见 `scripts/publish-webstore.mjs` 头部说明。
+- `CWS_UPLOAD_ONLY=1` 只上传不提交，适合先在后台看状态。
+- 改了 `permissions` 或 `optional_host_permissions` 之后，后台「隐私惯例」里的权限理由要同步改，否则审核会打回。
+
 ## English
 
-A Chrome New Tab extension: multi-engine search + search history + site cards + config sync (recommended: Gitee codes). The UI language can be switched between Chinese and English (default: Chinese).
+A Chrome New Tab extension: multi-engine search + search history + site cards + cloud sync & backup (GitHub / Gitee gists, WebDAV, Chrome account sync). The UI language can be switched between Chinese and English (default: Chinese).
 
 ### Local smoke test (real browser)
 
@@ -76,6 +87,17 @@ npm run smoke           # ~30 seconds per run
 - Why not your own Chrome: stable builds reject `--load-extension` on the command line; only Chrome for Testing / Chromium builds can load unpacked extensions this way. You can also point `CHROME_BIN` at one you already have.
 - The smoke run uses a throwaway profile and cleans up the cards/history it wrote.
 - Weather must render a temperature from a fixed response. Other quote cards only need to leave the loading state.
+
+### Publish to the Chrome Web Store
+
+```bash
+npm run package            # builds dist/chrome-home-plugin-v<version>.zip
+npm run publish:webstore   # upload + submit for review
+```
+
+- Needs `CWS_CLIENT_ID`, `CWS_CLIENT_SECRET`, `CWS_REFRESH_TOKEN`, `CWS_PUBLISHER_ID`, `CWS_ITEM_ID`; see the header of `scripts/publish-webstore.mjs` for where each one comes from.
+- `CWS_UPLOAD_ONLY=1` uploads without submitting, handy for checking the state in the dashboard first.
+- If `permissions` or `optional_host_permissions` changed, update the justifications under Privacy practices in the dashboard too, otherwise review bounces.
 
 ### Features
 
