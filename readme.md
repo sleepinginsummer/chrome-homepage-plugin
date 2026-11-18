@@ -70,6 +70,7 @@ npm run publish:webstore   # 上传并提交审核
 - 需要环境变量 `CWS_CLIENT_ID`、`CWS_CLIENT_SECRET`、`CWS_REFRESH_TOKEN`、`CWS_PUBLISHER_ID`、`CWS_ITEM_ID`；来源与流程见 `scripts/publish-webstore.mjs` 头部说明。
 - `CWS_UPLOAD_ONLY=1` 只上传不提交，适合先在后台看状态。
 - 改了 `permissions` 或 `optional_host_permissions` 之后，后台「隐私惯例」里的权限理由要同步改，否则审核会打回。
+- 走代理的机器要加 `NODE_USE_ENV_PROXY=1`，Node 的 fetch 默认不吃 `HTTPS_PROXY`。变量可放 `~/.config/cws/env`（`chmod 600`），用 `set -a; . ~/.config/cws/env; set +a` 注入。
 
 ## English
 
@@ -98,6 +99,7 @@ npm run publish:webstore   # upload + submit for review
 - Needs `CWS_CLIENT_ID`, `CWS_CLIENT_SECRET`, `CWS_REFRESH_TOKEN`, `CWS_PUBLISHER_ID`, `CWS_ITEM_ID`; see the header of `scripts/publish-webstore.mjs` for where each one comes from.
 - `CWS_UPLOAD_ONLY=1` uploads without submitting, handy for checking the state in the dashboard first.
 - If `permissions` or `optional_host_permissions` changed, update the justifications under Privacy practices in the dashboard too, otherwise review bounces.
+- Behind a proxy, add `NODE_USE_ENV_PROXY=1`: Node's fetch ignores `HTTPS_PROXY`. The variables can live in `~/.config/cws/env` (`chmod 600`), injected with `set -a; . ~/.config/cws/env; set +a`.
 
 ### Features
 

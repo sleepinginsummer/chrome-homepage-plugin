@@ -22,6 +22,10 @@
  * - publish 只影响"提交给审核"，不会改动商店里已有的可见性设置；
  *   若最近在后台手动改过可见性，需要先在后台发布一次，API 才能继续用。
  * - manifest 版本号必须先升，否则 upload 会被拒绝。
+ * - Node 的 fetch 默认不走系统代理；代理环境（如 127.0.0.1:7890）下要加
+ *   `NODE_USE_ENV_PROXY=1`，否则会卡在 UND_ERR_CONNECT_TIMEOUT。
+ * - 上面的变量可以写进 ~/.config/cws/env（chmod 600），用 `set -a; . ~/.config/cws/env; set +a`
+ *   一次性注入，仓库里不留任何凭据。
  */
 
 import { readFileSync, existsSync } from 'node:fs'
