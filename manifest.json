@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Smart Home Tab",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "多引擎搜索 + 常用网址卡片 + 云同步备份",
   "chrome_url_overrides": {
     "newtab": "newtab.html"
